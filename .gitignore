@@ -4,6 +4,8 @@ DerivedDataCache/
 Intermediate/
 Saved/
 
+[Dd]ev/
+
 *.sln
 *.suo
 *.xcodeproj
