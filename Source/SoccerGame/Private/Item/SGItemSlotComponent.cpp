@@ -3,6 +3,8 @@
 
 #include "Item/SGItemSlotComponent.h"
 
+#include "AbilitySystemComponent.h"
+#include "Abilities/GameplayAbility.h"
 #include "Item/Data/SGItemDefinition.h"
 #include "Net/UnrealNetwork.h"
 
@@ -37,17 +39,30 @@ bool USGItemSlotComponent::AddItem(USGItemDefinition* NewItem)
 	return true;
 }
 
-bool USGItemSlotComponent::ConsumeItem()
+void USGItemSlotComponent::UseItem_Implementation()
 {
-	AActor* Owner = GetOwner();
+	if (ItemSlots.IsEmpty()) return;
 	
-	if (!IsValid(Owner) || !Owner->HasAuthority()) return false;
-	if (ItemSlots.IsEmpty()) return false;
+	// 해당 아이템이 유효하고, 실행할 Gameplay Ability 확인
+	USGItemDefinition* ItemDefinition = ItemSlots[0];
+	if (!IsValid(ItemDefinition) || !ItemDefinition->AbilityClass) return;
+	
+	AActor* Owner = GetOwner();
+	if (!IsValid(Owner)) return;
+	
+	UAbilitySystemComponent* AbilitySystemComponent = Owner->FindComponentByClass<UAbilitySystemComponent>();
+	if (!IsValid(AbilitySystemComponent)) return;
+	
+	// 아이템에 연결된 Gameplay Ability를 일회성 어빌리티로 생성
+	FGameplayAbilitySpec AbilitySpec(
+		ItemDefinition->AbilityClass, 1, INDEX_NONE, ItemDefinition);
+	
+	// 어빌리티를 ASC에 임시 부여하고 즉시 실행
+	const FGameplayAbilitySpecHandle AbilityHandle = AbilitySystemComponent->GiveAbilityAndActivateOnce(AbilitySpec);
+	if (!AbilityHandle.IsValid()) return;
 	
 	ItemSlots.RemoveAt(0);
 	OnItemSlotChanged.Broadcast();
-	
-	return true;
 }
 
 int32 USGItemSlotComponent::GetItemCount() const

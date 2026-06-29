@@ -24,8 +24,9 @@ public:
 	// 아이템 획득
 	bool AddItem(USGItemDefinition* NewItem);
 	
-	// 아이템 소모
-	bool ConsumeItem();
+	// 아이템 사용
+	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "Item")
+	void UseItem();
 
 public:
 	// Getter
@@ -46,6 +47,7 @@ public:
 	FOnItemSlotChanged OnItemSlotChanged;
 	
 private:
+	UPROPERTY()
 	int32 MaxItemCount;
 	
 	UPROPERTY(ReplicatedUsing = OnRep_ItemSlots)
