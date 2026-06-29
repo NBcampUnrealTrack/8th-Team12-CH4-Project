@@ -27,7 +27,7 @@ private:
 	FVector GetRandomSpawnLocation() const;
 	
 	UFUNCTION()
-	void OnSpawnedItemDestroyed(AActor* DestroyedActor);
+	void OnSpawnedItemGranted();
 	
 private:
 	UPROPERTY(EditAnywhere, Category = "Item|Spawner")

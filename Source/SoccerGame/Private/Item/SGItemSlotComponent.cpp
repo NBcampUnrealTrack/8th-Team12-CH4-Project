@@ -48,7 +48,7 @@ void USGItemSlotComponent::UseItem_Implementation()
 	if (!IsValid(ItemDefinition) || !ItemDefinition->AbilityClass) return;
 	
 	AActor* Owner = GetOwner();
-	if (!IsValid(Owner)) return;
+	if (!IsValid(Owner) || !Owner->HasAuthority()) return;
 	
 	UAbilitySystemComponent* AbilitySystemComponent = Owner->FindComponentByClass<UAbilitySystemComponent>();
 	if (!IsValid(AbilitySystemComponent)) return;

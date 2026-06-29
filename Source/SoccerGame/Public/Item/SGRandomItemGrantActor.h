@@ -9,6 +9,8 @@
 class USGItemDefinition;
 class USphereComponent;
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnRandomItemGranted);
+
 UCLASS()
 class SOCCERGAME_API ASGRandomItemGrantActor : public AActor
 {
@@ -26,6 +28,10 @@ private:
 	
 	USGItemDefinition* GetRandomItem();
 
+public:
+	UPROPERTY(BlueprintAssignable, Category = "Item")
+	FOnRandomItemGranted OnRandomItemGranted;
+	
 private:
 	UPROPERTY(VisibleAnywhere, Category = "Item")
 	TObjectPtr<USphereComponent> Collision;
