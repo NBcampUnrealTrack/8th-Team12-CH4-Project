@@ -26,7 +26,4 @@ public:
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Item")
 	TSubclassOf<UGameplayAbility> AbilityClass;
-	
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Item")
-	TSubclassOf<UGameplayEffect> EffectClass;
 };
