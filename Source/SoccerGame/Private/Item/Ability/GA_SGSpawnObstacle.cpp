@@ -3,7 +3,7 @@
 
 #include "Item/Ability/GA_SGSpawnObstacle.h"
 
-#include "Item/Obtacle/SGObstacleBase.h"
+#include "Item/Obstacle/SGObstacleBase.h"
 
 UGA_SGSpawnObstacle::UGA_SGSpawnObstacle()
 {

@@ -1,7 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "Item/Obtacle/SGObstacleBase.h"
+#include "Item/Obstacle/SGObstacleBase.h"
 
 // Sets default values
 ASGObstacleBase::ASGObstacleBase()
