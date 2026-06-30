@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Logging/LogMacros.h"
+#include "AbilitySystemInterface.h"
+#include "AbilitySystemComponent.h"
 #include "SG_Character.generated.h"
 
 class USpringArmComponent;
@@ -15,8 +17,22 @@ struct FInputActionValue;
 
 DECLARE_LOG_CATEGORY_EXTERN(Log_SG_Character, Log, All);
 
+//-------------------------------- AbilityInputID를 설정하는 ENUM --------------------------------//
+UENUM(BlueprintType)
+enum class ESGAbilityInputID : uint8
+{
+	// --- 기본 항목 ---
+	None			UMETA(DisplayName = "None"),
+	Confirm			UMETA(DisplayName = "Confirm"),
+	Cancel			UMETA(DisplayName = "Cancel"),
+	
+	// --- 추가 항목 ---
+	Kick			UMETA(DisplayName = "Kick")
+	// DropKick			UMETA(DisplayName = "DropKick")
+};
+
 UCLASS()
-class SOCCERGAME_API ASG_Character : public ACharacter
+class SOCCERGAME_API ASG_Character : public ACharacter, public IAbilitySystemInterface
 {
 	GENERATED_BODY()
 	
@@ -44,8 +60,13 @@ public:
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 	
+	// Attribute Set
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AbilitySystem")
+	TObjectPtr<class UGAS_SG_CharacterAttributeSet> AttributeSet;
+	
+	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
+	
 protected:
-	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 	
 	void Move(const FInputActionValue& Value);
@@ -54,6 +75,29 @@ protected:
 	virtual void NotifyControllerChanged() override;
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 	
+	virtual void PossessedBy(AController* NewConroller) override;
+	
 private:	
 	virtual void Tick(float DeltaTime) override;
+	
+	//-------------------------------- Ability Input  --------------------------------//
+	void AbilityInputPressed(int32 InputID);
+	void AbilityInputReleased(int32 InputID);
+	
+	// 기본 Ability를 부여하는 함수
+	void GiveDefaultAbilities();
+	
+protected:
+	//-------------------------------- Kick --------------------------------//
+	// ASC 세팅
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GAS")
+	TObjectPtr<UAbilitySystemComponent> AbilitySystemComponent;
+	
+	// Kick 버튼
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	class UInputAction* IA_Kick;
+	
+	// 에디터에서 할당할 발차기 GA 클래스 타입
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GAS")
+	TSubclassOf<class UGameplayAbility> KickAbilityClass;
 };
