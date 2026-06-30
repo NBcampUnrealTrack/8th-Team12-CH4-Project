@@ -23,6 +23,10 @@ protected:
 		const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, 
 		const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 	
+	virtual void InputReleased(
+		const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, 
+		const FGameplayAbilityActivationInfo ActivationInfo) override;
+	
 private:
 	UPROPERTY(EditDefaultsOnly, Category = "Item|Obstacle")
 	TSubclassOf<ASGObstacleBase> ObstacleClass;
