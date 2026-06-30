@@ -3,14 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/GameModeBase.h"
-#include "SG_TitleGameMode.generated.h"
+#include "GameFramework/PlayerState.h"
+#include "SGMainPlayerState.generated.h"
 
 /**
  * 
  */
 UCLASS()
-class SOCCERGAME_API ASG_TitleGameMode : public AGameModeBase
+class SOCCERGAME_API ASGMainPlayerState : public APlayerState
 {
 	GENERATED_BODY()
 	
