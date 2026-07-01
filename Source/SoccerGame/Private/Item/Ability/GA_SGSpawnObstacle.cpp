@@ -31,6 +31,7 @@ void UGA_SGSpawnObstacle::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 void UGA_SGSpawnObstacle::InputReleased(const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo)
 {
+	Super::InputReleased(Handle, ActorInfo, ActivationInfo);
 	// 액터 정보와 장애물 클래스가 유효한지 확인
 	if (ActorInfo == nullptr || !ActorInfo->AvatarActor.IsValid() || ObstacleClass == nullptr){
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
