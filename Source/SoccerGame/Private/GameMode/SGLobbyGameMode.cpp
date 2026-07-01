@@ -4,7 +4,7 @@
 #include "GameMode/SGLobbyGameMode.h"
 #include "SoccerGame/Public/PlayerController/SGLobbyPlayerController.h"
 #include "SoccerGame/Public/GameState/SGLobbyGameState.h"
-#include "SoccerGame/Public/PlayerState/SGPlayerState.h"
+#include "SoccerGame/Public/PlayerState/SGLobbyPlayerState.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/GameStateBase.h"
 #include "Kismet/GameplayStatics.h"
@@ -14,7 +14,7 @@ ASGLobbyGameMode::ASGLobbyGameMode()
 	bUseSeamlessTravel = true;
 	// 수정한 멀티플레이어 대응 전용 클래스들을 기본 클래스로 바인딩
 	PlayerControllerClass = ASGLobbyPlayerController::StaticClass();
-	PlayerStateClass = ASGPlayerState::StaticClass();
+	PlayerStateClass = ASGLobbyPlayerState::StaticClass();
 }
 void ASGLobbyGameMode::BeginPlay()
 {
@@ -108,6 +108,7 @@ void ASGLobbyGameMode::TransitionToGameLevel()
 	NotifyAllPlayers(TEXT("Launching match..."));
 
 	// 서버 트래블을 호출하여 접속 중인 모든 클라이언트를 다음 레벨로 강제 이동시킵니다.
+	UE_LOG(LogTemp, Warning,TEXT("Level Path: %s"), *GameplayLevelPath);
 	GetWorld()->ServerTravel(GameplayLevelPath);
 	UE_LOG(LogTemp, Warning, TEXT("Change Server"));
 	

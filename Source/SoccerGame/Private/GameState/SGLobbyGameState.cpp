@@ -14,6 +14,7 @@ void ASGLobbyGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(ASGLobbyGameState, bIsReady);
+	UE_LOG(LogTemp, Log, TEXT("Clinet Checking "));
 }
 
 void ASGLobbyGameState::OnRep_IsReady()

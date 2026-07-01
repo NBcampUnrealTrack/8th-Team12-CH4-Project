@@ -5,33 +5,24 @@
 #include "SoccerGame/Public/GameState/SGMainGameState.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/PlayerStart.h"
+#include "SoccerGame/Public/GameState/SGMainGameState.h"
 
 ASGMainGameMode::ASGMainGameMode()
 {
 	// GameMode는 오직 서버에만 존재하므로 복제(Replicate)할 필요가 없습니다.
 	bReplicates = false;
+	UE_LOG(LogTemp, Warning, TEXT("In Main Server"));
+	
 }
 
 void ASGMainGameMode::BeginPlay()
 {
 	Super::BeginPlay();
-}
-
-
-void ASGMainGameMode::OnGoalScored(bool bIsRedTeamGoal)
-{
-	// 1. 플레이어 팀 분배 (접속 유저 기준 3:3 분배)
-	int32 PlayerIndex = 0;
-	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
-	{
-		APlayerController* PC = It->Get();
-		if (PC)
-		{
-			if (PlayerIndex % 2 == 0) RedTeamPlayers.Add(PC);
-			else BlueTeamPlayers.Add(PC);
-			PlayerIndex++;
-		}
-	}
+	
+	// PlayerController 보다 먼저 호출됨
+	
+	UE_LOG(LogTemp, Warning, TEXT("In Main Server"));
+	
 	// 2. 초기 맵 세팅 및 공 스폰
 	MovePlayersToSpawnPoints();
 	SpawnNewBall();
@@ -49,6 +40,26 @@ void ASGMainGameMode::OnGoalScored(bool bIsRedTeamGoal)
 
 	// 4. 1초 간격 인게임 타이머 가동
 	GetWorldTimerManager().SetTimer(MatchTimerHandle, this, &ASGMainGameMode::UpdateMatchTime, 1.0f, true);
+}
+
+void ASGMainGameMode::StartLoading()
+{
+	// 시작 전 초기화
+	
+	 // 여기서 스폰을 할까?
+}
+
+void ASGMainGameMode::StartGame()
+{
+	// 게임 시작 
+	// UpdateMatchTime 
+	
+}
+
+
+void ASGMainGameMode::OnGoalScored(bool bIsRedTeamGoal)
+{
+
 }
 
 void ASGMainGameMode::EndMatch()

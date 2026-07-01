@@ -44,11 +44,11 @@ private:
 private:
     // 게임 시작에 필요한 목표(최대) 인원수 (예: 2명)
     UPROPERTY(EditDefaultsOnly, Category = "Lobby Settings")
-    int32 TargetPlayerCount = 1;
+    int32 TargetPlayerCount = 2;
 	
     // 인원이 가득 찼을 때 대기할 시간 (초)
     UPROPERTY(EditDefaultsOnly, Category = "Lobby Settings")
-    int32 CountdownDuration = 15;
+    int32 CountdownDuration = 4;
 	
     // 현재 남은 카운트다운 시간
     int32 CurrentCountdownTime = 0;
@@ -58,8 +58,7 @@ private:
 	
     // 이동할 실제 게임 플레이 맵의 경로
     UPROPERTY(EditDefaultsOnly, Category = "Lobby Settings")
-    FString GameplayLevelPath = TEXT("/Game/SoccerGame/Maps/InGame/SG_MainLevel");
-	
+    FString GameplayLevelPath = TEXT("/Game/SoccerGame/GameModeTestingLevel/MainTestingLevel");
     // 카운트다운이 현재 진행 중인지 여부
     bool bIsCountdownActive = false;
 };

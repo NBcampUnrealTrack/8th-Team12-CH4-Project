@@ -6,9 +6,8 @@
 #include "GameFramework/PlayerController.h"
 #include "SGMainPlayerController.generated.h"
 
-/**
- * 
- */
+
+
 UCLASS()
 class SOCCERGAME_API ASGMainPlayerController : public APlayerController
 {

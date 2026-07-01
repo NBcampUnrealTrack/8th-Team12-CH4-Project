@@ -25,6 +25,12 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+	
+	// 시작전 로딩 + 초기화 
+	void StartLoading();
+	
+	// 게임 시작 
+	void StartGame();
 
 	// 축구공을 맵 중앙에 스폰하는 함수
 	void SpawnNewBall();
