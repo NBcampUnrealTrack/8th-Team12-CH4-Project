@@ -27,6 +27,9 @@ private:
 
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Obstacle")
+	TObjectPtr<USceneComponent> SceneComponent;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Obstacle")
 	TObjectPtr<UStaticMeshComponent> MeshComponent;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Obstacle")
