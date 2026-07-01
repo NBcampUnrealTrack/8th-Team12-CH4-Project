@@ -39,7 +39,7 @@ bool USGItemSlotComponent::AddItem(USGItemDefinition* NewItem)
 	return true;
 }
 
-void USGItemSlotComponent::UseItemPressed_Implementation()
+void USGItemSlotComponent::UseItemPressed()
 {
 	if (ItemSlots.IsEmpty()) return;
 	

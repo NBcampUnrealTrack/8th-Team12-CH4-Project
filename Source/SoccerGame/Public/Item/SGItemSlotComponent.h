@@ -26,7 +26,7 @@ public:
 	bool AddItem(USGItemDefinition* NewItem);
 	
 	// 아이템 사용
-	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "Item")
+	UFUNCTION(BlueprintCallable, Category = "Item")
 	void UseItemPressed();
 	
 	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "Item")
