@@ -57,5 +57,5 @@ private:
 	UPROPERTY(ReplicatedUsing = OnRep_ItemSlots)
 	TArray<TObjectPtr<USGItemDefinition>> ItemSlots;
 	
-	FGameplayAbilitySpecHandle ActiveItemAbilityHandle;
+	TArray<FGameplayAbilitySpecHandle> ItemAbilityHandles;
 };

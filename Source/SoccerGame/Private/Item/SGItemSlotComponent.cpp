@@ -28,12 +28,20 @@ void USGItemSlotComponent::GetLifetimeReplicatedProps(TArray<class FLifetimeProp
 bool USGItemSlotComponent::AddItem(USGItemDefinition* NewItem)
 {
 	AActor* Owner = GetOwner();
-	
 	if (!IsValid(Owner) || !Owner->HasAuthority()) return false;
 	// 아이템을 추가할 공간이 없을 경우
 	if (!IsValid(NewItem) || ItemSlots.Num() >= MaxItemCount) return false;
+	if (!NewItem->AbilityClass) return false;
+	
+	UAbilitySystemComponent* AbilitySystemComponent = Owner->FindComponentByClass<UAbilitySystemComponent>();
+	if (!IsValid(AbilitySystemComponent)) return false;
+	
+	FGameplayAbilitySpec AbilitySpec(NewItem->AbilityClass, 1, INDEX_NONE, NewItem);
+	FGameplayAbilitySpecHandle AbilityHandle = AbilitySystemComponent->GiveAbility(AbilitySpec);
+	if (!AbilityHandle.IsValid()) return false;
 	
 	ItemSlots.Add(NewItem);
+	ItemAbilityHandles.Add(AbilityHandle);
 	OnItemSlotChanged.Broadcast();
 	
 	return true;
@@ -41,32 +49,27 @@ bool USGItemSlotComponent::AddItem(USGItemDefinition* NewItem)
 
 void USGItemSlotComponent::UseItemPressed()
 {
-	if (ItemSlots.IsEmpty()) return;
-	
-	// 이전 AbilitySpecHandle 무효화
-	ActiveItemAbilityHandle = FGameplayAbilitySpecHandle();
+	if (ItemSlots.IsEmpty() || !ItemAbilityHandles.IsValidIndex(0)) return;
 	
 	USGItemDefinition* ItemDefinition = ItemSlots[0];
 	if (!IsValid(ItemDefinition) || !ItemDefinition->AbilityClass) return;
 	
 	AActor* Owner = GetOwner();
-	if (!IsValid(Owner) || !Owner->HasAuthority()) return;
+	if (!IsValid(Owner)) return;
 	
 	UAbilitySystemComponent* AbilitySystemComponent = Owner->FindComponentByClass<UAbilitySystemComponent>();
 	if (!IsValid(AbilitySystemComponent)) return;
 	
-	// GA을 ASC에 일회성으로 등록
-	FGameplayAbilitySpec AbilitySpec(ItemDefinition->AbilityClass, 1, INDEX_NONE, ItemDefinition);
-	FGameplayAbilitySpecHandle AbilityHandle = AbilitySystemComponent->GiveAbilityAndActivateOnce(AbilitySpec);
+	const FGameplayAbilitySpecHandle AbilityHandle = ItemAbilityHandles[0];
 	if (!AbilityHandle.IsValid()) return;
 	
-	// Released 입력에서 InputReleased을 호출하기 위해 보관
-	ActiveItemAbilityHandle = AbilityHandle;
+	AbilitySystemComponent->TryActivateAbility(AbilityHandle);
 }
 
 void USGItemSlotComponent::UseItemReleased_Implementation()
 {
 	if (ItemSlots.IsEmpty()) return;
+	if (!ItemAbilityHandles.IsValidIndex(0)) return;
 	
 	// 해당 아이템이 유효한지, 실행할 Gameplay Ability가 있는지
 	USGItemDefinition* ItemDefinition = ItemSlots[0];
@@ -76,19 +79,20 @@ void USGItemSlotComponent::UseItemReleased_Implementation()
 	if (!IsValid(Owner) || !Owner->HasAuthority()) return;
 	
 	UAbilitySystemComponent* AbilitySystemComponent = Owner->FindComponentByClass<UAbilitySystemComponent>();
-	if (!IsValid(AbilitySystemComponent) || !ActiveItemAbilityHandle.IsValid()) return;
+	if (!IsValid(AbilitySystemComponent)) return;
 	
-	FGameplayAbilitySpec* AbilitySpec =
-		AbilitySystemComponent->FindAbilitySpecFromHandle(ActiveItemAbilityHandle);
+	const FGameplayAbilitySpecHandle AbilityHandle = ItemAbilityHandles[0];
+	if (!AbilityHandle.IsValid()) return;
+	
+	FGameplayAbilitySpec* AbilitySpec = AbilitySystemComponent->FindAbilitySpecFromHandle(AbilityHandle);
 	if (AbilitySpec == nullptr) return;
-	
 	
 	AbilitySystemComponent->AbilitySpecInputReleased(*AbilitySpec);
 	
 	// 아이템 사용 성공 여부와는 관계 없이 소모 처리
 	ItemSlots.RemoveAt(0);
+	ItemAbilityHandles.RemoveAt(0);
 	OnItemSlotChanged.Broadcast();
-	ActiveItemAbilityHandle = FGameplayAbilitySpecHandle();
 }
 
 int32 USGItemSlotComponent::GetItemCount() const
