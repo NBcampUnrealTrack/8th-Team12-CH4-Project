@@ -6,6 +6,8 @@
 #include "AbilitySystemComponent.h"
 #include "Character/GAS/GAS_SG_CharacterAttributeSet.h"
 #include "Abilities/Tasks/AbilityTask_WaitInputRelease.h"
+#include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
+#include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 
 UGA_SG_Kick::UGA_SG_Kick()
 {
@@ -44,7 +46,7 @@ void UGA_SG_Kick::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const
 	else
 	{
 		// 태스크 생성 실패 시 예외 처리 및 능력 즉시 종료
-		FindAndPushBall(0.0f);
+		// FindAndPushBall();
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
 	}
 }
@@ -55,37 +57,14 @@ void UGA_SG_Kick::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGam
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
-void UGA_SG_Kick::FindAndPushBall(float ChargeTime)
+void UGA_SG_Kick::FindAndPushBall()
 {
 	ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
 	if (!Character)
 	{
+		K2_EndAbility();
 		return;
 	}
-	
-	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
-	if (!ASC)
-	{
-		return;
-	}
-	
-	// 킥 파워 디폴트 값 1000.0f
-	float BaseKickPower = 1000.0f;
-	
-	const UGAS_SG_CharacterAttributeSet* AttributeSet = ASC->GetSet<UGAS_SG_CharacterAttributeSet>();
-	if (AttributeSet)
-	{
-		BaseKickPower = AttributeSet->GetKickPower();
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("CharacterAttributeSet 못찾음!!! 디폴트 값 적용"));
-	}
-	
-	// 차지 시간 계산
-	float ChargeRatio = FMath::Clamp(ChargeTime / MaxChargeTime, 0.0f, 1.0f);
-	float FinalMultiplier = FMath::Lerp(1.0f, MaxPowerMultiplier, ChargeRatio);
-	float FinalKickPower = BaseKickPower * FinalMultiplier;
 	
 	FVector Forward = Character->GetActorForwardVector();
 	FVector StartLoc = Character->GetActorLocation() + (Forward * 50.0f);
@@ -126,24 +105,112 @@ void UGA_SG_Kick::FindAndPushBall(float ChargeTime)
 					PushDirection = PushDirection.GetSafeNormal();
 
 					// AttributeSet의 KickPower를 사용하여 임펄스 설정
-					BallMesh->AddImpulse(PushDirection * FinalKickPower, NAME_None, true);
-					UE_LOG(LogTemp, Log, TEXT("킥 파워: %f"), FinalKickPower);
+					BallMesh->AddImpulse(PushDirection * CachedFinalKickPower, NAME_None, true);
+					UE_LOG(LogTemp, Log, TEXT("킥 파워: %f"), CachedFinalKickPower);
 				}
 			}
 		}
 	}
+	
+	K2_EndAbility();
 }
 
 void UGA_SG_Kick::OnInputReleased(float TimeHeld)
 {
 	// 입력이 해제된 시점의 시간 구하기
 	float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-    
 	// 실제 누르고 있었던 시간 계산
 	float ActualChargeTime = CurrentTime - ChargeStartTime;
 
 	UE_LOG(LogTemp, Log, TEXT("마우스 입력 해제! 누른 시간: %f 초"), ActualChargeTime);
 	
-	FindAndPushBall(ActualChargeTime);
-	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
+	float BaseKickPower = 1000.0f;
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+	if (ASC)
+	{
+		const UGAS_SG_CharacterAttributeSet* AttributeSet = ASC->GetSet<UGAS_SG_CharacterAttributeSet>();
+		if (AttributeSet)
+		{
+			BaseKickPower = AttributeSet->GetKickPower();
+		}
+	}
+    
+	float ChargeRatio = FMath::Clamp(ActualChargeTime / MaxChargeTime, 0.0f, 1.0f);
+	float FinalMultiplier = FMath::Lerp(1.0f, MaxPowerMultiplier, ChargeRatio);
+    
+	// 최종 파워 저장
+	CachedFinalKickPower = BaseKickPower * FinalMultiplier; 
+	
+	UAnimMontage* MontageToPlay = nullptr;
+
+	// 0.5초(ActionSplitTime)보다 짧게 누르면 패스, 길게 누르면 슛
+	if (ActualChargeTime < ActionSplitTime)
+	{
+		UE_LOG(LogTemp, Log, TEXT("숏 차징 (%f초) -> 패스 모션 재생"), ActualChargeTime);
+		MontageToPlay = PassMontage;
+	}
+	else
+	{
+		UE_LOG(LogTemp, Log, TEXT("롱 차징 (%f초) -> 슛 모션 재생"), ActualChargeTime);
+		MontageToPlay = ShootMontage;
+	}
+
+	// 캐릭터 몽타주 재생
+	if (MontageToPlay)
+	{
+		// 단순히 몽타주만 재생하는 Task(델리게이트 바인딩 안 해도 됨)
+		UAbilityTask_PlayMontageAndWait* PlayMontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
+		   this,
+		   NAME_None, 
+		   MontageToPlay, 
+		   1.0f, 
+		   NAME_None, 
+		   true
+		);
+		
+		if (PlayMontageTask)
+		{
+			// 캔슬, 인터럽트(피격)등이 발생하면 어빌리티 종료
+			PlayMontageTask->OnCompleted.AddDynamic(this, &UGA_SG_Kick::K2_EndAbility);
+			PlayMontageTask->OnBlendOut.AddDynamic(this, &UGA_SG_Kick::K2_EndAbility);
+			PlayMontageTask->OnInterrupted.AddDynamic(this, &UGA_SG_Kick::K2_EndAbility);
+			PlayMontageTask->OnCancelled.AddDynamic(this, &UGA_SG_Kick::K2_EndAbility);
+			
+			PlayMontageTask->ReadyForActivation();
+		}
+		
+		// 어빌리티 태그 정보가 private 일 수도 있어서 엔진이 제공하는 GetAssetTags()라는 함수를 사용하여 불러와야한다.
+		FGameplayTagContainer AssetTagsContainer = GetAssetTags();
+		FGameplayTag MyAbilityTag = FGameplayTag::EmptyTag;
+		if (AssetTagsContainer.Num() > 0)
+		{
+			MyAbilityTag = AssetTagsContainer.GetByIndex(0);
+		}
+
+		// 태그 이벤트를 기다리는 Task
+		UAbilityTask_WaitGameplayEvent* WaitEventTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
+		   this, 
+		   MyAbilityTag,     // 에디터에서 설정한 GA_SG_Kick의 Tag
+		   nullptr,          // Optional External Optional Actor
+		   false             // bOnlyTriggerOnce (한 번만 트리거할지 여부)
+		);
+
+		if (WaitEventTask)
+		{
+			// 이벤트가 들어오면 실행할 함수 바인딩
+			WaitEventTask->EventReceived.AddDynamic(this, &UGA_SG_Kick::OnGameplayEventReceived);
+			WaitEventTask->ReadyForActivation();
+		}
+	}
+	else
+	{
+		// 몽타주가 세팅이 안 되어 있다면 어빌리티 즉시 종료
+		K2_EndAbility();
+	}
+}
+
+void UGA_SG_Kick::OnGameplayEventReceived(FGameplayEventData Payload)
+{
+	UE_LOG(LogTemp, Log, TEXT("FindAndPushBall Test"));
+	FindAndPushBall();
 }

@@ -51,7 +51,7 @@ ASG_Character::ASG_Character()
 	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
 	
 	AttributeSet = CreateDefaultSubobject<UGAS_SG_CharacterAttributeSet>(TEXT("GASAttributeSetBase"));
-	CreateDefaultSubobject<UGAS_SG_CharacterAttributeSet>(TEXT("AttributeSet"));
+	// CreateDefaultSubobject<UGAS_SG_CharacterAttributeSet>(TEXT("AttributeSet"));
 }
 
 void ASG_Character::BeginPlay()
