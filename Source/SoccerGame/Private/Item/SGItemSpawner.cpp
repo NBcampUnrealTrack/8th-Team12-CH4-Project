@@ -65,7 +65,7 @@ void ASGItemSpawner::SpawnItem()
 	if (!IsValid(SpawnedItem)) return;
 	
 	// 삭제(아이템 획득) 델리게이트 등록 
-	SpawnedItem->OnDestroyed.AddDynamic(this, &ASGItemSpawner::OnSpawnedItemDestroyed);
+	SpawnedItem->OnRandomItemGranted.AddDynamic(this, &ASGItemSpawner::OnSpawnedItemGranted);
 }
 
 FVector ASGItemSpawner::GetRandomSpawnLocation() const
@@ -79,7 +79,7 @@ FVector ASGItemSpawner::GetRandomSpawnLocation() const
 	return GetActorLocation() + RandomOffset;
 }
 
-void ASGItemSpawner::OnSpawnedItemDestroyed(AActor* DestroyedActor)
+void ASGItemSpawner::OnSpawnedItemGranted()
 {
 	if (!HasAuthority()) return;
 	
