@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayAbilitySpecHandle.h"
 #include "Components/ActorComponent.h"
 #include "SGItemSlotComponent.generated.h"
 
@@ -24,8 +25,12 @@ public:
 	// 아이템 획득
 	bool AddItem(USGItemDefinition* NewItem);
 	
-	// 아이템 소모
-	bool ConsumeItem();
+	// 아이템 사용
+	UFUNCTION(BlueprintCallable, Category = "Item")
+	void UseItemPressed();
+	
+	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "Item")
+	void UseItemReleased();
 
 public:
 	// Getter
@@ -46,8 +51,11 @@ public:
 	FOnItemSlotChanged OnItemSlotChanged;
 	
 private:
+	UPROPERTY()
 	int32 MaxItemCount;
 	
 	UPROPERTY(ReplicatedUsing = OnRep_ItemSlots)
 	TArray<TObjectPtr<USGItemDefinition>> ItemSlots;
+	
+	FGameplayAbilitySpecHandle ActiveItemAbilityHandle;
 };

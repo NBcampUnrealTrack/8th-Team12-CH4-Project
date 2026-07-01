@@ -13,7 +13,6 @@ ASGRandomItemGrantActor::ASGRandomItemGrantActor(): bGranted(false)
  	PrimaryActorTick.bCanEverTick = false;
 
 	bReplicates = true;
-	SetReplicateMovement(false);
 	
 	Collision = CreateDefaultSubobject<USphereComponent>(TEXT("Collision"));
 	SetRootComponent(Collision);
@@ -43,8 +42,11 @@ void ASGRandomItemGrantActor::OnCollisionBeginOverlap(UPrimitiveComponent* Overl
 	if (!ItemSlotComponent->AddItem(Item)) return;
 	
 	bGranted = true;
+	OnRandomItemGranted.Broadcast();
 	Collision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	UE_LOG(LogGameplayTags, Warning, TEXT("지급된 아이템: %s"), *Item->GetName());
+	if (GEngine){
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, FString::Printf(TEXT("지급된 아이템: %s"), *Item->GetName()));
+	}
 	Destroy();
 }
 

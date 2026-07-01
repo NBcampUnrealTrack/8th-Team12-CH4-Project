@@ -3,6 +3,8 @@
 
 #include "Item/SGItemSlotComponent.h"
 
+#include "AbilitySystemComponent.h"
+#include "Abilities/GameplayAbility.h"
 #include "Item/Data/SGItemDefinition.h"
 #include "Net/UnrealNetwork.h"
 
@@ -37,17 +39,56 @@ bool USGItemSlotComponent::AddItem(USGItemDefinition* NewItem)
 	return true;
 }
 
-bool USGItemSlotComponent::ConsumeItem()
+void USGItemSlotComponent::UseItemPressed()
 {
+	if (ItemSlots.IsEmpty()) return;
+	
+	// 이전 AbilitySpecHandle 무효화
+	ActiveItemAbilityHandle = FGameplayAbilitySpecHandle();
+	
+	USGItemDefinition* ItemDefinition = ItemSlots[0];
+	if (!IsValid(ItemDefinition) || !ItemDefinition->AbilityClass) return;
+	
 	AActor* Owner = GetOwner();
+	if (!IsValid(Owner) || !Owner->HasAuthority()) return;
 	
-	if (!IsValid(Owner) || !Owner->HasAuthority()) return false;
-	if (ItemSlots.IsEmpty()) return false;
+	UAbilitySystemComponent* AbilitySystemComponent = Owner->FindComponentByClass<UAbilitySystemComponent>();
+	if (!IsValid(AbilitySystemComponent)) return;
 	
+	// GA을 ASC에 일회성으로 등록
+	FGameplayAbilitySpec AbilitySpec(ItemDefinition->AbilityClass, 1, INDEX_NONE, ItemDefinition);
+	FGameplayAbilitySpecHandle AbilityHandle = AbilitySystemComponent->GiveAbilityAndActivateOnce(AbilitySpec);
+	if (!AbilityHandle.IsValid()) return;
+	
+	// Released 입력에서 InputReleased을 호출하기 위해 보관
+	ActiveItemAbilityHandle = AbilityHandle;
+}
+
+void USGItemSlotComponent::UseItemReleased_Implementation()
+{
+	if (ItemSlots.IsEmpty()) return;
+	
+	// 해당 아이템이 유효한지, 실행할 Gameplay Ability가 있는지
+	USGItemDefinition* ItemDefinition = ItemSlots[0];
+	if (!IsValid(ItemDefinition) || !ItemDefinition->AbilityClass) return;
+	
+	AActor* Owner = GetOwner();
+	if (!IsValid(Owner) || !Owner->HasAuthority()) return;
+	
+	UAbilitySystemComponent* AbilitySystemComponent = Owner->FindComponentByClass<UAbilitySystemComponent>();
+	if (!IsValid(AbilitySystemComponent) || !ActiveItemAbilityHandle.IsValid()) return;
+	
+	FGameplayAbilitySpec* AbilitySpec =
+		AbilitySystemComponent->FindAbilitySpecFromHandle(ActiveItemAbilityHandle);
+	if (AbilitySpec == nullptr) return;
+	
+	
+	AbilitySystemComponent->AbilitySpecInputReleased(*AbilitySpec);
+	
+	// 아이템 사용 성공 여부와는 관계 없이 소모 처리
 	ItemSlots.RemoveAt(0);
 	OnItemSlotChanged.Broadcast();
-	
-	return true;
+	ActiveItemAbilityHandle = FGameplayAbilitySpecHandle();
 }
 
 int32 USGItemSlotComponent::GetItemCount() const
