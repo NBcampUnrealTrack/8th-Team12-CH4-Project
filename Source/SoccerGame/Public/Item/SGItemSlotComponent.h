@@ -29,7 +29,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Item")
 	void UseItemPressed();
 	
-	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "Item")
+	UFUNCTION(BlueprintCallable, Category = "Item")
 	void UseItemReleased();
 
 public:
@@ -57,5 +57,6 @@ private:
 	UPROPERTY(ReplicatedUsing = OnRep_ItemSlots)
 	TArray<TObjectPtr<USGItemDefinition>> ItemSlots;
 	
+	UPROPERTY(Replicated)
 	TArray<FGameplayAbilitySpecHandle> ItemAbilityHandles;
 };

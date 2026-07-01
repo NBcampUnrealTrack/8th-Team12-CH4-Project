@@ -23,6 +23,7 @@ void USGItemSlotComponent::GetLifetimeReplicatedProps(TArray<class FLifetimeProp
 	
 	// 변경 값을 해당 캐릭터를 조종하는 클라이언트에게만 복제
 	DOREPLIFETIME_CONDITION(USGItemSlotComponent, ItemSlots, COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(USGItemSlotComponent, ItemAbilityHandles, COND_OwnerOnly);
 }
 
 bool USGItemSlotComponent::AddItem(USGItemDefinition* NewItem)
@@ -66,7 +67,7 @@ void USGItemSlotComponent::UseItemPressed()
 	AbilitySystemComponent->TryActivateAbility(AbilityHandle);
 }
 
-void USGItemSlotComponent::UseItemReleased_Implementation()
+void USGItemSlotComponent::UseItemReleased()
 {
 	if (ItemSlots.IsEmpty()) return;
 	if (!ItemAbilityHandles.IsValidIndex(0)) return;
@@ -76,7 +77,7 @@ void USGItemSlotComponent::UseItemReleased_Implementation()
 	if (!IsValid(ItemDefinition) || !ItemDefinition->AbilityClass) return;
 	
 	AActor* Owner = GetOwner();
-	if (!IsValid(Owner) || !Owner->HasAuthority()) return;
+	if (!IsValid(Owner)) return;
 	
 	UAbilitySystemComponent* AbilitySystemComponent = Owner->FindComponentByClass<UAbilitySystemComponent>();
 	if (!IsValid(AbilitySystemComponent)) return;
@@ -88,6 +89,9 @@ void USGItemSlotComponent::UseItemReleased_Implementation()
 	if (AbilitySpec == nullptr) return;
 	
 	AbilitySystemComponent->AbilitySpecInputReleased(*AbilitySpec);
+	
+	// 소모처리는 서버에서만
+	if (!Owner->HasAuthority()) return;
 	
 	// 아이템 사용 성공 여부와는 관계 없이 소모 처리
 	ItemSlots.RemoveAt(0);
