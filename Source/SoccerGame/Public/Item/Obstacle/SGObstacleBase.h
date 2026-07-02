@@ -12,17 +12,34 @@ class SOCCERGAME_API ASGObstacleBase : public AActor
 	GENERATED_BODY()
 	
 public:	
-	// Sets default values for this actor's properties
 	ASGObstacleBase();
 
 protected:
-	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+	
+	virtual void Tick(float DeltaSeconds) override;
+	
+public:
+	void InitializePreview(AActor* InPlayerActor, float InForwardDistance, float InPreviewOpacity);
+	
+private:
+	void UpdatePreviewTransform();
 
 protected:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Obstacle")
+	TObjectPtr<USceneComponent> SceneComponent;
+	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Obstacle")
 	TObjectPtr<UStaticMeshComponent> MeshComponent;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Obstacle")
 	float LifeTime;
+	
+private:
+	UPROPERTY()
+	TObjectPtr<AActor> PreviewPlayerActor;
+	
+	float PreviewForwardDistance;
+	
+	bool bPreview;
 };

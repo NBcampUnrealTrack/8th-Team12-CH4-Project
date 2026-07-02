@@ -23,8 +23,25 @@ protected:
 		const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, 
 		const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 	
+	virtual void InputReleased(
+		const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, 
+		const FGameplayAbilityActivationInfo ActivationInfo) override;
+	
+private:
+	void SpawnPreviewActor(const FGameplayAbilityActorInfo* ActorInfo);
+	void DestroyPreviewActor();
+	
+protected:
+	UPROPERTY(EditAnywhere, Category = "Item|Obstacle")
+	float PreviewOpacity;
+	
 private:
 	UPROPERTY(EditDefaultsOnly, Category = "Item|Obstacle")
 	TSubclassOf<ASGObstacleBase> ObstacleClass;
 	
+	UPROPERTY(EditAnywhere, Category = "Item|Obstacle")
+	float SpawnForwardDistance;
+	
+	UPROPERTY()
+	TObjectPtr<ASGObstacleBase> PreviewActor;
 };
