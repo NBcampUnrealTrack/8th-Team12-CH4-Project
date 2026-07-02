@@ -2,6 +2,9 @@
 
 
 #include "GameState/SGLobbyGameState.h"
+#include "SoccerGame/Public/PlayerController/SGLobbyPlayerController.h"
+#include "SoccerGame/Public/PlayerState/SGLobbyPlayerState.h"
+#include "SoccerGame/UI/SGLobbyWidget.h"
 #include "Net/UnrealNetwork.h"
 
 ASGLobbyGameState::ASGLobbyGameState()
@@ -19,6 +22,40 @@ void ASGLobbyGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 
 void ASGLobbyGameState::OnRep_IsReady()
 {
-	// [클라이언트] 준비 상태 변경에 따른 UI 토글 로직을 여기에 연동
-	UE_LOG(LogTemp, Log, TEXT("[Client] Synced Ready Status: %s"), bIsReady ? TEXT("TRUE") : TEXT("FALSE"));
+}
+
+void ASGLobbyGameState::BroadcastLobbyInfo()
+{
+	// 현재 방에 있는 모든 플레이어의 최신 정보를 담을 배열 생성
+	TArray<FSGPlayerLobbyInfo> NewPlayerInfos;
+
+	// GameState가 쥐고 있는 대기방 전체 인원 명단 순회
+	for (APlayerState* BasePS : PlayerArray)
+	{
+		if (ASGLobbyPlayerState* LobbyPS = Cast<ASGLobbyPlayerState>(BasePS))
+		{
+			FSGPlayerLobbyInfo Info;
+			// 커스텀 이름이 비어있으면 기본 엔진 이름을, 있으면 커스텀 이름을 세팅
+			Info.UserName = LobbyPS->CustomPlayerName.IsEmpty()? 
+							LobbyPS->GetPlayerName():LobbyPS->CustomPlayerName;
+			Info.bIsReady = LobbyPS->IsReady();
+			Info.TeamTag = LobbyPS->GetTeamTag();
+
+			// 종합 배열에 차곡차곡 추가
+			NewPlayerInfos.Add(Info);
+		}
+	}
+
+	// 코드가 실행 중인 내 컴퓨터의 로컬 
+	if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
+	{
+		if (PC && PC->IsLocalController())
+		{
+			if (ASGLobbyPlayerController* LobbyPC = Cast<ASGLobbyPlayerController>(PC))
+			{
+				// 묶인 전체 명단 배열
+				LobbyPC->Client_UpdateLobbyUI(NewPlayerInfos);
+			}
+		}
+	}
 }

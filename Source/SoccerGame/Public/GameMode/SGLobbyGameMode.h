@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
 #include "SoccerGame/Public/PlayerState/SGLobbyPlayerState.h"
+#include "GameplayTagContainer.h" 
 #include "SGLobbyGameMode.generated.h"
 
 /**
@@ -25,8 +26,8 @@ public:
 	// PlayerController가 서버 RPC를 통해 호출할 레디 상태 업데이트 함수
 	void OnPlayerReadyChanged();
 	
-	// 팀 변경 함수 
-	void RequestChangeTeam(AController* PlayerController, ESGPlayerTeam NewTeam);
+	// ◀ [수정] PlayerController가 위임한 팀 변경 요청을 검증하고 처리하는 핵심 함수 (FGameplayTag 형식으로 변경)
+	void ProcessChangeTeamRequest(APlayerController* TargetPC, const FGameplayTag& RequestedTeamTag);
 	
 protected:
 	virtual void BeginPlay() override;
@@ -34,6 +35,8 @@ protected:
 	// 모든 유저의 레디 상태를 확인하고, 조건 만족 시 매치를 시작하는 함수
 	void CheckReadyState();
 private:
+	int32 GetTeamCount(const FGameplayTag& TeamTag) const;
+	
 	// 카운트다운을 시작하는 함수
 	void StartCountdown();
 

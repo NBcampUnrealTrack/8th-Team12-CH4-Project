@@ -17,7 +17,7 @@ void ASGMainPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 
     //동기화 등록
     DOREPLIFETIME(ASGMainPlayerState, CustomPlayerName);
-    DOREPLIFETIME(ASGMainPlayerState, CurrentTeam);
+    DOREPLIFETIME(ASGMainPlayerState, CurrentTeamTag);
     DOREPLIFETIME(ASGMainPlayerState, PlayerScore);
 }
 
@@ -40,7 +40,7 @@ void ASGMainPlayerState::EndPlay(const EEndPlayReason::Type EndPlayReason)
                 // 데이터 저장  
                 FPlayerBackupData DataToSave;
                 DataToSave.PlayerName = this->CustomPlayerName;
-                DataToSave.PlayerTeam = this->CurrentTeam;
+                DataToSave.PlayerTeam = this->CurrentTeamTag;
                 DataToSave.Score = this->PlayerScore;
 
                 // 서브 시스템으로 데이터 토스
@@ -54,6 +54,5 @@ void ASGMainPlayerState::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void ASGMainPlayerState::OnRep_CustomPlayerName()
 {
-    UE_LOG(LogTemp, Log, TEXT("MainPlayerState:kakakakaka Data restored for  (Team: %d, Score: %d , Player Name : %s)") 
-    , static_cast<int32>(CurrentTeam), PlayerScore , *CustomPlayerName);
+   
 }

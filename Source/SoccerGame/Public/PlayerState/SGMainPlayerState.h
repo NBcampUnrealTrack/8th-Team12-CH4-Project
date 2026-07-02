@@ -4,15 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerState.h"
+#include "GameplayTagContainer.h"
 #include "SGMainPlayerState.generated.h"
-
-UENUM(BlueprintType)
-enum class ESGPlayerTeam : uint8
-{
-	Neutrality    UMETA(DisplayName = "Neutrality"), // 중립 (팀 선택 안함)
-	BlueTeam      UMETA(DisplayName = "Blue Team"),   // 블루 팀
-	RedTeam       UMETA(DisplayName = "Red Team")
-};
 
 USTRUCT(BlueprintType)
 struct FPlayerBackupData
@@ -25,7 +18,7 @@ struct FPlayerBackupData
     
 	// 팀 선택
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Backup")
-	ESGPlayerTeam PlayerTeam = ESGPlayerTeam::Neutrality;
+	FGameplayTag PlayerTeam = FGameplayTag::RequestGameplayTag(FName("Team.Waiting"));
 
 	// 스코어 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Backup")
@@ -58,7 +51,7 @@ public:
 	FString CustomPlayerName = "None";
 	
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "PlayerState")
-	ESGPlayerTeam CurrentTeam = ESGPlayerTeam::Neutrality;
+	FGameplayTag CurrentTeamTag = FGameplayTag::RequestGameplayTag(FName("Team.Waiting"));
 
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "PlayerState")
 	int32 PlayerScore = 0;

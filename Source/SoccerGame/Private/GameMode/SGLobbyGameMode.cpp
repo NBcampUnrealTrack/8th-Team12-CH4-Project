@@ -15,6 +15,7 @@ ASGLobbyGameMode::ASGLobbyGameMode()
 	// 수정한 멀티플레이어 대응 전용 클래스들을 기본 클래스로 바인딩
 	PlayerControllerClass = ASGLobbyPlayerController::StaticClass();
 	PlayerStateClass = ASGLobbyPlayerState::StaticClass();
+	GameStateClass = ASGLobbyGameState::StaticClass();
 }
 
 void ASGLobbyGameMode::BeginPlay()
@@ -35,8 +36,9 @@ void ASGLobbyGameMode::CheckReadyState()
 		if (PC)
 		{
 			TotalPlayers++;
-			ASGLobbyGameState* SG_PlayerState = PC->GetPlayerState<ASGLobbyGameState>();
-			if (SG_PlayerState && SG_PlayerState->bIsReady)
+			// [버그 수정] 기존에 PlayerState 자리에 GameState를 넣고 캐스팅하려던 치명적인 오류를 수정했습니다.
+			ASGLobbyPlayerState* SG_PlayerState = PC->GetPlayerState<ASGLobbyPlayerState>();
+			if (SG_PlayerState && SG_PlayerState->IsReady())
 			{
 				ReadyPlayersCount++;
 			}
@@ -68,93 +70,90 @@ void ASGLobbyGameMode::CheckReadyState()
 	}
 }
 
+int32 ASGLobbyGameMode::GetTeamCount(const FGameplayTag& TeamTag) const
+{
+	int32 Count = 0;
+    
+	// 기존에 인게임용 레벨용 State인 ASGMainPlayerState로 잘못 캐스팅하던 부분을 로비용 ASGLobbyPlayerState로 정상 매칭했습니다.
+	if (GameState)
+	{
+		for (APlayerState* PS : GameState->PlayerArray)
+		{
+			if (ASGLobbyPlayerState* LobbyPS = Cast<ASGLobbyPlayerState>(PS))
+			{
+				if (LobbyPS->GetTeamTag() == TeamTag)
+				{
+					Count++;
+				}
+			}
+		}
+	}
+	return Count;
+}
+
 
 void ASGLobbyGameMode::PostLogin(APlayerController* NewPlayerController)
 {
 	Super::PostLogin(NewPlayerController);
-	
 	int32 CurrentPlayers = GetNumPlayers();
-	
-	UE_LOG(LogTemp, Warning, TEXT("Player Joined! Current Players : %d / %d"), CurrentPlayers, TargetPlayerCount);
-	NotifyAllPlayers(FString::Printf(TEXT("A player has joined. (%d/%d)"), CurrentPlayers, TargetPlayerCount));
-	
-	
-	// 목표 인원이 채워졌고, 아직 카운트다운이 시작되지 않았다면 카운트다운 시작
-	if (CurrentPlayers >= TargetPlayerCount && !bIsCountdownActive)
-	{
-		StartCountdown();
-	}
-	
+    
+	// 접속했는지만 확인
+	UE_LOG(LogTemp, Warning, TEXT("Player Joined! Current Players : %d " ), CurrentPlayers);
 }
+	
 
 void ASGLobbyGameMode::Logout(AController* ExitingController)
 {
-	// [수정 포인트] Super::Logout을 먼저 호출하여 부모 클래스가 플레이어를 리스트에서 완전히 지우도록 합니다.
 	Super::Logout(ExitingController);
-
-	// 나간 플레이어가 완전히 제외된 후의 정확한 남은 인원수를 가져옵니다.
+	
 	int32 RemainingPlayers = GetNumPlayers();
 
 	UE_LOG(LogTemp, Warning, TEXT("Player Left! Remaining Players: %d"), RemainingPlayers);
 	NotifyAllPlayers(FString::Printf(TEXT("A player has left. (%d/%d)"), RemainingPlayers, TargetPlayerCount));
 
+	// 확인해볼 의향이 있음.
 	// 인원이 목표치보다 부족해졌는데 카운트다운이 진행 중이었다면 취소합니다.
 	if (RemainingPlayers < TargetPlayerCount && bIsCountdownActive)
 	{
 		CancelCountdown();
 	}
-}
 
+	// 퇴장 완료 후 전체 UI 갱신 유도
+	if (ASGLobbyGameState* GS = GetGameState<ASGLobbyGameState>())
+	{
+		GS->BroadcastLobbyInfo();
+	}
+}
 void ASGLobbyGameMode::OnPlayerReadyChanged()
 {
 	CheckReadyState();
 }
 
-void ASGLobbyGameMode::RequestChangeTeam(AController* PlayerController, ESGPlayerTeam NewTeam)
+void ASGLobbyGameMode::ProcessChangeTeamRequest(APlayerController* TargetPC, const FGameplayTag& RequestedTeamTag)
 {
-	if (!PlayerController) return;
+	// 타겟이 아니면 return
+	if (!TargetPC) return;
 
-	int32 RedCount = 0;
-	int32 BlueCount = 0;
-	int32 WaitingCount = 0;
+	//PlayerState도 아니면 return 
+	ASGLobbyPlayerState* TargetPS = TargetPC->GetPlayerState<ASGLobbyPlayerState>();
+	if (!TargetPS) return;
 
-	// GameMode는 GameState를 통해 현재 접속 중인 전체 PlayerState 명단에 바로 접근할 수 있습니다! (매우 가볍고 빠름)
-	if (GameState)
+	// 이미 요청한 팀에 소속되어 있다면 무시
+	if (TargetPS->GetTeamTag() == RequestedTeamTag) return;
+
+	// 최대 허용 정원 체크 (FGameplayTag 조건 분기 구조로 전환)
+	FGameplayTag WaitingTag = FGameplayTag::RequestGameplayTag(FName("Team.Waiting"));
+	int32 MaxCapacity = (RequestedTeamTag == WaitingTag) ? 6 : 3;
+
+	if (GetTeamCount(RequestedTeamTag) >= MaxCapacity)
 	{
-		for (APlayerState* PS : GameState->PlayerArray)
-		{
-			if (ASGMainPlayerState* SGMainPS = Cast<ASGMainPlayerState>(PS))
-			{
-				switch (SGMainPS->CurrentTeam)
-				{
-				case ESGPlayerTeam::RedTeam:     RedCount++; break;
-				case ESGPlayerTeam::BlueTeam:    BlueCount++; break;
-				case ESGPlayerTeam::Neutrality:  WaitingCount++; break;
-				}
-			}
-		}
+		UE_LOG(LogTemp, Warning, TEXT("서버 차단: 해당 팀(%s)은 가득 차 자리가 없습니다."), *RequestedTeamTag.ToString());
+		return;
 	}
 
-	// 인원 제한 조건 체크
-	bool bCanJoin = false;
-	switch (NewTeam)
-	{
-	case ESGPlayerTeam::RedTeam:     if (RedCount < 3) bCanJoin = true; break;
-	case ESGPlayerTeam::BlueTeam:    if (BlueCount < 3) bCanJoin = true; break;
-	case ESGPlayerTeam::Neutrality:  if (WaitingCount < 6) bCanJoin = true; break;
-	}
-
-	// False 자리없음
-	if (bCanJoin)
-	{
-		// Player State 맞는지 
-		if (ASGLobbyPlayerState* TargetPS = PlayerController->GetPlayerState<ASGLobbyPlayerState>())
-		{
-			TargetPS->SetTeamInternal(NewTeam);
-		}
-	}
+	TargetPS->SetTeamInternal(RequestedTeamTag);
+	TargetPS->SetReadyState(false);
 }
-
 
 void ASGLobbyGameMode::StartCountdown()
 {
@@ -193,9 +192,7 @@ void ASGLobbyGameMode::TickCountdown()
 	}
 	else
 	{
-		// 시간이 다 되면 타이머를 끄고 인게임 레벨로 이동 처리
 		GetWorld()->GetTimerManager().ClearTimer(CountdownTimerHandle);
-		TransitionToGameLevel();
 	}
 }
 
@@ -203,10 +200,8 @@ void ASGLobbyGameMode::TransitionToGameLevel()
 {
 	NotifyAllPlayers(TEXT("Launching match"));
 
-	// 서버 트래블을 호출하여 접속 중인 모든 클라이언트를 다음 레벨로 강제 이동시킵니다.
 	UE_LOG(LogTemp, Warning,TEXT("Level Path: %s"), *GameplayLevelPath);
 	GetWorld()->ServerTravel(GameplayLevelPath);
-	UE_LOG(LogTemp, Warning, TEXT("Change Server"));
 	
 }
 

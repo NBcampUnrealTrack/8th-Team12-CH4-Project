@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerState.h"
-#include "SoccerGame/Public/PlayerState/SGMainPlayerState.h" // ESGPlayerTeam 사용을 위해 포함
+#include "GameplayTagContainer.h"
 #include "SGLobbyPlayerState.generated.h"
 
 /**
@@ -29,8 +29,8 @@ public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Lobby Settings")
 	FString CustomPlayerName = TEXT("UnknownPlayer");
 
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Lobby Settings")
-	ESGPlayerTeam CurrentTeam = ESGPlayerTeam::Neutrality;
+	UPROPERTY(ReplicatedUsing = OnRep_ChangeTeam, BlueprintReadOnly,Category = "Lobby Settings")
+	FGameplayTag CurrentTeamTag =FGameplayTag::RequestGameplayTag(FName("Team.Waiting"));
 
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Lobby Settings")
 	int32 LobbyScore = 0;
@@ -38,21 +38,26 @@ public:
 	// 서버가 이 변수를 바꾸면 온렙 함수가 클라이언트에서 자동 호출됩니다.
 	UPROPERTY(ReplicatedUsing = OnRep_IsReady, BlueprintReadOnly, Category = "SG_Lobby")
 	bool bIsReady = false;
+	
+	// Getter 함수들
+	FGameplayTag GetTeamTag() const { return CurrentTeamTag; }
+	bool IsReady() const { return bIsReady; }
 
-	// 서버에서 레디 상태를 직접 바꿀 때 사용할 함수
+	// 서버에서 데이터를 직접 바꿀 때 사용할 함수들
 	void SetReadyState(bool bNewReadyState);
-
+	void SetTeamInternal(const FGameplayTag& SelectTeamTag);
 protected:
-	// [추가] 이름이 서버로부터 동기화되었을 때 클라이언트에서 실행될 함수 (UI 갱신 등에 활용)
+
+	// 이름이 서버로부터 동기화되었을 때 클라이언트에서 실행될 함수
 	UFUNCTION()
 	void OnRep_CustomPlayerName();
-	
-	void CopyProperties(APlayerState* NewPlayerState);
-	
+    
+	// 레디 상태가 동기화되었을 때 클라이언트에서 실행될 함수
 	UFUNCTION()
 	void OnRep_IsReady();
-public:
 	
-	void SetTeamInternal(const ESGPlayerTeam & SellectTeam); 
+	UFUNCTION()
+	void OnRep_ChangeTeam();
 	
+	void CopyProperties(APlayerState* NewPlayerState);
 };

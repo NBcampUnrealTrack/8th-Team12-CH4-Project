@@ -38,14 +38,13 @@ void ASGMainGameMode::BeginPlay()
 		SG_GameState->CurrentMatchState = ESGMatchState::InProgress;
 	}
 
-	// 4. 1초 간격 인게임 타이머 가동
+	//  1초 간격 인게임 타이머 가동
 	GetWorldTimerManager().SetTimer(MatchTimerHandle, this, &ASGMainGameMode::UpdateMatchTime, 1.0f, true);
 }
 
 void ASGMainGameMode::StartLoading()
 {
 	// 시작 전 초기화
-	
 	 // 여기서 스폰을 할까?
 }
 
@@ -53,7 +52,6 @@ void ASGMainGameMode::StartGame()
 {
 	// 게임 시작 
 	// UpdateMatchTime 
-	
 }
 
 

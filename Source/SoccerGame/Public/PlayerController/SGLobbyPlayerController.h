@@ -4,8 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "SoccerGame/Public/PlayerState/SGLobbyPlayerState.h" // ◀ 이 구조체가 정의된 헤더(예: PlayerState.h)를 반드시 여기에 추가!
+#include "GameplayTagContainer.h" 
+#include "SoccerGame/UI/SGLobbyWidget.h"
 #include "SGLobbyPlayerController.generated.h"
 
+struct FSGPlayerLobbyInfo;
+class UUserWidget;
 /**
  * 
  */
@@ -16,13 +21,18 @@ class SOCCERGAME_API ASGLobbyPlayerController : public APlayerController
 public:
 	
 	virtual void BeginPlay() override;
-	// 로비 UI 버튼 등에서 호출할 함수 (레디 상태 토글)
+	
 	UFUNCTION(BlueprintCallable, Category = "Lobby")
-	void ToggleReady();
+	void SellectReady();
 	
 	// 클라이언트가 UI 버튼 등을 눌렀을 때 호출하는 함수
-	void RequestChangeTeam(ESGPlayerTeam NewTeam);
-
+	void RequestChangeTeam(FGameplayTag NewTeam);
+	
+	void Client_UpdateLobbyUI(const TArray<FSGPlayerLobbyInfo>& InPlayerInfos);
+	
+	// 블루프린트에서 GameStart 버튼 누른 직후 호출할 UI 데이터 주입 함수
+	UFUNCTION(BlueprintCallable, Category = "Lobby")
+	void InitializeLocalPlayerLobbyUI();
 protected:
 	// [Server RPC] 준비 상태 변경 요청
 	UFUNCTION(Server, Reliable, WithValidation)
@@ -30,12 +40,14 @@ protected:
 	
 	// 서버에서 실행될 RPC 함수
 	UFUNCTION(Server, Reliable, WithValidation)
-	void ServerRequestChangeTeam(ESGPlayerTeam NewTeam);
+	void ServerRequestChangeTeam(FGameplayTag NewTeamTag);
 	
-private:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = ASUIPlayerController, Meta = (AllowPrivateAccess))
-	TSubclassOf<UUserWidget> UIWidgetClass;
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "ASUIPlayerController")
+    TSubclassOf<UUserWidget> UIWidgetClass;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "ASUIPlayerController")
+	TSubclassOf<UUserWidget> UILobbyWidgetClass;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = ASUIPlayerController, Meta = (AllowPrivateAccess))
-	TObjectPtr<UUserWidget> UIWidgetInstance;
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "ASUIPlayerController")
+    TObjectPtr<UUserWidget> UIWidgetInstance;
 };

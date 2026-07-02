@@ -22,7 +22,8 @@ public:
 	UPROPERTY(ReplicatedUsing = OnRep_IsReady, BlueprintReadOnly, Category = "Lobby")
 	bool bIsReady = false;
 
-	// 서버로부터 bIsReady 값이 수신되었을 때 클라이언트에서 실행 (UI 갱신용)
 	UFUNCTION()
 	void OnRep_IsReady();
+	
+	void BroadcastLobbyInfo();
 };

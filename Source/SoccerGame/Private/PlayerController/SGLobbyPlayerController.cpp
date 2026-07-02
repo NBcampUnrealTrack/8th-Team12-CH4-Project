@@ -4,9 +4,9 @@
 #include "PlayerController/SGLobbyPlayerController.h"
 #include "GameFramework/PlayerState.h"
 #include "Blueprint/UserWidget.h"
+#include "SoccerGame/UI/SGLobbyWidget.h"
 #include "GameMode/SGLobbyGameMode.h"
-#include "SoccerGame/Public/GameState/SGLobbyGameState.h"
-#include "SoccerGame/Public/PlayerState/SGLobbyPlayerState.h"
+#include "PlayerState/SGLobbyPlayerState.h"
 
 void ASGLobbyPlayerController::BeginPlay()
 {
@@ -19,7 +19,7 @@ void ASGLobbyPlayerController::BeginPlay()
 	
 	if (UIWidgetClass == nullptr)
 	{
-		UE_LOG(LogTemp, Error, TEXT("UIWidgetClass가 비어있습니다! 디테일 패널을 확인하세요."));
+		UE_LOG(LogTemp, Error, TEXT("UIWidgetClass 없음."));
 	}
 	
 	if (IsValid(UIWidgetClass) == true)
@@ -38,38 +38,99 @@ void ASGLobbyPlayerController::BeginPlay()
 	}
 }
 
-void ASGLobbyPlayerController::ToggleReady()
+void ASGLobbyPlayerController::SellectReady()
 {
-	ASGLobbyGameState* MyPlayerState = GetPlayerState<ASGLobbyGameState>();
+	ASGLobbyPlayerState* MyPlayerState = GetPlayerState<ASGLobbyPlayerState>();
 	if (MyPlayerState)
 	{
-		bool bTargetReady = !MyPlayerState->bIsReady;
+		// 내 현재 레디 상태를 반전(토글)시켜서 서버 RPC로 전송
+		bool bTargetReady = !MyPlayerState->IsReady();
 		Server_SetReady(bTargetReady);
 	}
 }
 
-void ASGLobbyPlayerController::RequestChangeTeam(ESGPlayerTeam NewTeam)
+void ASGLobbyPlayerController::RequestChangeTeam(FGameplayTag NewTeam)
 {
 	// 서버 클라이언트가 서버에 요청을 보냄
 	ServerRequestChangeTeam(NewTeam);
 }
 
-void ASGLobbyPlayerController::ServerRequestChangeTeam_Implementation(ESGPlayerTeam NewTeam)
+void ASGLobbyPlayerController::Client_UpdateLobbyUI(const TArray<FSGPlayerLobbyInfo>& InPlayerInfos)
 {
-	// [서버에서 실행됨] 
-	// 2차 검증: 현재 게임 상태(예: 후반전 진행 중에는 팀 변경 불가 등)를 체크할 수 있음
-    
-	// 검증을 통과했다면, 내 PlayerState를 가져와서 값을 변경하라고 명령함
-	if (ASGLobbyPlayerState* SGPlayerState = GetPlayerState<ASGLobbyPlayerState>())
+	// 컨트롤러가 들고 있는 로비 위젯 인스턴스가 안전하게 존재하는지 확인
+	if (UIWidgetInstance)
 	{
-		// PlayerState에 있는 순수 변경 함수를 호출
-		SGPlayerState->SetTeamInternal(NewTeam);
-		
-		// 로비GameMode 에서 모든 유저가 레디 했는지 검사함수 추가
+		if (USGLobbyWidget* LobbyWidget = Cast<USGLobbyWidget>(UIWidgetInstance))
+		{
+			// 위젯에게 방 전체 인원의 최신 종합 데이터를 넘겨줍니다.
+			LobbyWidget->SetPlayerInfos(InPlayerInfos);
+            
+			// 새로 배치
+			LobbyWidget->RefreshLobby();
+			LobbyWidget->UpdateReadyButtonText();
+		}
 	}
 }
 
-bool ASGLobbyPlayerController::ServerRequestChangeTeam_Validate(ESGPlayerTeam NewTeam)
+void ASGLobbyPlayerController::InitializeLocalPlayerLobbyUI()
+{
+	if (IsValid(UILobbyWidgetClass) == true)
+	{
+		UIWidgetInstance = CreateWidget<UUserWidget>(this, UILobbyWidgetClass); 
+		if (IsValid(UIWidgetInstance) == true)
+		{
+			UIWidgetInstance->AddToViewport();
+
+			FInputModeUIOnly Mode;
+			Mode.SetWidgetToFocus(UIWidgetInstance->GetCachedWidget());
+			SetInputMode(Mode);
+
+			bShowMouseCursor = true;
+		}
+	}
+	
+	//현재 화면에 생성되어 있는 로비 위젯 인스턴스가 있는지 확인
+	if (UIWidgetInstance)
+	{
+		if (USGLobbyWidget* LobbyWidget = Cast<USGLobbyWidget>(UIWidgetInstance))
+		{
+			// 2. 내 컴퓨터의 PlayerState(서버 초기화 데이터)를 긁어옵니다.
+			if (ASGLobbyPlayerState* MyLobbyPS = GetPlayerState<ASGLobbyPlayerState>())
+			{
+				MyLobbyPS->CurrentTeamTag = FGameplayTag::RequestGameplayTag(FName("Team.Waiting"));
+				// 위젯의 PlayerInfos에 집어넣을 내 정보 구조체 생성
+				FSGPlayerLobbyInfo MyInfo;
+                
+				// 이름 채우기 (CustomPlayerName이 비어있으면 기본 엔진 이름)
+				MyInfo.UserName = MyLobbyPS->CustomPlayerName.IsEmpty() ? 
+								  MyLobbyPS->GetPlayerName():MyLobbyPS->CustomPlayerName;
+                
+				// 팀 태그 채우기 (기본값 Team.Waiting)
+				MyInfo.TeamTag = MyLobbyPS->CurrentTeamTag;
+                
+				// 레디 상태 채우기 (false)
+				MyInfo.bIsReady = MyLobbyPS->bIsReady;
+
+				// 위젯의 PlayerInfos 배열에 내 데이터를 추가
+				LobbyWidget->AddPlayerInfos(MyInfo);
+
+				//  화면을 갱신
+				LobbyWidget->RefreshLobby();
+				LobbyWidget->UpdateReadyButtonText();
+			}
+		}
+	}
+}
+
+void ASGLobbyPlayerController::ServerRequestChangeTeam_Implementation(FGameplayTag NewTeam)
+{
+	if (ASGLobbyGameMode* LobbyGM = Cast<ASGLobbyGameMode>(GetWorld()->GetAuthGameMode()))
+	{
+		LobbyGM->ProcessChangeTeamRequest(this, NewTeam);
+	}
+}
+
+bool ASGLobbyPlayerController::ServerRequestChangeTeam_Validate(FGameplayTag NewTeamTag)
 {
 	return true;
 }
@@ -77,18 +138,19 @@ bool ASGLobbyPlayerController::ServerRequestChangeTeam_Validate(ESGPlayerTeam Ne
 void ASGLobbyPlayerController::Server_SetReady_Implementation(bool bNewReadyState)
 {
 	ASGLobbyPlayerState* SG_PlayerState = GetPlayerState<ASGLobbyPlayerState>();
-	if (SG_PlayerState)
-	{
-		// 1. 플레이어 상태 변경 (전광판 갱신)
-		SG_PlayerState->SetReadyState(bNewReadyState);
+    if (SG_PlayerState)
+    {
+       // 플레이어 상태 변경 (값이 변경되면 OnRep에 의해 자동으로 전체 UI 브로드캐스트가 일어남)
+       SG_PlayerState->SetReadyState(bNewReadyState);
         
-		// 2. 심판(GameMode)에게 방 안의 전반적인 레디 상태를 재검사하라고 통보!
-		ASGLobbyGameMode* TitleGM = Cast<ASGLobbyGameMode>(GetWorld()->GetAuthGameMode());
-		if (TitleGM)
-		{
-			TitleGM->OnPlayerReadyChanged();
-		}
-	}
+       // 재검사 요청
+       ASGLobbyGameMode* TitleGM = Cast<ASGLobbyGameMode>(GetWorld()->GetAuthGameMode());
+       if (TitleGM)
+       {
+          // 기존에 사용하시던 GameMode 측 레디 감지 함수 호출 유지
+          TitleGM->OnPlayerReadyChanged();
+       }
+    }
 }
 
 bool ASGLobbyPlayerController::Server_SetReady_Validate(bool bNewReadyState)
