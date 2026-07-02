@@ -12,6 +12,7 @@ UGAS_SG_CharacterAttributeSet::UGAS_SG_CharacterAttributeSet()
 	InitStamina(100.f);
 	InitMaxStamina(100.f);
 	InitKickPower(2000.f);
+	InitSpeedMultiplier(1.f);
 }
 
 void UGAS_SG_CharacterAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -62,6 +63,11 @@ void UGAS_SG_CharacterAttributeSet::PostGameplayEffectExecute(const struct FGame
 void UGAS_SG_CharacterAttributeSet::OnRep_KickPower(const FGameplayAttributeData& OldKickPower)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UGAS_SG_CharacterAttributeSet, KickPower, OldKickPower);
+}
+
+void UGAS_SG_CharacterAttributeSet::OnRep_SpeedMultiplier(const FGameplayAttributeData& OldSpeedMultiplier)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UGAS_SG_CharacterAttributeSet, SpeedMultiplier, OldSpeedMultiplier);
 }
 
 void UGAS_SG_CharacterAttributeSet::OnRep_Hp(const FGameplayAttributeData& OldHp)
