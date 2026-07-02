@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
+#include "SoccerGame/Public/PlayerState/SGLobbyPlayerState.h"
 #include "SGLobbyGameMode.generated.h"
 
 /**
@@ -18,13 +19,20 @@ public:
 	
 	// 플레이어가 서버에 완전히 접속했을 때 호출
 	virtual void PostLogin(APlayerController* NewPlayerController) override;
-	
 	// 플레이어가 접속을 종료하거나 나갔을 때 호출
 	virtual void Logout(AController* ExitingController) override;
+	
+	// PlayerController가 서버 RPC를 통해 호출할 레디 상태 업데이트 함수
+	void OnPlayerReadyChanged();
+	
+	// 팀 변경 함수 
+	void RequestChangeTeam(AController* PlayerController, ESGPlayerTeam NewTeam);
 	
 protected:
 	virtual void BeginPlay() override;
 	
+	// 모든 유저의 레디 상태를 확인하고, 조건 만족 시 매치를 시작하는 함수
+	void CheckReadyState();
 private:
 	// 카운트다운을 시작하는 함수
 	void StartCountdown();
@@ -59,6 +67,7 @@ private:
     // 이동할 실제 게임 플레이 맵의 경로
     UPROPERTY(EditDefaultsOnly, Category = "Lobby Settings")
     FString GameplayLevelPath = TEXT("/Game/SoccerGame/GameModeTestingLevel/MainTestingLevel");
+	
     // 카운트다운이 현재 진행 중인지 여부
     bool bIsCountdownActive = false;
 };

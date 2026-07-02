@@ -15,7 +15,8 @@ void ASGMainPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 {
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-    // 변수별로 변경 사항이 생길 때만 패킷을 보냅니다 (최적화)
+    //동기화 등록
+    DOREPLIFETIME(ASGMainPlayerState, CustomPlayerName);
     DOREPLIFETIME(ASGMainPlayerState, CurrentTeam);
     DOREPLIFETIME(ASGMainPlayerState, PlayerScore);
 }
@@ -25,30 +26,34 @@ void ASGMainPlayerState::BeginPlay()
     Super::BeginPlay();
 	UE_LOG(LogTemp, Log, TEXT("MainPlayerState Start"));
 
-    UE_LOG(LogTemp, Log, TEXT("MainPlayerState:kakakakaka Data restored for  (Team: %d, Score: %d)") 
-    , static_cast<int32>(CurrentTeam), PlayerScore);
+    
 }
 
 void ASGMainPlayerState::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-    // 심리스 트래블 등으로 레벨이 전환될 때만 서버가 데이터를 구조체로 포장하여 백업합니다.
     if (HasAuthority() && EndPlayReason == EEndPlayReason::LevelTransition)
     {
         if (UGameInstance* GI = GetGameInstance())
         {
             if (USGPlayerGameInstanceSubsystem* DataSubsystem = GI->GetSubsystem<USGPlayerGameInstanceSubsystem>())
             {
-                // 보낼 때는 개별 변수들을 구조체(가방) 하나로 이쁘게 포장합니다.
+                // 데이터 저장  
                 FPlayerBackupData DataToSave;
-                DataToSave.PlayerName = GetPlayerName();
+                DataToSave.PlayerName = this->CustomPlayerName;
                 DataToSave.PlayerTeam = this->CurrentTeam;
-                DataToSave.Socre = this->PlayerScore;
+                DataToSave.Score = this->PlayerScore;
 
-                // 서브시스템에 포장된 가방 전달
+                // 서브 시스템으로 데이터 토스
                 DataSubsystem->SavePlayerData(GetUniqueId(), DataToSave);
             }
         }
     }
 
     Super::EndPlay(EndPlayReason);
+}
+
+void ASGMainPlayerState::OnRep_CustomPlayerName()
+{
+    UE_LOG(LogTemp, Log, TEXT("MainPlayerState:kakakakaka Data restored for  (Team: %d, Score: %d , Player Name : %s)") 
+    , static_cast<int32>(CurrentTeam), PlayerScore , *CustomPlayerName);
 }

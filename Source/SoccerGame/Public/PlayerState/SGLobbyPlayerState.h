@@ -26,19 +26,21 @@ protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 public:
-	// ----------------------------------------------------
-	// 로비용 데이터 변수들
-	// ----------------------------------------------------
-
-	// [추가] 리플리케이션되는 플레이어 이름 변수 (값이 변경되면 OnRep_CustomPlayerName 호출)
-	UPROPERTY(ReplicatedUsing = OnRep_CustomPlayerName, BlueprintReadOnly, Category = "Lobby Settings")
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Lobby Settings")
 	FString CustomPlayerName = TEXT("UnknownPlayer");
 
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Lobby Settings")
-	ESGPlayerTeam LobbyTeam = ESGPlayerTeam::Neutrality;
+	ESGPlayerTeam CurrentTeam = ESGPlayerTeam::Neutrality;
 
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Lobby Settings")
 	int32 LobbyScore = 0;
+	
+	// 서버가 이 변수를 바꾸면 온렙 함수가 클라이언트에서 자동 호출됩니다.
+	UPROPERTY(ReplicatedUsing = OnRep_IsReady, BlueprintReadOnly, Category = "SG_Lobby")
+	bool bIsReady = false;
+
+	// 서버에서 레디 상태를 직접 바꿀 때 사용할 함수
+	void SetReadyState(bool bNewReadyState);
 
 protected:
 	// [추가] 이름이 서버로부터 동기화되었을 때 클라이언트에서 실행될 함수 (UI 갱신 등에 활용)
@@ -46,5 +48,11 @@ protected:
 	void OnRep_CustomPlayerName();
 	
 	void CopyProperties(APlayerState* NewPlayerState);
+	
+	UFUNCTION()
+	void OnRep_IsReady();
+public:
+	
+	void SetTeamInternal(const ESGPlayerTeam & SellectTeam); 
 	
 };
