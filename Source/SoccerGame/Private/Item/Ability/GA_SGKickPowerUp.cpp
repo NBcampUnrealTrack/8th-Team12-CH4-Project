@@ -15,7 +15,7 @@ void UGA_SGKickPowerUp::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
 	const FGameplayEventData* TriggerEventData)
 {
-	if (!CommitAbility(Handle, ActorInfo, ActivationInfo)){
+	if (ActorInfo == nullptr || !ActorInfo->AvatarActor.IsValid()){
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
