@@ -42,6 +42,7 @@ void ASGRandomItemGrantActor::OnCollisionBeginOverlap(UPrimitiveComponent* Overl
 	if (!ItemSlotComponent->AddItem(Item)) return;
 	
 	bGranted = true;
+	OnRandomItemGranted.Broadcast();
 	Collision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	if (GEngine){
 		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, FString::Printf(TEXT("지급된 아이템: %s"), *Item->GetName()));

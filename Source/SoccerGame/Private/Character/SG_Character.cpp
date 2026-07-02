@@ -11,6 +11,9 @@
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
 
+#include "Character/GAS/GAS_SG_CharacterAttributeSet.h"
+#include "AbilitySystemComponent.h"
+
 DEFINE_LOG_CATEGORY(Log_SG_Character);
 
 // Sets default values
@@ -26,8 +29,8 @@ ASG_Character::ASG_Character()
 	GetCharacterMovement()->bOrientRotationToMovement = true;	
 	GetCharacterMovement()->RotationRate = FRotator(0.0f, 500.0f, 0.0f);
 	
-	GetCharacterMovement()->JumpZVelocity = 700.f;
-	GetCharacterMovement()->AirControl = 0.35f;
+	GetCharacterMovement()->JumpZVelocity = 400.f;
+	GetCharacterMovement()->AirControl = 0.25f;
 	GetCharacterMovement()->MaxWalkSpeed = 500.f;
 	GetCharacterMovement()->MinAnalogWalkSpeed = 20.f;
 	GetCharacterMovement()->BrakingDecelerationWalking = 2000.f;
@@ -42,14 +45,27 @@ ASG_Character::ASG_Character()
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false;
 	
+	AbilitySystemComponent = CreateDefaultSubobject<UAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
+	// 네트워크 설정
+	AbilitySystemComponent->SetIsReplicated(true); 
+	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
 	
+	AttributeSet = CreateDefaultSubobject<UGAS_SG_CharacterAttributeSet>(TEXT("GASAttributeSetBase"));
+	CreateDefaultSubobject<UGAS_SG_CharacterAttributeSet>(TEXT("AttributeSet"));
 }
-
 
 void ASG_Character::BeginPlay()
 {
 	Super::BeginPlay();
 	
+	if (AbilitySystemComponent)
+	{
+		// ASC 내부 초기화 함수 호출 (Owner와 Avatar 세팅)
+		AbilitySystemComponent->InitAbilityActorInfo(this, this);
+		
+		// 기본 능력 부여
+		GiveDefaultAbilities();
+	}
 }
 
 void ASG_Character::NotifyControllerChanged()
@@ -79,11 +95,42 @@ void ASG_Character::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 		// Looking
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ASG_Character::Look);
 
+		// GAS 연동
+		if (AbilitySystemComponent)
+		{
+			FTopLevelAssetPath AbilityInputBindsAssetPath = FTopLevelAssetPath(TEXT("/Script/SoccerGame"), TEXT("ESGAbilityInputID"));
+			
+			AbilitySystemComponent->BindAbilityActivationToInputComponent(EnhancedInputComponent, 
+			FGameplayAbilityInputBinds(
+				FString("Confirm"), 
+				FString("Cancel"), 
+				AbilityInputBindsAssetPath, 
+				static_cast<int32>(ESGAbilityInputID::Confirm), 
+				static_cast<int32>(ESGAbilityInputID::Cancel)
+				)
+			);
+			
+			if (IA_Kick)
+			{
+				// 누르는순간 GAS에 Press 신호 전달
+				EnhancedInputComponent->BindAction(IA_Kick, ETriggerEvent::Started, this, &ASG_Character::AbilityInputPressed, static_cast<int32>(ESGAbilityInputID::Kick));
+            
+				// 떼는 순간 GAS에 Release 신호 전달 (WaitInputRelease Task가 이 신호를 감지)
+				EnhancedInputComponent->BindAction(IA_Kick, ETriggerEvent::Completed, this, &ASG_Character::AbilityInputReleased, static_cast<int32>(ESGAbilityInputID::Kick));
+			}
+		}
 	}
 	else
 	{
 		UE_LOG(Log_SG_Character, Error, TEXT("'%s' Failed to find an Enhanced Input component! This template is built to use the Enhanced Input system. If you intend to use the legacy system, then you will need to update this C++ file."), *GetNameSafe(this));
 	}
+}
+
+void ASG_Character::PossessedBy(AController* NewConroller)
+{
+	Super::PossessedBy(NewConroller);
+	
+	AbilitySystemComponent->InitAbilityActorInfo(this, this);
 }
 
 void ASG_Character::Tick(float DeltaTime)
@@ -120,4 +167,44 @@ void ASG_Character::Look(const FInputActionValue& Value)
 	}
 }
 
+UAbilitySystemComponent* ASG_Character::GetAbilitySystemComponent() const
+{
+	return AbilitySystemComponent;
+}
 
+// 래핑 함수들 구현
+void ASG_Character::AbilityInputPressed(int32 InputID)
+{
+	if (AbilitySystemComponent)
+	{
+		AbilitySystemComponent->AbilityLocalInputPressed(InputID);
+	}
+}
+
+void ASG_Character::AbilityInputReleased(int32 InputID)
+{
+	if (AbilitySystemComponent)
+	{
+		AbilitySystemComponent->AbilityLocalInputReleased(InputID);
+	}
+}
+
+void ASG_Character::GiveDefaultAbilities()
+{
+	// GiveAbility는 멀티플레이 보안 상 반드시 서버(Authority)의 권한이여야 한다.
+	if (!HasAuthority() || !AbilitySystemComponent)
+	{
+		return;
+	}
+
+	if (KickAbilityClass)
+	{
+		// 발차기 능력 생성
+		FGameplayAbilitySpec KickSpec(KickAbilityClass);
+		
+		// 발차기 능력에 아까 만든 [Kick]을 매핑
+		KickSpec.InputID = static_cast<int32>(ESGAbilityInputID::Kick);
+		
+		AbilitySystemComponent->GiveAbility(KickSpec);
+	}
+}
