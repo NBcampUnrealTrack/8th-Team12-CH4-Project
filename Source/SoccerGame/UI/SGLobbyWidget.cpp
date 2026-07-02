@@ -2,6 +2,7 @@
 
 
 #include "SGLobbyWidget.h"
+#include "SGPlayerSlotWidget.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
@@ -10,25 +11,73 @@ void USGLobbyWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 	
+	BlueTeamSlots = {BlueSlot_1, BlueSlot_2, BlueSlot_3};
+	RedTeamSlots = {RedSlot_1, RedSlot_2, RedSlot_3};
+	WaitingSlots = {WaitingSlot_1, WaitingSlot_2, WaitingSlot_3, WaitingSlot_4, WaitingSlot_5, WaitingSlot_6};
+	
+	FGameplayTag BlueTag = FGameplayTag::RequestGameplayTag(FName("Team.Blue"));
+	FGameplayTag RedTag = FGameplayTag::RequestGameplayTag(FName("Team.Red"));
+	FGameplayTag WaitingTag = FGameplayTag::RequestGameplayTag(FName("Team.Waiting"));
+	
+	// 슬롯에게 태그 부여, 클릭 알림 구독
+	for (auto* BlueSlot : BlueTeamSlots)
+	{
+		if (BlueSlot)
+		{
+			BlueSlot->SetSlotTeamTag(BlueTag);
+			BlueSlot->OnSlotClicked.AddDynamic(this, &USGLobbyWidget::HandleSlotClicked);
+		}
+	}
+	for (auto* RedSlot : RedTeamSlots)
+	{
+		if (RedSlot)
+		{
+			RedSlot->SetSlotTeamTag(RedTag);
+			RedSlot->OnSlotClicked.AddDynamic(this, &USGLobbyWidget::HandleSlotClicked);
+		}
+	}
+	for (auto* WaitingSlot : WaitingSlots)
+	{
+		if (WaitingSlot)
+		{
+			WaitingSlot->SetSlotTeamTag(WaitingTag);
+			WaitingSlot->OnSlotClicked.AddDynamic(this, &USGLobbyWidget::HandleSlotClicked);
+		}
+	}
+	
 	if (ReadyButton)
 	{
 		ReadyButton->OnClicked.AddDynamic(this, &USGLobbyWidget::OnReadyButtonClicked);
 	}
 	
-	// TODO: 테스트 플레이어 데이터 배열 초기화 위치
+	/* 테스트 플레이어 데이터 배열 초기화 위치 */
+	PlayerInfos.Empty();
 	
-	FSGPlayerLobbyInfo Player1;
+	// 블루팀
+	FSGPlayerLobbyInfo Player1 = {};
 	Player1.UserName = FText::FromString("Player1");
-	FSGPlayerLobbyInfo Player2;
+	Player1.TeamTag = WaitingTag;
+	
+	FSGPlayerLobbyInfo Player2 = {};
 	Player2.UserName = FText::FromString("Player2");
-	FSGPlayerLobbyInfo Player3;
+	Player2.TeamTag = WaitingTag;
+	
+	FSGPlayerLobbyInfo Player3 = {};
 	Player3.UserName = FText::FromString("Player3");
-	FSGPlayerLobbyInfo Player4;
+	Player3.TeamTag = WaitingTag;
+	
+	// 레드팀
+	FSGPlayerLobbyInfo Player4 = {};
 	Player4.UserName = FText::FromString("Player4");
-	FSGPlayerLobbyInfo Player5;
+	Player4.TeamTag = WaitingTag;
+	
+	FSGPlayerLobbyInfo Player5 = {};
 	Player5.UserName = FText::FromString("Player5");
-	FSGPlayerLobbyInfo Player6;
+	Player5.TeamTag = WaitingTag;
+	
+	FSGPlayerLobbyInfo Player6 = {};
 	Player6.UserName = FText::FromString("Player6");
+	Player6.TeamTag = WaitingTag;
 	
 	PlayerInfos.Add(Player1);
 	PlayerInfos.Add(Player2);
@@ -37,76 +86,123 @@ void USGLobbyWidget::NativeConstruct()
 	PlayerInfos.Add(Player5);
 	PlayerInfos.Add(Player6);
 	
-	// TODO: RefreshLobby 호출 위치
 	RefreshLobby();
-	
-	// TODO: UpdateReadyButtonText 호출 위치
 	UpdateReadyButtonText();
 }
 
 void USGLobbyWidget::SetPlayerInfos(const TArray<FSGPlayerLobbyInfo>& InPlayerInfos)
 {
-	// TODO: PlayerInfos에 InPlayerInfos 대입
 	PlayerInfos = InPlayerInfos;
 	
-	// TODO: RefreshLobby 호출
 	RefreshLobby();
 }
 
 void USGLobbyWidget::RefreshLobby()
 {
-	// TODO: VerticalBox_BlueTeam 유효성 검사
-	// TODO: VerticalBox_RedTeam 유효성 검사
-	// TODO: VerticalBox_Waiting 유효성 검사
-	if (!VerticalBox_BlueTeam || !VerticalBox_RedTeam || !VerticalBox_Waiting)
+	for (auto* BlueSlot : BlueTeamSlots)
 	{
-		return;
+		if (BlueSlot) BlueSlot->ResetSlot();
 	}
+	for (auto* RedSlot : RedTeamSlots)
+	{
+		if (RedSlot) RedSlot->ResetSlot();
+	}
+	for (auto* WaitingSlot : WaitingSlots)
+	{
+		if (WaitingSlot) WaitingSlot->ResetSlot();
+	}
+		
+	int CurrentBlueIndex = 0;
+	int CurrentRedIndex = 0;
+	int CurrentWaitingIndex = 0;
 	
-	// TODO: PlayerSlotWidgetClass 유효성 검사
-	if (!PlayerSlotWidgetClass) return;
-	
-	// TODO: 기존 Blue 팀 슬롯 제거
-	// TODO: 기존 Red 팀 슬롯 제거
-	// TODO: 기존 Waiting 팀 슬롯 제거
-	VerticalBox_BlueTeam->ClearChildren();
-	VerticalBox_RedTeam->ClearChildren();
-	VerticalBox_Waiting->ClearChildren();
+	FGameplayTag BlueTag = FGameplayTag::RequestGameplayTag(FName("Team.Blue"));
+	FGameplayTag RedTag = FGameplayTag::RequestGameplayTag(FName("Team.Red"));
+	FGameplayTag WaitingTag = FGameplayTag::RequestGameplayTag(FName("Team.Waiting"));
 	
 	for (const FSGPlayerLobbyInfo& PlayerInfo : PlayerInfos)
 	{
-		// TODO: PlayerSlotWidgetClass 기반 위젯 생성 변수 선언
-		for (const FSGPlayerLobbyInfo& PlayerInfo : PlayerInfos)
+		if (PlayerInfo.TeamTag == BlueTag)
 		{
-			USGPlayerSlotWidget* PlayerSlotWidget = CreateWidget<USGPlayerSlotWidget>(GetWorld(), PlayerSlotWidgetClass);
-			
-			// TODO: 생성된 슬롯 위젯 유효성 검사
-			if (!PlayerSlotWidget)
+			// 블루팀 자리 3개 이하일 때만 데이터 세팅
+			if (CurrentBlueIndex < 3 && BlueTeamSlots[CurrentBlueIndex])
 			{
-				continue;
+				BlueTeamSlots[CurrentBlueIndex]->SetPlayerSlotInfo(PlayerInfo.UserName, PlayerInfo.bIsReady, PlayerInfo.TeamTag);
+				CurrentBlueIndex++;
 			}
-			
-			// TODO: SetPlayerSlotInfo 호출 위치
-			SetPlayerSlotInfo(USGPlayerSlotWidget::StaticClass(), PlayerInfo, PlayerSlotWidget);
-			// TODO: TeamType에 따라 추가할 VerticalBox 분기 위치
 		}
-		
+		else if (PlayerInfo.TeamTag == RedTag)
+		{
+			if (CurrentRedIndex < 3 && RedTeamSlots[CurrentRedIndex])
+			{
+				RedTeamSlots[CurrentRedIndex]->SetPlayerSlotInfo(PlayerInfo.UserName, PlayerInfo.bIsReady, PlayerInfo.TeamTag);
+				CurrentRedIndex++;
+			}
+		}
+		else if (PlayerInfo.TeamTag == WaitingTag)
+		{
+			if (CurrentWaitingIndex < 6 && WaitingSlots[CurrentWaitingIndex])
+			{
+				WaitingSlots[CurrentWaitingIndex]->SetPlayerSlotInfo(PlayerInfo.UserName, PlayerInfo.bIsReady, PlayerInfo.TeamTag);
+				CurrentWaitingIndex++;
+			}
+		}
 	}
 }
-
 
 
 void USGLobbyWidget::OnReadyButtonClicked()
 {
-	// TODO: LocalPlayerIndex 유효성 검사
-	// TODO: PlayerInfos[LocalPlayerIndex].bIsReady 값 토
-	// TODO: RefreshLobby 호출
-	// TODO: UpdateReadyButtonText 호출
+	// LocalPlayerIndex 유효성 검사
+	if (!PlayerInfos.IsValidIndex(LocalPlayerIndex)) return;
+	
+	// PlayerInfos[LocalPlayerIndex].bIsReady 값 토글
+	PlayerInfos[LocalPlayerIndex].bIsReady = !PlayerInfos[LocalPlayerIndex].bIsReady;
+	
+	RefreshLobby();
+	UpdateReadyButtonText();
 }
 
 void USGLobbyWidget::UpdateReadyButtonText()
 {
-	// TODO: Text_ReadyButton 유효성 검사
-	// TODO: LocalPlayerIndex 유효성 검사
-	// TODO: 현재 Ready 상태에 따른 버튼 텍스트 값
+
+	if (!Text_ReadyButton) return;
+	if (!PlayerInfos.IsValidIndex(LocalPlayerIndex)) return;
+	if (PlayerInfos[LocalPlayerIndex].bIsReady == false)
+	{
+		Text_ReadyButton->SetText(FText::FromString("Ready"));	
+	}
+	else
+	{
+		Text_ReadyButton->SetText(FText::FromString("Cancel"));
+	}
+}
+
+void USGLobbyWidget::HandleSlotClicked(FGameplayTag RequestedTeamTag)
+{
+	// 내 정보가 유효한지 확인
+	if (!PlayerInfos.IsValidIndex(LocalPlayerIndex)) return;
+	
+	if (PlayerInfos[LocalPlayerIndex].TeamTag == RequestedTeamTag) return;
+	
+	int32 CurrentTeamCount = 0;
+	for (const FSGPlayerLobbyInfo& Info  : PlayerInfos)
+	{
+		if (Info.TeamTag == RequestedTeamTag) CurrentTeamCount++;
+	}
+	
+	FGameplayTag WaitingTag = FGameplayTag::RequestGameplayTag(FName("Team.Waiting"));
+	int32 MaxCapacity = (RequestedTeamTag == WaitingTag) ? 6 : 3;
+	
+	if (CurrentTeamCount >= MaxCapacity)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("해당 팀은 이미 꽉 찼습니다!"));
+		return;
+	}
+	
+	PlayerInfos[LocalPlayerIndex].TeamTag = RequestedTeamTag;
+	PlayerInfos[LocalPlayerIndex].bIsReady = false;
+	
+	RefreshLobby();
+	UpdateReadyButtonText();
 }

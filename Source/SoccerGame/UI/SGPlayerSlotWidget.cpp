@@ -2,82 +2,127 @@
 
 
 #include "SGPlayerSlotWidget.h"
-
 #include "Components/Border.h"
+#include "Components/Button.h"
 #include "Components/TextBlock.h"
 
 void USGPlayerSlotWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 	
-	// TODO: 기본 이름 텍스트 값 -> 일단은 정해진 값 할당, 나중에 랜덤 할당
+	if (Button_SlotClick)
+	{
+		Button_SlotClick->OnClicked.AddDynamic(this, &USGPlayerSlotWidget::OnButtonClicked);
+	}
+	
+	ResetSlot();
+}
+
+void USGPlayerSlotWidget::SetSlotTeamTag(FGameplayTag InTeamTag)
+{
+	MySlotTeamTag = InTeamTag;
+	
+	if (Border_Background)
+	{
+		Border_Background->SetBrushColor(GetTeamColor(MySlotTeamTag));
+	}
+}
+
+void USGPlayerSlotWidget::ResetSlot()
+{
+	if (!Text_UserName || !Border_Background)
+	{
+		UE_LOG(LogTemp, Error, TEXT("치명적 에러: WBP_PlayerSlot 내부 부품이 연결 안 됨! 변수(Is Variable) 체크를 확인하세요!"));
+	}
+	
 	if (Text_UserName)
 	{
-		Text_UserName->SetText(FText::FromString(TEXT("Player1")));	
+		Text_UserName->SetVisibility(ESlateVisibility::Hidden);
 	}
-	
-	
-	// TODO: 기본 Ready 표시 상태
 	if (Text_Ready)
 	{
-		Text_Ready->SetText(FText::FromString(TEXT("Ready")));	
-	}
-	
-	// TODO: 기본 배경색
-	if (Border_Background)
-	{
-		Border_Background->SetBrushColor(FLinearColor::Blue);	
-	}
-	
-}
-
-void USGPlayerSlotWidget::SetPlayerSlotInfo(const FText& InUserName, bool bInReady, ESGTeamType InTeamType)
-{
-	// TODO: Text_UserName 유효성 검사
-	// TODO: Text_UserName에 InUserName 반영
-	if (!Text_UserName) return;
-	Text_UserName->SetText(InUserName);
-	
-	
-	// TODO: Text_Ready 유효성 검사
-	// TODO: bInReady 값에 따른 Test_Ready 표시 상태 반영
-	if (!Text_Ready) return; 
-	if (bInReady)
-	{
-		Text_Ready->SetText(FText::FromString(TEXT("Ready!")));
-		Text_Ready->SetVisibility(ESlateVisibility::Visible);
-	}
-	else
-	{
+		Text_Ready->SetVisibility(ESlateVisibility::Collapsed);
 		Text_Ready->SetText(FText::GetEmpty());
-		Text_Ready->SetVisibility(ESlateVisibility::Hidden);
 	}
-	
-	// TODO: Border_Root 유효성 검사
-	
-	// TODO: InTeamType에 따른 Border_Root 배경색 반영
 	if (Border_Background)
 	{
-		Border_Background->SetBrushColor(GetTeamColor(InTeamType));
+		Border_Background->SetRenderOpacity(0.3f);
+		
+		if (MySlotTeamTag.IsValid())
+		{
+			Border_Background->SetBrushColor(GetTeamColor(MySlotTeamTag));
+		}
 	}
 }
 
-FLinearColor USGPlayerSlotWidget::GetTeamColor(ESGTeamType InTeamType) const
+void USGPlayerSlotWidget::SetPlayerSlotInfo(const FText& InUserName, bool bInReady, FGameplayTag InTeamTag)
 {
-	if (InTeamType == ESGTeamType::Blue)
+	
+	// Text_UserName 유효성 검사
+	// Text_UserName에 InUserName 반영
+	if (Text_UserName)
+	{
+		Text_UserName->SetText(InUserName);
+		Text_UserName->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		
+		FGameplayTag WaitingTag = FGameplayTag::RequestGameplayTag(FName("Team.Waiting"));
+		
+		if (InTeamTag == WaitingTag)
+		{
+			Text_UserName->SetJustification(ETextJustify::Center);
+			
+			if (Text_Ready)
+			{
+				Text_Ready->SetVisibility(ESlateVisibility::Collapsed);
+			}
+		}
+		else
+		{
+			Text_UserName->SetJustification(ETextJustify::Left);
+			
+			if (Text_Ready)
+			{
+				Text_Ready->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+				
+				if (bInReady)
+				{
+					Text_Ready->SetText(FText::FromString(TEXT("Ready!")));
+				}
+				else
+				{
+					Text_Ready->SetText(FText::GetEmpty());
+				}
+			}
+		}
+		
+		
+	}
+	
+	// InTeamTag에 따른 Border_Background 배경색 반영 및 투명도 원상 복구
+	if (Border_Background)
+	{
+		Border_Background->SetBrushColor(GetTeamColor(InTeamTag));
+		Border_Background->SetRenderOpacity(1.0f);
+	}
+}
+
+FLinearColor USGPlayerSlotWidget::GetTeamColor(FGameplayTag InTeamTag) const
+{
+	if (InTeamTag == FGameplayTag::RequestGameplayTag(FName("Team.Blue")))
 	{
 		return FLinearColor::Blue;
 	}
-	else if (InTeamType == ESGTeamType::Red)
+	else if (InTeamTag == FGameplayTag::RequestGameplayTag(FName("Team.Red")))
 	{
 		return FLinearColor::Red;
 	}
-	else if (InTeamType == ESGTeamType::Waiting)
-	{
-		return FLinearColor::Gray;
-	}
 	
 	return FLinearColor::Gray;
+}
+
+void USGPlayerSlotWidget::OnButtonClicked()
+{
+	OnSlotClicked.Broadcast(MySlotTeamTag);
 }
 
 
