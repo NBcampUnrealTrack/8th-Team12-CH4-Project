@@ -13,6 +13,7 @@
 
 #include "Character/GAS/GAS_SG_CharacterAttributeSet.h"
 #include "AbilitySystemComponent.h"
+#include "Item/SGItemSlotComponent.h"
 
 DEFINE_LOG_CATEGORY(Log_SG_Character);
 
@@ -36,6 +37,8 @@ ASG_Character::ASG_Character()
 	GetCharacterMovement()->BrakingDecelerationWalking = 2000.f;
 	GetCharacterMovement()->BrakingDecelerationFalling = 1500.0f;
 	
+	BaseWalkSpeed = GetCharacterMovement()->MaxWalkSpeed;
+	
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
 	CameraBoom->TargetArmLength = 300.0f; 	
@@ -51,7 +54,9 @@ ASG_Character::ASG_Character()
 	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
 	
 	AttributeSet = CreateDefaultSubobject<UGAS_SG_CharacterAttributeSet>(TEXT("GASAttributeSetBase"));
-	CreateDefaultSubobject<UGAS_SG_CharacterAttributeSet>(TEXT("AttributeSet"));
+	// CreateDefaultSubobject<UGAS_SG_CharacterAttributeSet>(TEXT("AttributeSet"));
+	
+	ItemSlotComponent = CreateDefaultSubobject<USGItemSlotComponent>(TEXT("ItemSlotComponent"));
 }
 
 void ASG_Character::BeginPlay()
@@ -65,6 +70,12 @@ void ASG_Character::BeginPlay()
 		
 		// 기본 능력 부여
 		GiveDefaultAbilities();
+		
+		// SpeedMultiplier 변경 사항 감지
+		if (!AttributeSet) return;
+		AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(
+			AttributeSet->GetSpeedMultiplierAttribute()).AddUObject(this, &ASG_Character::OnSpeedMultiplierChanged);
+		ApplySpeedMultiplier(AttributeSet->GetSpeedMultiplier());
 	}
 }
 
@@ -94,6 +105,10 @@ void ASG_Character::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 
 		// Looking
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ASG_Character::Look);
+		
+		// Use Item
+		EnhancedInputComponent->BindAction(UseItemAction, ETriggerEvent::Started, this, &ASG_Character::UseItemPressed);
+		EnhancedInputComponent->BindAction(UseItemAction, ETriggerEvent::Completed, this, &ASG_Character::UseItemReleased);
 
 		// GAS 연동
 		if (AbilitySystemComponent)
@@ -207,4 +222,26 @@ void ASG_Character::GiveDefaultAbilities()
 		
 		AbilitySystemComponent->GiveAbility(KickSpec);
 	}
+}
+	
+void ASG_Character::UseItemPressed()
+{
+	if (!ItemSlotComponent) return;
+	ItemSlotComponent->UseItemPressed();
+}
+
+void ASG_Character::UseItemReleased()
+{
+	if (!ItemSlotComponent) return;
+	ItemSlotComponent->UseItemReleased();
+}
+
+void ASG_Character::OnSpeedMultiplierChanged(const FOnAttributeChangeData& Data)
+{
+	ApplySpeedMultiplier(Data.NewValue);
+}
+
+void ASG_Character::ApplySpeedMultiplier(float NewMultiplier)
+{
+	GetCharacterMovement()->MaxWalkSpeed = BaseWalkSpeed * NewMultiplier;
 }
