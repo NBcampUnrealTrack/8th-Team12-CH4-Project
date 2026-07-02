@@ -8,6 +8,7 @@
 #include "Abilities/Tasks/AbilityTask_WaitInputRelease.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
+#include "AbilitySystemGlobals.h"
 
 UGA_SG_Kick::UGA_SG_Kick()
 {
@@ -187,20 +188,38 @@ void UGA_SG_Kick::OnInputReleased(float TimeHeld)
 			MyAbilityTag = AssetTagsContainer.GetByIndex(0);
 		}
 
-		// 태그 이벤트를 기다리는 Task
+		// --- 태그 이벤트를 기다리는 Task ---
 		UAbilityTask_WaitGameplayEvent* WaitEventTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
 		   this, 
 		   MyAbilityTag,     // 에디터에서 설정한 GA_SG_Kick의 Tag
 		   nullptr,          // Optional External Optional Actor
 		   false             // bOnlyTriggerOnce (한 번만 트리거할지 여부)
 		);
-
+		
 		if (WaitEventTask)
 		{
 			// 이벤트가 들어오면 실행할 함수 바인딩
 			WaitEventTask->EventReceived.AddDynamic(this, &UGA_SG_Kick::OnGameplayEventReceived);
 			WaitEventTask->ReadyForActivation();
 		}
+
+		// --- 적 플레이어 감지용 Task ---
+		FGameplayTag HitTag = FGameplayTag::RequestGameplayTag(TEXT("Character.Skill.Kick.Hit"));
+		UAbilityTask_WaitGameplayEvent* WaitHitEventTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
+		   this, 
+		   HitTag, 
+		   nullptr,          
+		   false             
+		);
+		
+		if (WaitHitEventTask)
+		{
+			// ANS가 Actor를 전송하면 OnEnemyHitReceived 함수 실행
+			WaitHitEventTask->EventReceived.AddDynamic(this, &UGA_SG_Kick::OnEnemyHitReceived);
+			WaitHitEventTask->ReadyForActivation();
+		}
+		
+		
 	}
 	else
 	{
@@ -213,4 +232,44 @@ void UGA_SG_Kick::OnGameplayEventReceived(FGameplayEventData Payload)
 {
 	UE_LOG(LogTemp, Log, TEXT("FindAndPushBall Test"));
 	FindAndPushBall();
+}
+
+void UGA_SG_Kick::OnEnemyHitReceived(FGameplayEventData Payload)
+{
+	// 서버 체크
+	if (!HasAuthority(&CurrentActivationInfo))
+	{
+		return;
+	}
+
+	// ANS Enemy 액터를 꺼낸다.
+	AActor* HitEnemy = const_cast<AActor*>(Payload.Target.Get());
+	if (!HitEnemy || !DamageEffectClass)
+	{
+		return;
+	}
+
+	// 나의 어빌리티 시스템(ASC)과 적의 어빌리티 시스템(ASC)을 가져옴
+	UAbilitySystemComponent* MyASC = GetAbilitySystemComponentFromActorInfo();
+	UAbilitySystemComponent* TargetASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(HitEnemy);
+
+	if (MyASC && TargetASC)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("서버에서 데미지 계산"));
+
+		// 데미지 적용에 필요한 Context(인스티게이터 정보 등) 생성
+		FGameplayEffectContextHandle EffectContext = MyASC->MakeEffectContext();
+		EffectContext.AddSourceObject(this);
+
+		// 에디터에서 선택한 GE 스펙 핸들 생성
+		FGameplayEffectSpecHandle NewHandle = MyASC->MakeOutgoingSpec(DamageEffectClass, 1.0f, EffectContext);
+        
+		if (NewHandle.IsValid())
+		{
+			// 상대방 캐릭터에게 데미지를 준다.(Apply)
+			MyASC->ApplyGameplayEffectSpecToTarget(*NewHandle.Data.Get(), TargetASC);
+            
+			UE_LOG(LogTemp, Log, TEXT("발차기 데미지 전달 완료"));
+		}
+	}
 }

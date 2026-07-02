@@ -50,6 +50,13 @@ protected:
 	UFUNCTION(BlueprintCallable, Category = "Ability|Kick")
 	void FindAndPushBall();
 	
+	// BP_GE_SG_Kick 담는 변수
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ability|Damage")
+	TSubclassOf<UGameplayEffect> DamageEffectClass;
+	
+	UFUNCTION()
+	void OnEnemyHitReceived(FGameplayEventData Payload);
+	
 	// 차징 후 마우스를 떼면 호출되는 함수
 	UFUNCTION()
 	void OnInputReleased(float TimeHeld);
