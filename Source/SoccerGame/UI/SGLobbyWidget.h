@@ -17,15 +17,15 @@ struct FSGPlayerLobbyInfo
 {
 	GENERATED_BODY()
 	
-	// TODO: 플레이어 이름 변수 선언
+	// 플레이어 이름 변수 선언
 	UPROPERTY(BlueprintReadWrite)
 	FText UserName;
 	
-	// TODO: Ready 상태 변수 선언
+	// Ready 상태 변수 선언
 	UPROPERTY(BlueprintReadWrite)
 	bool bIsReady = false;
 	
-	// TODO: 팀 타입 변수 선언
+	// 팀 타입 변수 선언
 	UPROPERTY(BlueprintReadWrite)
 	FGameplayTag TeamTag;
 };
