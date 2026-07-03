@@ -7,6 +7,7 @@
 #include "SGInGameWidget.generated.h"
 
 class UTextBlock;
+class USGScoreBoardWidget;
 /**
  * 
  */
@@ -18,13 +19,19 @@ class SOCCERGAME_API USGInGameWidget : public UUserWidget
 public:
 	virtual void NativeConstruct() override;
 	
-	// GameState의 Broadcast로 실행될 함수
-	UFUNCTION()
-	void UpdateTimerText(int32 CurrentTime);
+protected:
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 	
 protected:
 	// 타이머 텍스트
 	UPROPERTY(meta = (BindWidget))
-	UTextBlock* Text_Timer;
+	TObjectPtr<UTextBlock> Text_Timer;
 	
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<USGScoreBoardWidget> WBP_ScoreBoard;
+	
+private:
+	// 이전 프레임의 점수 저장
+	int32 LastBlueTeamScore = -1;
+	int32 LastRedTeamScore = -1;
 };
