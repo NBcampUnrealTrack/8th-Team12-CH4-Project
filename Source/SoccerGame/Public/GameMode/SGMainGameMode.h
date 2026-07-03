@@ -6,6 +6,7 @@
 #include "GameFramework/GameModeBase.h"
 #include "SGMainGameMode.generated.h"
 
+class ASGPlayerStart;
 
 UCLASS()
 class SOCCERGAME_API ASGMainGameMode : public AGameModeBase
@@ -14,6 +15,12 @@ class SOCCERGAME_API ASGMainGameMode : public AGameModeBase
 public:
 	ASGMainGameMode();
 	
+	//Seamless Travel 모드에서 PlayerController Input Mode 전환
+	virtual void HandleSeamlessTravelPlayer(AController*& C) override;
+
+	// 플레이어 팀에 맞는 PlayerStart 선택
+	virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
+
 	// 골이 발생했을 때 골대 트리거에서 호출할 심판 함수 (서버 전용)
 	void OnGoalScored(bool bIsRedTeamGoal);
 
@@ -25,7 +32,7 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
-	
+
 	// 시작전 로딩 + 초기화 
 	void StartLoading();
 	
@@ -37,9 +44,6 @@ protected:
 
 	// 1초마다 타이머를 줄이는 함수
 	void UpdateMatchTime();
-
-	// 모든 플레이어를 각 팀 스폰 포인트로 정렬하는 함수
-	void MovePlayersToSpawnPoints();
 
 protected:
 	// --- 에디터 설정 규칙 변수 ---
@@ -65,5 +69,7 @@ protected:
 	FTimerHandle MatchTimerHandle;
 	FTimerHandle RoundRestartTimerHandle;
 	FTimerHandle LoadingCheckTimerHandle;
+
+	TMap<AController*, ASGPlayerStart*> AssignedInitialPlayerStarts;
 
 };
