@@ -24,6 +24,7 @@ void ASGGoalVolume::BeginPlay()
     GoalTrigger->OnComponentBeginOverlap.AddDynamic(this, &ASGGoalVolume::OnGoalBeginOverlap);
 }
 
+// 오버랩
 void ASGGoalVolume::OnGoalBeginOverlap(
     UPrimitiveComponent* OverlappedComponent,
     AActor* OtherActor,
@@ -48,6 +49,7 @@ void ASGGoalVolume::OnGoalBeginOverlap(
         return;
     }
     
+    // 공인지 확인
     if (!OtherActor->ActorHasTag(TEXT("Ball")))
     {
         return;
@@ -65,6 +67,7 @@ void ASGGoalVolume::HandleGoalScored()
 
     bGoalEnabled = false;
     
+    // 팀 확인
     bool bIsRedTeamGoal = DefendingTeamTag == FGameplayTag::RequestGameplayTag(FName("Team.Blue"));
 
     // GameMode에 알림
@@ -72,8 +75,12 @@ void ASGGoalVolume::HandleGoalScored()
     if (GM)
     {
         GM->OnGoalScored(bIsRedTeamGoal);
+        
+        // 득점 팀 확인용 디버그
+        GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("%d"), bIsRedTeamGoal));
     }
 
+    // 골 먹힌 직후 트리거 비활성화 되도록 타이머 적용
     GetWorldTimerManager().SetTimer(
         GoalCooldownTimerHandle,
         this,
