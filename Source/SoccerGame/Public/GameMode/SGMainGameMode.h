@@ -64,5 +64,6 @@ protected:
 
 	FTimerHandle MatchTimerHandle;
 	FTimerHandle RoundRestartTimerHandle;
+	FTimerHandle LoadingCheckTimerHandle;
 
 };
