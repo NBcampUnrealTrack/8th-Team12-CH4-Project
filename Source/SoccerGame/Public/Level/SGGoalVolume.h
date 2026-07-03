@@ -1,26 +1,49 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "GameFramework/Actor.h"
 #include "SGGoalVolume.generated.h"
+
+class UBoxComponent;
 
 UCLASS()
 class SOCCERGAME_API ASGGoalVolume : public AActor
 {
 	GENERATED_BODY()
 	
-public:	
-	// Sets default values for this actor's properties
+public:
 	ASGGoalVolume();
 
 protected:
-	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-public:	
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UBoxComponent> GoalTrigger;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Goal", meta = (Categories = "Team"))
+	FGameplayTag DefendingTeamTag;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Goal")
+	bool bGoalEnabled = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Goal")
+	float GoalCooldown = 1.0f;
+
+	UFUNCTION()
+	void OnGoalBeginOverlap(
+		UPrimitiveComponent* OverlappedComponent,
+		AActor* OtherActor,
+		UPrimitiveComponent* OtherComp,
+		int32 OtherBodyIndex,
+		bool bFromSweep,
+		const FHitResult& SweepResult
+	);
+
+	void HandleGoalScored();
+
+private:
+	FTimerHandle GoalCooldownTimerHandle;
+
+	void EnableGoal();
 };

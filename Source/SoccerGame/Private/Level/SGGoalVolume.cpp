@@ -1,27 +1,89 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "Level/SGGoalVolume.h"
+#include "Components/BoxComponent.h"
+#include "GameMode/SGMainGameMode.h"
+#include "Kismet/GameplayStatics.h"
 
-// Sets default values
 ASGGoalVolume::ASGGoalVolume()
 {
- 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
+    PrimaryActorTick.bCanEverTick = false;
 
+    GoalTrigger = CreateDefaultSubobject<UBoxComponent>(TEXT("GoalTrigger"));
+    RootComponent = GoalTrigger;
+
+    GoalTrigger->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+    GoalTrigger->SetCollisionObjectType(ECC_WorldDynamic);
+    GoalTrigger->SetCollisionResponseToAllChannels(ECR_Ignore);
+    GoalTrigger->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Overlap);
+    GoalTrigger->SetGenerateOverlapEvents(true);
 }
 
-// Called when the game starts or when spawned
 void ASGGoalVolume::BeginPlay()
 {
-	Super::BeginPlay();
-	
+    Super::BeginPlay();
+
+    GoalTrigger->OnComponentBeginOverlap.AddDynamic(this, &ASGGoalVolume::OnGoalBeginOverlap);
 }
 
-// Called every frame
-void ASGGoalVolume::Tick(float DeltaTime)
+void ASGGoalVolume::OnGoalBeginOverlap(
+    UPrimitiveComponent* OverlappedComponent,
+    AActor* OtherActor,
+    UPrimitiveComponent* OtherComp,
+    int32 OtherBodyIndex,
+    bool bFromSweep,
+    const FHitResult& SweepResult
+)
 {
-	Super::Tick(DeltaTime);
+    if (!HasAuthority())
+    {
+        return;
+    }
 
+    if (!bGoalEnabled)
+    {
+        return;
+    }
+
+    if (!OtherActor)
+    {
+        return;
+    }
+    
+    if (!OtherActor->ActorHasTag(TEXT("Ball")))
+    {
+        return;
+    }
+
+    HandleGoalScored();
 }
 
+void ASGGoalVolume::HandleGoalScored()
+{
+    if (!HasAuthority())
+    {
+        return;
+    }
+
+    bGoalEnabled = false;
+    
+    bool bIsRedTeamGoal = DefendingTeamTag == FGameplayTag::RequestGameplayTag(FName("Team.Blue"));
+
+    // GameMode에 알림
+    ASGMainGameMode* GM = Cast<ASGMainGameMode>(UGameplayStatics::GetGameMode(this));
+    if (GM)
+    {
+        GM->OnGoalScored(bIsRedTeamGoal);
+    }
+
+    GetWorldTimerManager().SetTimer(
+        GoalCooldownTimerHandle,
+        this,
+        &ASGGoalVolume::EnableGoal,
+        GoalCooldown,
+        false
+    );
+}
+
+void ASGGoalVolume::EnableGoal()
+{
+    bGoalEnabled = true;
+}
