@@ -32,6 +32,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Item")
 	void UseItemReleased();
 
+	
 public:
 	// Getter
 	UFUNCTION(BlueprintPure, Category = "Item|Inventory")
@@ -43,6 +44,9 @@ public:
 private:
     UFUNCTION()
     void OnRep_ItemSlots();
+	
+	UFUNCTION(Server, Reliable)
+	void Server_ConsumeItem();
 	
 public:
 	// Delegate

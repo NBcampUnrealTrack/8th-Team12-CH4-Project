@@ -4,11 +4,12 @@
 #include "Item/Ability/GA_SGKickPowerUp.h"
 
 #include "AbilitySystemComponent.h"
+#include "Abilities/Tasks/AbilityTask_WaitInputRelease.h"
 
 UGA_SGKickPowerUp::UGA_SGKickPowerUp()
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
-	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
+	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 }
 
 void UGA_SGKickPowerUp::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
@@ -19,14 +20,29 @@ void UGA_SGKickPowerUp::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
+	
+	UAbilityTask_WaitInputRelease* WaitInputReleaseTask = 
+		UAbilityTask_WaitInputRelease::WaitInputRelease(this, true);
+	
+	WaitInputReleaseTask->OnRelease.AddDynamic(this, &UGA_SGKickPowerUp::OnInputReleased);
+	WaitInputReleaseTask->ReadyForActivation();
 }
 
-void UGA_SGKickPowerUp::InputReleased(const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo)
+void UGA_SGKickPowerUp::OnInputReleased(float TimeHeld)
 {
+	if (CurrentActorInfo == nullptr || !CurrentActorInfo->AvatarActor.IsValid()){
+		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
+		return;
+	}
+
+	if (!CurrentActorInfo->AvatarActor->HasAuthority()){
+		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, false, false);
+		return;
+	}
+
 	UAbilitySystemComponent* AbilitySystemComponent = GetAbilitySystemComponentFromActorInfo();
 	if (!IsValid(AbilitySystemComponent) || KickPowerBuffEffect == nullptr){
-		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
 		return;
 	}
 	
@@ -37,10 +53,11 @@ void UGA_SGKickPowerUp::InputReleased(const FGameplayAbilitySpecHandle Handle,
 		KickPowerBuffEffect, GetAbilityLevel(), EffectContext);
 	
 	if (!EffectSpecHandle.IsValid()){
-		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
 		return;
 	}
 	
 	AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*EffectSpecHandle.Data.Get());
-	EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
+
+	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
 }

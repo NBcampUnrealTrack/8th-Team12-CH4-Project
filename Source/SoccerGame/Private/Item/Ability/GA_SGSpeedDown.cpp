@@ -4,11 +4,17 @@
 #include "Item/Ability/GA_SGSpeedDown.h"
 
 #include "AbilitySystemComponent.h"
+#include "Abilities/Tasks/AbilityTask_WaitInputRelease.h"
+#include "GameFramework/Controller.h"
+#include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
+#include "GameplayTagContainer.h"
+#include "PlayerState/SGMainPlayerState.h"
 
 UGA_SGSpeedDown::UGA_SGSpeedDown()
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
-	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
+	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 }
 
 void UGA_SGSpeedDown::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
@@ -19,31 +25,40 @@ void UGA_SGSpeedDown::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
+	
+	UAbilityTask_WaitInputRelease* WaitInputReleaseTask =
+		UAbilityTask_WaitInputRelease::WaitInputRelease(this, true);
+	
+	WaitInputReleaseTask->OnRelease.AddDynamic(this, &UGA_SGSpeedDown::OnInputReleased);
+	WaitInputReleaseTask->ReadyForActivation();
 }
 
-void UGA_SGSpeedDown::InputReleased(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo)
+void UGA_SGSpeedDown::OnInputReleased(float TimeHeld)
 {
-	if (ActorInfo == nullptr || !ActorInfo->AvatarActor.IsValid() || SpeedDownEffect == nullptr){
-		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+	if (CurrentActorInfo == nullptr || !CurrentActorInfo->AvatarActor.IsValid() || SpeedDownEffect == nullptr){
+		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
 		return;
 	}
-
-#pragma region 네트워킹 PR 이후
-	/*
-	AActor* OwnerActor = ActorInfo->AvatarActor.Get();
-	AController* OwnerController = Cast<AController>(OwnerActor->GetOwner());
-	ASGMainPlayerState* OwnerPlayerState = 
+	
+	if (!CurrentActorInfo->AvatarActor->HasAuthority()){
+		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, false, false);
+		return;
+	}
+	
+	APawn* OwnerPawn = Cast<APawn>(CurrentActorInfo->AvatarActor.Get());
+	AController* OwnerController = OwnerPawn ? OwnerPawn->GetController() : nullptr;
+	ASGMainPlayerState* OwnerPlayerState =
 		OwnerController ? OwnerController->GetPlayerState<ASGMainPlayerState>() : nullptr;
 	
-	if (OwnerPlayerState == nullptr || OwnerPlayerState->CurrentTeam == ESGPlayerTeam::Neutrality){
-		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+	const FGameplayTag WaitingTeamTag = FGameplayTag::RequestGameplayTag(FName("Team.Waiting"));
+	if (OwnerPlayerState == nullptr || OwnerPlayerState->CurrentTeamTag == WaitingTeamTag){
+		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
 		return;
 	}
 	
 	UWorld* World = GetWorld();
 	if (World == nullptr){
-		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
 		return;
 	}
 	
@@ -55,17 +70,17 @@ void UGA_SGSpeedDown::InputReleased(const FGameplayAbilitySpecHandle Handle, con
 		if (!IsValid(TargetController)) continue;
 		
 		// 팀 식별
-		ASGMainPlayerState* TargetPlayerState = 
+		ASGMainPlayerState* TargetPlayerState =
 			TargetController->GetPlayerState<ASGMainPlayerState>();
 		if (TargetPlayerState == nullptr ||
-			TargetPlayerState->CurrentTeam == OwnerPlayerState->CurrentTeam ||
-			TargetPlayerState->CurrentTeam == ESGPlayerTeam::Neutrality) continue;
+			TargetPlayerState->CurrentTeamTag == OwnerPlayerState->CurrentTeamTag ||
+			TargetPlayerState->CurrentTeamTag == WaitingTeamTag) continue;
 		
 		APawn* TargetPawn = TargetController->GetPawn();
 		if (!IsValid(TargetPawn)) continue;
 		
 		// Speed Multiplier 적용
-		UAbilitySystemComponent* TargetAbilitySystemComponent = 
+		UAbilitySystemComponent* TargetAbilitySystemComponent =
 			TargetPawn->FindComponentByClass<UAbilitySystemComponent>();
 		if (!IsValid(TargetAbilitySystemComponent)) continue;
 		
@@ -80,9 +95,5 @@ void UGA_SGSpeedDown::InputReleased(const FGameplayAbilitySpecHandle Handle, con
 		bWasCancelled = false;
 	}
 	
-	EndAbility(Handle, ActorInfo, ActivationInfo, true, bWasCancelled);
-	*/
-	EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-	
-#pragma endregion
+	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, bWasCancelled);
 }

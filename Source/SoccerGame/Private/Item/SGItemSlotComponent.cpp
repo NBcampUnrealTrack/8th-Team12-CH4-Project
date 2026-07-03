@@ -5,6 +5,7 @@
 
 #include "AbilitySystemComponent.h"
 #include "Abilities/GameplayAbility.h"
+#include "GameFramework/Pawn.h"
 #include "Item/Data/SGItemDefinition.h"
 #include "Net/UnrealNetwork.h"
 
@@ -64,7 +65,13 @@ void USGItemSlotComponent::UseItemPressed()
 	const FGameplayAbilitySpecHandle AbilityHandle = ItemAbilityHandles[0];
 	if (!AbilityHandle.IsValid()) return;
 	
-	AbilitySystemComponent->TryActivateAbility(AbilityHandle);
+	FGameplayAbilitySpec* AbilitySpec = AbilitySystemComponent->FindAbilitySpecFromHandle(AbilityHandle);
+	if (AbilitySpec == nullptr) return;
+	
+	AbilitySystemComponent->AbilitySpecInputPressed(*AbilitySpec);
+	const UGameplayAbility* Ability = AbilitySpec ? AbilitySpec->Ability : nullptr;
+
+	const bool bActivated = AbilitySystemComponent->TryActivateAbility(AbilityHandle);
 }
 
 void USGItemSlotComponent::UseItemReleased()
@@ -87,16 +94,30 @@ void USGItemSlotComponent::UseItemReleased()
 	
 	FGameplayAbilitySpec* AbilitySpec = AbilitySystemComponent->FindAbilitySpecFromHandle(AbilityHandle);
 	if (AbilitySpec == nullptr) return;
+
+	const bool bWasActive = AbilitySpec->IsActive();
+	
+	UGameplayAbility* AbilityInstance = nullptr;
+	FPredictionKey ActivationPredictionKey;
+	
+	if (bWasActive){
+		AbilityInstance = AbilitySpec->GetPrimaryInstance();
+		if (IsValid(AbilityInstance)){
+			ActivationPredictionKey = AbilityInstance->GetCurrentActivationInfoRef().GetActivationPredictionKey();
+		}
+	}
 	
 	AbilitySystemComponent->AbilitySpecInputReleased(*AbilitySpec);
 	
-	// 소모처리는 서버에서만
-	if (!Owner->HasAuthority()) return;
+	AbilitySystemComponent->InvokeReplicatedEvent(
+			EAbilityGenericReplicatedEvent::InputReleased,
+			AbilityHandle,
+			ActivationPredictionKey); 
 	
-	// 아이템 사용 성공 여부와는 관계 없이 소모 처리
-	ItemSlots.RemoveAt(0);
-	ItemAbilityHandles.RemoveAt(0);
-	OnItemSlotChanged.Broadcast();
+	// 아이템 사용 성공 여부와는 관계없이 서버에서 소모처리
+	if (!Owner->HasAuthority()){
+		Server_ConsumeItem();
+	}
 }
 
 int32 USGItemSlotComponent::GetItemCount() const
@@ -112,4 +133,13 @@ USGItemDefinition* USGItemSlotComponent::GetItemAt(int32 Index) const
 void USGItemSlotComponent::OnRep_ItemSlots()
 {
 	OnItemSlotChanged.Broadcast();
+}
+
+void USGItemSlotComponent::Server_ConsumeItem_Implementation()
+{
+	if (ItemSlots.IsEmpty()) return;
+	if (!ItemAbilityHandles.IsValidIndex(0)) return;
+	
+	ItemSlots.RemoveAt(0);
+	ItemAbilityHandles.RemoveAt(0);
 }

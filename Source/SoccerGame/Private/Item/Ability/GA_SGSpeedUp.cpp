@@ -4,64 +4,12 @@
 #include "Item/Ability/GA_SGSpeedUp.h"
 
 #include "AbilitySystemComponent.h"
-#include "GameFramework/Character.h"
-#include "GameFramework/CharacterMovementComponent.h"
-
-// Character PR 이후 삭제
-namespace
-{
-	struct FSGSpeedUpState
-	{
-		TWeakObjectPtr<UCharacterMovementComponent> MovementComponent;
-		float OriginalMaxWalkSpeed = 0.f;
-		FTimerHandle TimerHandle;
-	};
-	
-	TMap<TWeakObjectPtr<AActor>, FSGSpeedUpState> SpeedUpStates;
-	
-	void RestoreSpeedUp(TWeakObjectPtr<AActor> AvatarActor)
-	{
-		FSGSpeedUpState* State = SpeedUpStates.Find(AvatarActor);
-		if (State == nullptr) return;
-		
-		if (State->MovementComponent.IsValid()){
-			State->MovementComponent->MaxWalkSpeed = State->OriginalMaxWalkSpeed;
-		}
-		
-		SpeedUpStates.Remove(AvatarActor);
-	}
-	
-	void ApplySpeedUpDirectly(AActor* AvatarActor, UCharacterMovementComponent* MovementComponent)
-	{
-		if (!IsValid(AvatarActor) || !IsValid(MovementComponent)) return;
-	
-		FSGSpeedUpState& State = SpeedUpStates.FindOrAdd(AvatarActor);
-		if (!State.MovementComponent.IsValid()){
-			State.MovementComponent = MovementComponent;
-			State.OriginalMaxWalkSpeed = MovementComponent->MaxWalkSpeed;
-		}
-	
-		MovementComponent->MaxWalkSpeed = State.OriginalMaxWalkSpeed * 1.5f;
-	
-		UWorld* World = AvatarActor->GetWorld();
-		if (World == nullptr){
-			RestoreSpeedUp(AvatarActor);
-			return;
-		}
-		
-		World->GetTimerManager().ClearTimer(State.TimerHandle);
-		World->GetTimerManager().SetTimer(
-			State.TimerHandle, 
-			FTimerDelegate::CreateStatic(&RestoreSpeedUp, TWeakObjectPtr<AActor>(AvatarActor)),
-			5.f, 
-			false);
-	}
-}
+#include "Abilities/Tasks/AbilityTask_WaitInputRelease.h"
 
 UGA_SGSpeedUp::UGA_SGSpeedUp()
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
-	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
+	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 }
 
 void UGA_SGSpeedUp::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
@@ -71,21 +19,29 @@ void UGA_SGSpeedUp::ActivateAbility(const FGameplayAbilitySpecHandle Handle, con
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
+	
+	UAbilityTask_WaitInputRelease* WaitInputReleaseTask =
+		UAbilityTask_WaitInputRelease::WaitInputRelease(this, true);
+	
+	WaitInputReleaseTask->OnRelease.AddDynamic(this, &UGA_SGSpeedUp::OnInputReleased);
+	WaitInputReleaseTask->ReadyForActivation();
 }
 
-void UGA_SGSpeedUp::InputReleased(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo)
+void UGA_SGSpeedUp::OnInputReleased(float TimeHeld)
 {
-	if (ActorInfo == nullptr || !ActorInfo->AvatarActor.IsValid()){
-		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+	if (CurrentActorInfo == nullptr || !CurrentActorInfo->AvatarActor.IsValid()){
+		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
 		return;
 	}
 	
-#pragma region GE 사용 로직 (Character PR 이후 활성화)
-	/*
+	if (!CurrentActorInfo->AvatarActor->HasAuthority()){
+		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, false, false);
+		return;
+	}
+	
 	UAbilitySystemComponent* AbilitySystemComponent = GetAbilitySystemComponentFromActorInfo();
 	if (!IsValid(AbilitySystemComponent) || SpeedUpEffect == nullptr){
-		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
 		return;
 	}
 	
@@ -96,24 +52,11 @@ void UGA_SGSpeedUp::InputReleased(const FGameplayAbilitySpecHandle Handle, const
 		SpeedUpEffect, GetAbilityLevel(), EffectContext);
 	
 	if (!EffectSpecHandle.IsValid()){
-		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
 		return;
 	}
 	
 	AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*EffectSpecHandle.Data.Get());
-	EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
-	*/
-#pragma endregion
-	
-#pragma region GE 미사용 로직 (삭제 대상)
-	ACharacter* Character = Cast<ACharacter>(ActorInfo->AvatarActor.Get());
-	if (!IsValid(Character) || !IsValid(Character->GetCharacterMovement())){
-		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-		return;
-	}
-	
-	ApplySpeedUpDirectly(ActorInfo->AvatarActor.Get(), Character->GetCharacterMovement());
-	EndAbility(Handle, ActorInfo, ActivationInfo, false, false);
-	
-#pragma endregion
+
+	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
 }

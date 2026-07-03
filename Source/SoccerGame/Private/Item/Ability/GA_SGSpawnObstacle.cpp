@@ -3,7 +3,9 @@
 
 #include "Item/Ability/GA_SGSpawnObstacle.h"
 
+#include "Abilities/Tasks/AbilityTask_WaitInputRelease.h"
 #include "Item/Obstacle/SGObstacleBase.h"
+
 UGA_SGSpawnObstacle::UGA_SGSpawnObstacle() : SpawnForwardDistance(500.f), PreviewOpacity(0.35f)
 {
 	// 액터 별 인스턴스를 가짐
@@ -26,32 +28,36 @@ void UGA_SGSpawnObstacle::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 	if (ActorInfo->IsLocallyControlled()){
 		SpawnPreviewActor(ActorInfo);
 	}
+	
+	UAbilityTask_WaitInputRelease* WaitInputReleaseTask =
+		UAbilityTask_WaitInputRelease::WaitInputRelease(this, true);
+	
+	WaitInputReleaseTask->OnRelease.AddDynamic(this, &UGA_SGSpawnObstacle::OnInputReleased);
+	WaitInputReleaseTask->ReadyForActivation();
 }
 
-void UGA_SGSpawnObstacle::InputReleased(const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo)
+void UGA_SGSpawnObstacle::OnInputReleased(float TimeHeld)
 {
-	Super::InputReleased(Handle, ActorInfo, ActivationInfo);
 	// 액터 정보와 장애물 클래스가 유효한지 확인
-	if (ActorInfo == nullptr || !ActorInfo->AvatarActor.IsValid() || ObstacleClass == nullptr){
-		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-		return;	
+	if (CurrentActorInfo == nullptr || !CurrentActorInfo->AvatarActor.IsValid() || ObstacleClass == nullptr){
+		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
+		return;
 	}
 	
-	if (ActorInfo->IsLocallyControlled()){
+	if (CurrentActorInfo->IsLocallyControlled()){
 		DestroyPreviewActor();
 	}
 	
 	// Spawn 작업은 서버에서만 처리
-	AActor* PlayerActor = ActorInfo->AvatarActor.Get();
+	AActor* PlayerActor = CurrentActorInfo->AvatarActor.Get();
 	if (!PlayerActor->HasAuthority()){
-		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, false, false);
 		return;
 	}
 	
 	UWorld* World = GetWorld();
 	if (World == nullptr){
-		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
 		return;
 	}
 	
@@ -63,12 +69,12 @@ void UGA_SGSpawnObstacle::InputReleased(const FGameplayAbilitySpecHandle Handle,
 	SpawnParams.Owner = PlayerActor;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	
-	ASGObstacleBase* SpawnedObstacle = 
+	ASGObstacleBase* SpawnedObstacle =
 		World->SpawnActor<ASGObstacleBase>(ObstacleClass, SpawnLocation, SpawnRotation, SpawnParams);
 	
 	const bool bSpawnFailed = !IsValid(SpawnedObstacle);
 	
-	EndAbility(Handle, ActorInfo, ActivationInfo, bSpawnFailed, bSpawnFailed);
+	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, bSpawnFailed, bSpawnFailed);
 }
 
 void UGA_SGSpawnObstacle::SpawnPreviewActor(const FGameplayAbilityActorInfo* ActorInfo)
@@ -89,7 +95,7 @@ void UGA_SGSpawnObstacle::SpawnPreviewActor(const FGameplayAbilityActorInfo* Act
 	SpawnParams.Owner = PlayerActor;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	
-	PreviewActor = 
+	PreviewActor =
 		World->SpawnActor<ASGObstacleBase>(ObstacleClass, PreviewLocation, PreviewRotation, SpawnParams);
 	if (!IsValid(PreviewActor)) return;
 	

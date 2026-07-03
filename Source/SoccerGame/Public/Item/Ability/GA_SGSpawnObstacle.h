@@ -23,9 +23,8 @@ protected:
 		const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, 
 		const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 	
-	virtual void InputReleased(
-		const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, 
-		const FGameplayAbilityActivationInfo ActivationInfo) override;
+	UFUNCTION()
+	void OnInputReleased(float TimeHeld);
 	
 private:
 	void SpawnPreviewActor(const FGameplayAbilityActorInfo* ActorInfo);
