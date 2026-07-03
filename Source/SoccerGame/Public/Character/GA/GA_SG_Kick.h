@@ -19,9 +19,21 @@ public:
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 	
 protected:
-	// 발차기 애니메이션 몽타주(에디터에서 할당!)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
-	TObjectPtr<UAnimMontage> KickMontage;
+	// --- 애니메이션 설정 ---
+	// 0.5초 미만일 때 재생할 가벼운 패스 몽타주
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ability|Animation")
+	TObjectPtr<UAnimMontage> PassMontage;
+
+	// 0.5초 이상일 때 재생할 강력한 슛 몽타주
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ability|Animation")
+	TObjectPtr<UAnimMontage> ShootMontage;
+
+	// 패스와 슛을 가르는 기준 시간 (디폴트 0.5초)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ability|Kick")
+	float ActionSplitTime = 0.5f;
+	
+	// 최종 계산된 파워를 멤버 변수로 기억 (애니메이션 노티파이 시점에 쓰기 위함)
+	float CachedFinalKickPower = 0.0f;
 	
 	// 충전이 시작된 시간
 	float ChargeStartTime = 0.0f;
@@ -36,9 +48,24 @@ protected:
 
 	// 축구공을 찾아서 힘을 가하는 함수
 	UFUNCTION(BlueprintCallable, Category = "Ability|Kick")
-	void FindAndPushBall(float ChargeTime);
+	void FindAndPushBall();
+	
+	// BP_GE_SG_Kick 담는 변수
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ability|Damage")
+	TSubclassOf<UGameplayEffect> DamageEffectClass;
+	
+	UFUNCTION()
+	void OnEnemyHitReceived(FGameplayEventData Payload);
 	
 	// 차징 후 마우스를 떼면 호출되는 함수
 	UFUNCTION()
 	void OnInputReleased(float TimeHeld);
+	
+	// 이벤트 수신 태그(현재 필요없어짐!!)
+	// UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ability|Kick")
+	// FGameplayTag GameplayEventTag;
+	
+	// WaitGameplayEvent 콜백 함수
+	UFUNCTION()
+	void OnGameplayEventReceived(FGameplayEventData Payload);
 };

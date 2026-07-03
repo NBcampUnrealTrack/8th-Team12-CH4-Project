@@ -9,6 +9,7 @@
 #include "AbilitySystemComponent.h"
 #include "SG_Character.generated.h"
 
+class USGItemSlotComponent;
 class USpringArmComponent;
 class UCameraComponent;
 class UInputMappingContext;
@@ -87,6 +88,10 @@ private:
 	// 기본 Ability를 부여하는 함수
 	void GiveDefaultAbilities();
 	
+	// Item Slot Input
+	void UseItemPressed();
+	void UseItemReleased();
+	
 protected:
 	//-------------------------------- Kick --------------------------------//
 	// ASC 세팅
@@ -100,4 +105,19 @@ protected:
 	// 에디터에서 할당할 발차기 GA 클래스 타입
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GAS")
 	TSubclassOf<class UGameplayAbility> KickAbilityClass;
+	
+protected:
+	// SlotComponent
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ItemSlot")
+	TObjectPtr<USGItemSlotComponent> ItemSlotComponent;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
+	UInputAction* UseItemAction;
+	
+private:
+	UPROPERTY()
+	float BaseWalkSpeed;
+	
+	void OnSpeedMultiplierChanged(const FOnAttributeChangeData& Data);
+	void ApplySpeedMultiplier(float NewMultiplier);
 };
