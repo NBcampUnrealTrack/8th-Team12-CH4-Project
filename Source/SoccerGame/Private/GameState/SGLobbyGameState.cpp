@@ -1,0 +1,61 @@
+// Fill out your copyright notice in the Description page of Project Settings.
+
+
+#include "GameState/SGLobbyGameState.h"
+#include "SoccerGame/Public/PlayerController/SGLobbyPlayerController.h"
+#include "SoccerGame/Public/PlayerState/SGLobbyPlayerState.h"
+#include "SoccerGame/UI/SGLobbyWidget.h"
+#include "Net/UnrealNetwork.h"
+
+ASGLobbyGameState::ASGLobbyGameState()
+{
+	// 이 액터가 네트워크를 통해 복제되도록 활성화
+	bReplicates = true;
+}
+
+void ASGLobbyGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(ASGLobbyGameState, bIsReady);
+	UE_LOG(LogTemp, Log, TEXT("Clinet Checking "));
+}
+
+void ASGLobbyGameState::OnRep_IsReady()
+{
+}
+
+void ASGLobbyGameState::BroadcastLobbyInfo()
+{
+	// 현재 방에 있는 모든 플레이어의 최신 정보를 담을 배열 생성
+	TArray<FSGPlayerLobbyInfo> NewPlayerInfos;
+
+	// GameState가 쥐고 있는 대기방 전체 인원 명단 순회
+	for (APlayerState* BasePS : PlayerArray)
+	{
+		if (ASGLobbyPlayerState* LobbyPS = Cast<ASGLobbyPlayerState>(BasePS))
+		{
+			FSGPlayerLobbyInfo Info;
+			// 커스텀 이름이 비어있으면 기본 엔진 이름을, 있으면 커스텀 이름을 세팅
+			Info.UserName = LobbyPS->CustomPlayerName.IsEmpty()? 
+							LobbyPS->GetPlayerName():LobbyPS->CustomPlayerName;
+			Info.bIsReady = LobbyPS->IsReady();
+			Info.TeamTag = LobbyPS->GetTeamTag();
+
+			// 종합 배열에 차곡차곡 추가
+			NewPlayerInfos.Add(Info);
+		}
+	}
+
+	// 코드가 실행 중인 내 컴퓨터의 로컬 
+	if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
+	{
+		if (PC && PC->IsLocalController())
+		{
+			if (ASGLobbyPlayerController* LobbyPC = Cast<ASGLobbyPlayerController>(PC))
+			{
+				// 묶인 전체 명단 배열
+				LobbyPC->Client_UpdateLobbyUI(NewPlayerInfos);
+			}
+		}
+	}
+}
