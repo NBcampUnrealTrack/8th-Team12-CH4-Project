@@ -26,5 +26,8 @@ void USGInGameWidget::UpdateTimerText(int32 CurrentTime)
 	FString TimeString = FString::Printf(TEXT("%d:%02d"), Minutes, Seconds);
 	
 	Text_Timer->SetText(FText::FromString(TimeString));
+	
+	// GameState 이벤트 실행
+	
 }
 
