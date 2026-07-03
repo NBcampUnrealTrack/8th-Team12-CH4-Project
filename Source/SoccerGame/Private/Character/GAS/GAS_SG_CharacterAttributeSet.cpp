@@ -12,6 +12,7 @@ UGAS_SG_CharacterAttributeSet::UGAS_SG_CharacterAttributeSet()
 	InitStamina(100.f);
 	InitMaxStamina(100.f);
 	InitKickPower(2000.f);
+	InitSpeedMultiplier(1.f);
 }
 
 void UGAS_SG_CharacterAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -24,6 +25,7 @@ void UGAS_SG_CharacterAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeP
 	DOREPLIFETIME_CONDITION_NOTIFY(UGAS_SG_CharacterAttributeSet, MaxHp, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UGAS_SG_CharacterAttributeSet, Stamina, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UGAS_SG_CharacterAttributeSet, MaxStamina, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UGAS_SG_CharacterAttributeSet, SpeedMultiplier, COND_None, REPNOTIFY_Always);
 }
 
 // 변수 값을 바꿀때 사용할 함수들 (추후에 구체화 예정!)
@@ -62,6 +64,11 @@ void UGAS_SG_CharacterAttributeSet::PostGameplayEffectExecute(const struct FGame
 void UGAS_SG_CharacterAttributeSet::OnRep_KickPower(const FGameplayAttributeData& OldKickPower)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UGAS_SG_CharacterAttributeSet, KickPower, OldKickPower);
+}
+
+void UGAS_SG_CharacterAttributeSet::OnRep_SpeedMultiplier(const FGameplayAttributeData& OldSpeedMultiplier)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UGAS_SG_CharacterAttributeSet, SpeedMultiplier, OldSpeedMultiplier);
 }
 
 void UGAS_SG_CharacterAttributeSet::OnRep_Hp(const FGameplayAttributeData& OldHp)

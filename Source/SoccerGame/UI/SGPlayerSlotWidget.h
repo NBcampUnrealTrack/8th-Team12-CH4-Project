@@ -39,7 +39,7 @@ public:
 	
 	// 플레이어 슬롯 정보 외부에서 주입받기
 	UFUNCTION(BlueprintCallable)
-	void SetPlayerSlotInfo(const FText& InUserName, bool bInReady, FGameplayTag InTeamType);
+	void SetPlayerSlotInfo(const FString& InUserName, bool bInReady, FGameplayTag InTeamType);
 
 protected:
 	// 플레이어 이름 TextBlock 바인딩 변수
