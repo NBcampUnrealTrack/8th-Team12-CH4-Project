@@ -69,7 +69,7 @@ private:
 	
     // 이동할 실제 게임 플레이 맵의 경로
     UPROPERTY(EditDefaultsOnly, Category = "Lobby Settings")
-    FString GameplayLevelPath = TEXT("/Game/SoccerGame/GameModeTestingLevel/MainTestingLevel");
+    FString GameplayLevelPath = TEXT("/Game/SoccerGame/Maps/PlayBase");
 	
     // 카운트다운이 현재 진행 중인지 여부
     bool bIsCountdownActive = false;
