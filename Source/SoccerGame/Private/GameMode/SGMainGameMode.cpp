@@ -74,6 +74,19 @@ void ASGMainGameMode::SpawnNewBall()
 
 void ASGMainGameMode::UpdateMatchTime()
 {
+	ASGMainGameState* SG_GameState = GetGameState<ASGMainGameState>();
+	if (SG_GameState)
+	{
+		SG_GameState->CurrentGameTime -= 1.0f;
+		
+		if (SG_GameState->CurrentGameTime <= 0.0f)
+		{
+			SG_GameState->CurrentGameTime = 0.0f;
+			GetWorldTimerManager().ClearTimer(MatchTimerHandle);
+			
+			EndMatch();
+		}
+	}
 }
 
 void ASGMainGameMode::MovePlayersToSpawnPoints()

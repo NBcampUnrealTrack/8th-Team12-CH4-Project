@@ -6,7 +6,7 @@
 #include "SoccerGame/Public/PlayerState/SGMainPlayerState.h"
 #include "SoccerGame/Public/PlayerController/SGLobbyPlayerController.h"
 #include "SoccerGame/Public/GameState/SGLobbyGameState.h"
-#include "SoccerGame/UI/SGLobbyWidget.h"
+#include "SoccerGame/Public/UI/SGLobbyWidget.h"
 #include "Net/UnrealNetwork.h" 
 
 ASGLobbyPlayerState::ASGLobbyPlayerState()

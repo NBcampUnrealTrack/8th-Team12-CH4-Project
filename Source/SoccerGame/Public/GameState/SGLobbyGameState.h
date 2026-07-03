@@ -21,7 +21,10 @@ public:
 	// 플레이어의 준비 상태 (서버가 수정하면 전체 클라이언트에 복제)
 	UPROPERTY(ReplicatedUsing = OnRep_IsReady, BlueprintReadOnly, Category = "Lobby")
 	bool bIsReady = false;
-
+	
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Lobby")
+	int32 ReplicatedCountdownTime = -1;
+	
 	UFUNCTION()
 	void OnRep_IsReady();
 	
