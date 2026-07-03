@@ -55,14 +55,14 @@ void USGPlayerSlotWidget::ResetSlot()
 	}
 }
 
-void USGPlayerSlotWidget::SetPlayerSlotInfo(const FText& InUserName, bool bInReady, FGameplayTag InTeamTag)
+void USGPlayerSlotWidget::SetPlayerSlotInfo(const FString& InUserName, bool bInReady, FGameplayTag InTeamTag)
 {
 	
 	// Text_UserName 유효성 검사
 	// Text_UserName에 InUserName 반영
 	if (Text_UserName)
 	{
-		Text_UserName->SetText(InUserName);
+		Text_UserName->SetText(FText::FromString(InUserName));
 		Text_UserName->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 		
 		FGameplayTag WaitingTag = FGameplayTag::RequestGameplayTag(FName("Team.Waiting"));

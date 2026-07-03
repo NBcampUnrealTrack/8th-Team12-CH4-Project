@@ -7,6 +7,8 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 
+#include "SoccerGame/Public/PlayerController/SGLobbyPlayerController.h"
+
 void USGLobbyWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
@@ -52,7 +54,7 @@ void USGLobbyWidget::NativeConstruct()
 	
 	/* 테스트 플레이어 데이터 배열 초기화 위치 */
 	PlayerInfos.Empty();
-	
+	/*
 	// 블루팀
 	FSGPlayerLobbyInfo Player1 = {};
 	Player1.UserName = FText::FromString("Player1");
@@ -88,6 +90,7 @@ void USGLobbyWidget::NativeConstruct()
 	
 	RefreshLobby();
 	UpdateReadyButtonText();
+	*/
 }
 
 void USGLobbyWidget::SetPlayerInfos(const TArray<FSGPlayerLobbyInfo>& InPlayerInfos)
@@ -95,10 +98,12 @@ void USGLobbyWidget::SetPlayerInfos(const TArray<FSGPlayerLobbyInfo>& InPlayerIn
 	PlayerInfos = InPlayerInfos;
 	
 	RefreshLobby();
+	UpdateReadyButtonText();
 }
 
 void USGLobbyWidget::RefreshLobby()
 {
+	
 	for (auto* BlueSlot : BlueTeamSlots)
 	{
 		if (BlueSlot) BlueSlot->ResetSlot();
@@ -159,6 +164,14 @@ void USGLobbyWidget::OnReadyButtonClicked()
 	// PlayerInfos[LocalPlayerIndex].bIsReady 값 토글
 	PlayerInfos[LocalPlayerIndex].bIsReady = !PlayerInfos[LocalPlayerIndex].bIsReady;
 	
+	//  이 위젯을 소유한 로컬 PlayerController 가져오기
+	ASGLobbyPlayerController* LobbyPC = Cast<ASGLobbyPlayerController>(GetOwningPlayer());
+	if (LobbyPC)
+	{
+		//  내 컨트롤러를 통해 서버에 레디 상태 토글 요청전달
+		LobbyPC->SellectReady();
+	}
+	
 	RefreshLobby();
 	UpdateReadyButtonText();
 }
@@ -185,24 +198,42 @@ void USGLobbyWidget::HandleSlotClicked(FGameplayTag RequestedTeamTag)
 	
 	if (PlayerInfos[LocalPlayerIndex].TeamTag == RequestedTeamTag) return;
 	
+	// 위젯을 소유한 플레이어 컨트롤러 가져오기
+	ASGLobbyPlayerController* LobbyPC = Cast<ASGLobbyPlayerController>(GetOwningPlayer());
+	if (LobbyPC)
+	{
+		// 내 컨트롤러를 통해 서버에 팀 변경 요청 전달
+		LobbyPC->RequestChangeTeam(RequestedTeamTag);
+	}
+	/*
+	
+	// 선택한 팀 몇명인지 확인
 	int32 CurrentTeamCount = 0;
 	for (const FSGPlayerLobbyInfo& Info  : PlayerInfos)
 	{
 		if (Info.TeamTag == RequestedTeamTag) CurrentTeamCount++;
 	}
-	
+	// [주의] 
+	//   기존의 로컬에서 PlayerInfos를 바꾸고 RefreshLobby()를 돌리던 코드들은 제거하거나 주석 처리합니다.
+	//   서버에서 팀 변경 처리가 완료되면, 서버가 클라이언트들의 SetPlayerInfos()를 호출하여 
+	//   자연스럽게 UI가 브로드캐스트 리프레시되도록 유도하는 것이 정석입니다.
+	// 대기중인 사람 태 그 
 	FGameplayTag WaitingTag = FGameplayTag::RequestGameplayTag(FName("Team.Waiting"));
+	// 대기중인 사람 몇명인지 확인
 	int32 MaxCapacity = (RequestedTeamTag == WaitingTag) ? 6 : 3;
 	
+	// 만석이면 취소
 	if (CurrentTeamCount >= MaxCapacity)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("해당 팀은 이미 꽉 찼습니다!"));
 		return;
 	}
-	
+	// 맞으면 실행
 	PlayerInfos[LocalPlayerIndex].TeamTag = RequestedTeamTag;
 	PlayerInfos[LocalPlayerIndex].bIsReady = false;
 	
 	RefreshLobby();
 	UpdateReadyButtonText();
+	 */
+	
 }

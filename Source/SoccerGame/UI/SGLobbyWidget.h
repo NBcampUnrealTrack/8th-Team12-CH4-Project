@@ -16,10 +16,11 @@ USTRUCT(BlueprintType)
 struct FSGPlayerLobbyInfo
 {
 	GENERATED_BODY()
-	
+
+public:
 	// 플레이어 이름 변수 선언
 	UPROPERTY(BlueprintReadWrite)
-	FText UserName;
+	FString UserName;
 	
 	// Ready 상태 변수 선언
 	UPROPERTY(BlueprintReadWrite)
@@ -102,6 +103,10 @@ protected:
 #pragma endregion
 	
 public:
+	
+	void AddPlayerInfos(const FSGPlayerLobbyInfo& InPlayerInfos)
+	{ PlayerInfos.Add(InPlayerInfos); }
+	
 	// 로비 UI 갱신 함수 시그니처
 	UFUNCTION(BlueprintCallable)
 	void RefreshLobby();
@@ -120,6 +125,4 @@ public:
 protected:
 	UFUNCTION()
 	void HandleSlotClicked(FGameplayTag RequestedTeamTag);
-	
-	
 };
