@@ -3,24 +3,19 @@
 
 #include "Item/Ability/GA_SGSpawnObstacle.h"
 
-#include "Abilities/Tasks/AbilityTask_WaitInputRelease.h"
 #include "Item/Obstacle/SGObstacleBase.h"
 
 UGA_SGSpawnObstacle::UGA_SGSpawnObstacle() : SpawnForwardDistance(500.f), PreviewOpacity(0.35f)
 {
-	// 액터 별 인스턴스를 가짐
-	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
-	
-	// 서버에서만 실행
-	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 }
 
 void UGA_SGSpawnObstacle::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
 	const FGameplayEventData* TriggerEventData)
 {
+	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
+	
 	if (ActorInfo == nullptr || !ActorInfo->AvatarActor.IsValid()){
-		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
 	
@@ -28,15 +23,14 @@ void UGA_SGSpawnObstacle::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 	if (ActorInfo->IsLocallyControlled()){
 		SpawnPreviewActor(ActorInfo);
 	}
-	
-	UAbilityTask_WaitInputRelease* WaitInputReleaseTask =
-		UAbilityTask_WaitInputRelease::WaitInputRelease(this, true);
-	
-	WaitInputReleaseTask->OnRelease.AddDynamic(this, &UGA_SGSpawnObstacle::OnInputReleased);
-	WaitInputReleaseTask->ReadyForActivation();
 }
 
-void UGA_SGSpawnObstacle::OnInputReleased(float TimeHeld)
+void UGA_SGSpawnObstacle::HandleLocalInputReleased(float TimeHeld)
+{
+	DestroyPreviewActor();
+}
+
+void UGA_SGSpawnObstacle::ExecuteItemAbility(float TimeHeld)
 {
 	// 액터 정보와 장애물 클래스가 유효한지 확인
 	if (CurrentActorInfo == nullptr || !CurrentActorInfo->AvatarActor.IsValid() || ObstacleClass == nullptr){
@@ -44,16 +38,8 @@ void UGA_SGSpawnObstacle::OnInputReleased(float TimeHeld)
 		return;
 	}
 	
-	if (CurrentActorInfo->IsLocallyControlled()){
-		DestroyPreviewActor();
-	}
-	
 	// Spawn 작업은 서버에서만 처리
 	AActor* PlayerActor = CurrentActorInfo->AvatarActor.Get();
-	if (!PlayerActor->HasAuthority()){
-		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, false, false);
-		return;
-	}
 	
 	UWorld* World = GetWorld();
 	if (World == nullptr){
@@ -83,8 +69,6 @@ void UGA_SGSpawnObstacle::SpawnPreviewActor(const FGameplayAbilityActorInfo* Act
 	
 	UWorld* World = GetWorld();
 	if (World == nullptr) return;
-	
-	DestroyPreviewActor();
 	
 	// 플레이어 전방에 Obstacle 생성
 	AActor* PlayerActor = ActorInfo->AvatarActor.Get();

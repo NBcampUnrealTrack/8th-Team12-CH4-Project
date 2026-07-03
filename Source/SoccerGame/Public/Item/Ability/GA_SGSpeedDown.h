@@ -3,27 +3,19 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Abilities/GameplayAbility.h"
+#include "Item/Ability/GA_SGItemBase.h"
 #include "GA_SGSpeedDown.generated.h"
 
 /**
  * 
  */
 UCLASS()
-class SOCCERGAME_API UGA_SGSpeedDown : public UGameplayAbility
+class SOCCERGAME_API UGA_SGSpeedDown : public UGA_SGItemBase
 {
 	GENERATED_BODY()
 	
-public:
-	UGA_SGSpeedDown();
-	
 protected:
-	virtual void ActivateAbility(
-		const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, 
-		const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
-	
-	UFUNCTION()
-	void OnInputReleased(float TimeHeld);
+	virtual void ExecuteItemAbility(float TimeHeld) override;
 	
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GA|Debuff")

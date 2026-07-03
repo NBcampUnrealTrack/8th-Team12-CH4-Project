@@ -4,44 +4,16 @@
 #include "Item/Ability/GA_SGSpeedDown.h"
 
 #include "AbilitySystemComponent.h"
-#include "Abilities/Tasks/AbilityTask_WaitInputRelease.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "GameplayTagContainer.h"
 #include "PlayerState/SGMainPlayerState.h"
 
-UGA_SGSpeedDown::UGA_SGSpeedDown()
+void UGA_SGSpeedDown::ExecuteItemAbility(float TimeHeld)
 {
-	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
-	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
-}
-
-void UGA_SGSpeedDown::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
-	const FGameplayEventData* TriggerEventData)
-{
-	if (ActorInfo == nullptr || !ActorInfo->AvatarActor.IsValid()){
-		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-		return;
-	}
-	
-	UAbilityTask_WaitInputRelease* WaitInputReleaseTask =
-		UAbilityTask_WaitInputRelease::WaitInputRelease(this, true);
-	
-	WaitInputReleaseTask->OnRelease.AddDynamic(this, &UGA_SGSpeedDown::OnInputReleased);
-	WaitInputReleaseTask->ReadyForActivation();
-}
-
-void UGA_SGSpeedDown::OnInputReleased(float TimeHeld)
-{
-	if (CurrentActorInfo == nullptr || !CurrentActorInfo->AvatarActor.IsValid() || SpeedDownEffect == nullptr){
+	if (SpeedDownEffect == nullptr){
 		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
-		return;
-	}
-	
-	if (!CurrentActorInfo->AvatarActor->HasAuthority()){
-		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, false, false);
 		return;
 	}
 	

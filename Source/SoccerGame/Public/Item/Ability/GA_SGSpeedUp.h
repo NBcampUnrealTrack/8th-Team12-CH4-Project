@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GA_SGItemBase.h"
 #include "Abilities/GameplayAbility.h"
 #include "GA_SGSpeedUp.generated.h"
 
@@ -10,20 +11,12 @@
  * 
  */
 UCLASS()
-class SOCCERGAME_API UGA_SGSpeedUp : public UGameplayAbility
+class SOCCERGAME_API UGA_SGSpeedUp : public UGA_SGItemBase
 {
 	GENERATED_BODY()
 	
-public:
-	UGA_SGSpeedUp();
-	
 protected:
-	virtual void ActivateAbility(
-		const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, 
-		const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
-	
-	UFUNCTION()
-	void OnInputReleased(float TimeHeld);
+	virtual void ExecuteItemAbility(float TimeHeld);
 	
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GA|Buff")
