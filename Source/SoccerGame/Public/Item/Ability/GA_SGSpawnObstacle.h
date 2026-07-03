@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Abilities/GameplayAbility.h"
+#include "Item/Ability/GA_SGItemBase.h"
 #include "GA_SGSpawnObstacle.generated.h"
 
 class ASGObstacleBase;
@@ -11,7 +11,7 @@ class ASGObstacleBase;
  * 
  */
 UCLASS()
-class SOCCERGAME_API UGA_SGSpawnObstacle : public UGameplayAbility
+class SOCCERGAME_API UGA_SGSpawnObstacle : public UGA_SGItemBase
 {
 	GENERATED_BODY()
 	
@@ -23,9 +23,8 @@ protected:
 		const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, 
 		const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 	
-	virtual void InputReleased(
-		const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, 
-		const FGameplayAbilityActivationInfo ActivationInfo) override;
+	virtual void HandleLocalInputReleased(float TimeHeld) override;
+	virtual void ExecuteItemAbility(float TimeHeld) override;
 	
 private:
 	void SpawnPreviewActor(const FGameplayAbilityActorInfo* ActorInfo);

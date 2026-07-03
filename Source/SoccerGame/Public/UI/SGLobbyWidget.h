@@ -16,16 +16,17 @@ USTRUCT(BlueprintType)
 struct FSGPlayerLobbyInfo
 {
 	GENERATED_BODY()
+
 public:
-	// TODO: 플레이어 이름 변수 선언
+	// 플레이어 이름 변수 선언
 	UPROPERTY(BlueprintReadWrite)
 	FString UserName;
 	
-	// TODO: Ready 상태 변수 선언
+	// Ready 상태 변수 선언
 	UPROPERTY(BlueprintReadWrite)
 	bool bIsReady = false;
 	
-	// TODO: 팀 타입 변수 선언
+	// 팀 타입 변수 선언
 	UPROPERTY(BlueprintReadWrite)
 	FGameplayTag TeamTag;
 };
@@ -40,8 +41,9 @@ class SOCCERGAME_API USGLobbyWidget : public UUserWidget
 	
 protected:
 	virtual void NativeConstruct() override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 	
-#pragma region PlayerSlots properties
+#pragma region UMG Binding
 public:
 	// 블루 팀 슬롯 3개 바인딩
 	UPROPERTY(meta =(BindWidget))
@@ -89,6 +91,14 @@ protected:
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UTextBlock> Text_ReadyButton;
 	
+	// Ready 후 Start Timer
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UTextBlock> Text_StartTimer;
+#pragma endregion
+	
+#pragma region Player
+protected:
+	
 	UPROPERTY()
 	int32 LocalPlayerIndex = 0;
 	
@@ -99,6 +109,7 @@ protected:
 	// Player 정보 목록 배열
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lobby")
 	TArray<FSGPlayerLobbyInfo> PlayerInfos;
+	
 #pragma endregion
 	
 public:
@@ -122,6 +133,8 @@ public:
 	void UpdateReadyButtonText();
 	
 protected:
+	// 슬롯 클릭되었을 때 실행될 함수
 	UFUNCTION()
 	void HandleSlotClicked(FGameplayTag RequestedTeamTag);
+	
 };

@@ -3,3 +3,14 @@
 
 #include "PlayerController/SGMainPlayerController.h"
 
+void ASGMainPlayerController::BeginPlay()
+{
+	Super::BeginPlay();
+
+	if (IsLocalController())
+	{
+		FInputModeGameOnly InputMode;
+		SetInputMode(InputMode);
+		bShowMouseCursor = false;
+	}
+}

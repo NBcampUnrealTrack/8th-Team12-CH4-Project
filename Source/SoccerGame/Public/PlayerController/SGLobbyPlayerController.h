@@ -6,7 +6,7 @@
 #include "GameFramework/PlayerController.h"
 #include "SoccerGame/Public/PlayerState/SGLobbyPlayerState.h" // ◀ 이 구조체가 정의된 헤더(예: PlayerState.h)를 반드시 여기에 추가!
 #include "GameplayTagContainer.h" 
-#include "SoccerGame/UI/SGLobbyWidget.h"
+#include "SoccerGame/Public/UI/SGLobbyWidget.h"
 #include "SGLobbyPlayerController.generated.h"
 
 struct FSGPlayerLobbyInfo;
