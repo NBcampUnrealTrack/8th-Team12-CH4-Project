@@ -4,7 +4,7 @@
 #include "GameState/SGLobbyGameState.h"
 #include "SoccerGame/Public/PlayerController/SGLobbyPlayerController.h"
 #include "SoccerGame/Public/PlayerState/SGLobbyPlayerState.h"
-#include "SoccerGame/UI/SGLobbyWidget.h"
+#include "SoccerGame/Public/UI/SGLobbyWidget.h"
 #include "Net/UnrealNetwork.h"
 
 ASGLobbyGameState::ASGLobbyGameState()
@@ -17,6 +17,7 @@ void ASGLobbyGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(ASGLobbyGameState, bIsReady);
+	DOREPLIFETIME(ASGLobbyGameState, ReplicatedCountdownTime);
 	UE_LOG(LogTemp, Log, TEXT("Clinet Checking "));
 }
 

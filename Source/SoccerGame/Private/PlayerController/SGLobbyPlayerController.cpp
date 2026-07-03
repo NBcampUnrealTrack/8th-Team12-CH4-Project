@@ -4,7 +4,7 @@
 #include "PlayerController/SGLobbyPlayerController.h"
 #include "GameFramework/PlayerState.h"
 #include "Blueprint/UserWidget.h"
-#include "SoccerGame/UI/SGLobbyWidget.h"
+#include "SoccerGame/Public/UI/SGLobbyWidget.h"
 #include "GameMode/SGLobbyGameMode.h"
 #include "PlayerState/SGLobbyPlayerState.h"
 
@@ -28,11 +28,11 @@ void ASGLobbyPlayerController::BeginPlay()
 		if (IsValid(UIWidgetInstance) == true)
 		{
 			UIWidgetInstance->AddToViewport();
-
+			
 			FInputModeUIOnly Mode;
 			Mode.SetWidgetToFocus(UIWidgetInstance->GetCachedWidget());
 			SetInputMode(Mode);
-
+			
 			bShowMouseCursor = true;
 		}
 	}
