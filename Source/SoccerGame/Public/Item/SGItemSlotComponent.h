@@ -29,9 +29,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Item")
 	void UseItemPressed();
 	
-	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "Item")
+	UFUNCTION(BlueprintCallable, Category = "Item")
 	void UseItemReleased();
 
+	
 public:
 	// Getter
 	UFUNCTION(BlueprintPure, Category = "Item|Inventory")
@@ -43,6 +44,9 @@ public:
 private:
     UFUNCTION()
     void OnRep_ItemSlots();
+	
+	UFUNCTION(Server, Reliable)
+	void Server_ConsumeItem();
 	
 public:
 	// Delegate
@@ -57,5 +61,6 @@ private:
 	UPROPERTY(ReplicatedUsing = OnRep_ItemSlots)
 	TArray<TObjectPtr<USGItemDefinition>> ItemSlots;
 	
-	FGameplayAbilitySpecHandle ActiveItemAbilityHandle;
+	UPROPERTY(Replicated)
+	TArray<FGameplayAbilitySpecHandle> ItemAbilityHandles;
 };
