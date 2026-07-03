@@ -29,7 +29,7 @@ void USGInGameWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 			int32 Seconds = TotalSeconds % 60;
 		
 			FString TimeString = FString::Printf(TEXT("%d:%02d"), Minutes, Seconds);
-			Text_Timer->SetText(FText::AsNumber(LastBlueTeamScore));	
+			Text_Timer->SetText(FText::FromString(TimeString));	
 		}
 		
 		if (WBP_ScoreBoard && (LastBlueTeamScore != GS->BlueTeamScore || LastRedTeamScore != GS->RedTeamScore))

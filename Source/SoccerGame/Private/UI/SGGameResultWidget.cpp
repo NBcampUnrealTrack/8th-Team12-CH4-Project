@@ -18,7 +18,7 @@ void USGGameResultWidget::NativeConstruct()
 	}
 	if (Button_Rematch)
 	{
-		Button_Rematch->OnClicked.AddDynamic(this, &USGGameResultWidget::OnExitGameClicked);
+		Button_Rematch->OnClicked.AddDynamic(this, &USGGameResultWidget::OnRematchClicked);
 	}
 	
 	// 최종 점수 및 승리 메세지 세팅
