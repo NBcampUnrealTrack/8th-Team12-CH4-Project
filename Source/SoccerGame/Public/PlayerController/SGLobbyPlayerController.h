@@ -35,6 +35,9 @@ public:
 	// 블루프린트에서 GameStart 버튼 누른 직후 호출할 UI 데이터 주입 함수
 	UFUNCTION(BlueprintCallable, Category = "Lobby")
 	void InitializeLocalPlayerLobbyUI();
+	
+	// 데이터 저장용
+	void SaveDataToSubsystem();
 protected:
 	// [Server RPC] 준비 상태 변경 요청
 	UFUNCTION(Server, Reliable, WithValidation)

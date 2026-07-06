@@ -15,6 +15,8 @@ void USGInGameWidget::NativeConstruct()
 
 void USGInGameWidget::UpdateTimerUI(int32 NewTime)
 {
+	// 🌟 부품 위젯(WBP_Timer) 내부에서 'Text_Timer'라는 이름을 가진 텍스트 블록을 찾아옵니다.
+	UTextBlock* RealTimerTextBlock = Cast<UTextBlock>(WBP_Timer->GetWidgetFromName(TEXT("Text_Timer")));
 	if (!IsValid(WBP_Timer)) return;
 
 	// 초 단위 시간을 MM:SS 형식으로 변환
@@ -23,8 +25,10 @@ void USGInGameWidget::UpdateTimerUI(int32 NewTime)
 
 	// FString::Printf를 사용하여 두 자리 숫자로 패딩 ("%02d")
 	FString TimeString = FString::Printf(TEXT("%02d:%02d"), Minutes, Seconds);
-
-	WBP_Timer->SetText(FText::FromString(TimeString));
+	UE_LOG(LogTemp, Warning,TEXT("UpdateTimerUI : %02d:%02d"), Minutes, Seconds);
+	// 진짜 텍스트 블록에 글자 세팅!
+	RealTimerTextBlock->SetText(FText::FromString(TimeString));
+	//WBP_Timer->SetText(FText::FromString(TimeString));
 }
 
 void USGInGameWidget::UpdateScores(int32 RedScore, int32 BlueScore)

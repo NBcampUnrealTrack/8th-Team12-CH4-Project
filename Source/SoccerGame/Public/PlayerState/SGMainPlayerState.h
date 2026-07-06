@@ -34,6 +34,8 @@ public:
 	// 멀티플레이 동기화를 위한 변수 등록 함수
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	
+	void CopyProperties(APlayerState* NewPlayerState);
+	
 
 protected:
 	// 새 레벨 진입 시 호출 (서브시스템에서 데이터 복원)

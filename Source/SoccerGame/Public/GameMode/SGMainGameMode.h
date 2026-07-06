@@ -22,10 +22,6 @@ public:
 	virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
 	
 	// 규칙 함수 
-	void OnGoalScored(bool bIsRedTeamGoal);
-	void EndMatch();
-	void RestartRound();
-
 protected:
 	virtual void BeginPlay() override;
 
@@ -35,14 +31,13 @@ protected:
 	
 	// 게임 시작 및 월드 타이머 기동 
 	void StartGame();
-	void SpawnNewBall();
 	void UpdateMatchTime();
 	
 protected:
 	// 타이틀 룰 규칙
 	const float UpdateLoadingTime = 0.1f; // 매직넘버 방지용
 	const float UpdateStartTime = 5.0f;
-	float LodingTime = 0.0f;
+	float CurrentLoadingTime = 0.0f;
 	
 	UPROPERTY(EditDefaultsOnly, Category = "SG_Rules")
 	int32 TotalMatchTime = 300;
@@ -58,6 +53,7 @@ protected:
 	AActor* SpawnedBall;
 
 	FTimerHandle MatchTimerHandle;
+	// 로딩 진행 상황을 체크할 타이머 핸들
 	FTimerHandle LoadingCheckTimerHandle;
 
 	TMap<AController*, ASGPlayerStart*> AssignedInitialPlayerStarts;

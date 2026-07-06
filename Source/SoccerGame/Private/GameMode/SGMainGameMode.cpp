@@ -12,257 +12,257 @@
 
 ASGMainGameMode::ASGMainGameMode()
 {
-	// GameMode는 오직 서버에만 존재하므로 복제(Replicate)할 필요가 없습니다.
-	bReplicates = false;
+    // GameMode는 오직 서버에만 존재하므로 복제(Replicate)할 필요가 없습니다.
+    bReplicates = false;
 
-	PlayerControllerClass = ASGMainPlayerController::StaticClass();
-	PlayerStateClass = ASGMainPlayerState::StaticClass();
-	GameStateClass = ASGMainGameState::StaticClass();
+    PlayerControllerClass = ASGMainPlayerController::StaticClass();
+    PlayerStateClass = ASGMainPlayerState::StaticClass();
+    GameStateClass = ASGMainGameState::StaticClass();
+
+    UE_LOG(LogTemp, Log, TEXT("[Debug_Call] ASGMainGameMode 생성자 호출 완료"));
 }
 
 void ASGMainGameMode::BeginPlay()
 {
-	Super::BeginPlay();
-	
-	// PlayerController 보다 먼저 호출됨
-	
-	UE_LOG(LogTemp, Warning, TEXT("In Main Server"));
-	
-	// 최초 진입 시 GameState 설정 세팅 및 대기 상태 태그 적용
-	if (ASGMainGameState* SG_GameState = GetGameState<ASGMainGameState>())
-	{
-		SG_GameState->CurrentGameTime = TotalMatchTime;
-		SG_GameState->RedTeamScore = 0;
-		SG_GameState->BlueTeamScore = 0;
-		SG_GameState->CurrentMatchStateTag = FGameplayTag::RequestGameplayTag(FName("Match.State.WaitingToStart"));
-	}
-	
-	StartLoading();
-}
-
-void ASGMainGameMode::HandleSeamlessTravelPlayer(AController*& Controller)
-{
-	Super::HandleSeamlessTravelPlayer(Controller);
-
-	if (APlayerController* PC = Cast<APlayerController>(Controller))
-	{
-		// 로딩 중에는 조작을 완전히 차단
-		PC->SetInputMode(FInputModeGameOnly());
-		PC->bShowMouseCursor = false;
-		PC->DisableInput(PC); 
-	}
+    Super::BeginPlay();
+    
+    UE_LOG(LogTemp, Warning, TEXT("[Debug_Call] ASGMainGameMode::BeginPlay() 호출됨"));
+    
+    // 최초 진입 시 GameState 설정 세팅 및 대기 상태 태그 적용
+    if (ASGMainGameState* SG_GameState = GetGameState<ASGMainGameState>())
+    {
+       SG_GameState->CurrentGameTime = TotalMatchTime;
+       SG_GameState->RedTeamScore = 0;
+       SG_GameState->BlueTeamScore = 0;
+       SG_GameState->CurrentMatchStateTag = FGameplayTag::RequestGameplayTag(FName("Match.State.WaitingToStart"));
+       
+       UE_LOG(LogTemp, Log, TEXT("[Debug_State] GameState 초기화 및 대기 상태 태그 설정 완료"));
+    }
+    
+    StartLoading();
 }
 
 void ASGMainGameMode::StartLoading()
 {
-	// 시작 전 초기화
-	 // 여기서 스폰을 할까?
-	// 여기서 스폰하는 방식으로 변경 - PlayerState 복사가 제대로 이루어지고 있지 않았음
-	//BeginPlay -> StartLoading 호출 -> 0.5초마다 StartGame에서 준비 상태 check -> 준비되면 Start
-	UE_LOG(LogTemp, Warning, TEXT("[MainGame] StartLoading 시작"));
+   UE_LOG(LogTemp, Log, TEXT("[GameMode] === 로딩 및 데이터 검증 시퀀스 시작 (5초) ==="));
+   CurrentLoadingTime = 0;
 
-	GetWorldTimerManager().SetTimer(
-	   LoadingCheckTimerHandle,
-	   this,
-	   &ASGMainGameMode::UpdateLoadingProgress, // 내부 로직 검사용 함수 분리
-	   UpdateLoadingTime, 
-	   true
-	);
+   // 1. 접속한 모든 플레이어의 입력을 막고 마우스 커서 숨기기
+   for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+   {
+      if (ASGMainPlayerController* PC = Cast<ASGMainPlayerController>(It->Get()))
+      {
+         // 키보드/마우스 이동 입력을 무시하도록 설정
+         //PC->SetInputMode(FInputModeGameOnly());
+         //PC->bShowMouseCursor = false;
+         //PC->SetIgnoreMoveInput(true);
+         //   
+         //PC->ClientMessage(TEXT("로딩 및 팀 데이터 복원 중입니다... 잠시만 기다려주세요."));
+      }
+   }
+
+   // 2. 1초 간격으로 UpdateLoadingProgress를 호출하는 루프 타이머 가동
+   GetWorldTimerManager().SetTimer(
+       LoadingCheckTimerHandle,
+       this,
+       &ASGMainGameMode::UpdateLoadingProgress,
+       1.0f,
+       true
+   );
 }
 
 void ASGMainGameMode::UpdateLoadingProgress()
 {
-	// 1. 지정한 로딩 시간 채우기
-	if (LodingTime < UpdateStartTime)
-	{
-		LodingTime += UpdateLoadingTime;
-       
-		// [나영님 파트 참고] 여기에 클라이언트 레벨 UI 게이지를 올려주는 등의 
-		// UI Update RPC 로직을 구현하시면 됩니다.
-		return;
-	}
+   CurrentLoadingTime++;
+   float RemainingTime = 5 - CurrentLoadingTime;
+    
+   UE_LOG(LogTemp, Warning, TEXT("[GameMode] 로딩 진행 중... (%.0f초 경과 / %.0f초 남음)"), CurrentLoadingTime, RemainingTime);
+   int32 UnloadedPlayers = 0;
 
-	// 2. 시간이 다 찼다면 플레이어들의 PlayerState 복사가 완료되었는지 검증
-	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
-	{
-		APlayerController* PC = It->Get();
-		if (!PC || !PC->GetPlayerState<ASGMainPlayerState>())
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[MainGame] 로딩 시간은 끝났으나 PlayerState 복사 대기 중..."));
-			return;
-		}
-	}
+   // 5초 동안 매초 마다 플레이어들의 로딩(데이터 복원) 상태 검션
+   if (GameState)
+   {
+      for (APlayerState* BasePS : GameState->PlayerArray)
+      {
+         if (ASGMainPlayerState* MainPS = Cast<ASGMainPlayerState>(BasePS))
+         {
+            // 팀 태그가 아직 대기(Waiting) 상태이거나 이름이 비어있다면 로딩이 덜 된 것으로 판단
+            FGameplayTag WaitingTag = FGameplayTag::RequestGameplayTag(FName("Team.Waiting"));
+            if (MainPS->CustomPlayerName.IsEmpty() || MainPS->CurrentTeamTag == WaitingTag)
+            {
+               UnloadedPlayers++;
+            }
+         }
+      }
+   }
 
-	// 3. 조건 완전 충족 시 로딩 타이머를 안전하게 끄고 게임 시작!
-	LodingTime = 0.0f;
-	GetWorldTimerManager().ClearTimer(LoadingCheckTimerHandle);
-	StartGame();
+   if (UnloadedPlayers > 0)
+   {
+      UE_LOG(LogTemp, Error, TEXT("[GameMode - Loading Check] 아직 데이터 복원이 안 된 플레이어 수: %d명"), UnloadedPlayers);
+   }
+   else
+   {
+      UE_LOG(LogTemp, Log, TEXT("[GameMode - Loading Check] 모든 플레이어 데이터 복원 확인 완료!"));
+   }
+
+   // 5초가 완료되면 타이머를 끄고 게임을 시작합니다.
+   if (CurrentLoadingTime >= 5)
+   {
+      GetWorldTimerManager().ClearTimer(LoadingCheckTimerHandle);
+      StartGame();
+   }
 }
-
 
 void ASGMainGameMode::StartGame()
 {
-	// 실제 게임 시작 을 담당하는 부분
-	
-	UE_LOG(LogTemp, Warning, TEXT("[MainGame] All player states ready. StartGame"));
-	// 공 Spawn
-	SpawnNewBall();
-	
-	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
-	{
-		APlayerController* PC = It->Get();
-		if (!PC || !PC->GetPlayerState<ASGMainPlayerState>())
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[MainGame] Waiting for SGMainPlayerState..."));
-			return;
-		}
-	}
-	
-	// 조작 잠금 해제
-	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
-	{
-		if (APlayerController* PC = It->Get())
-		{
-			PC->EnableInput(PC);
-		}
-	}
+   UE_LOG(LogTemp, Warning, TEXT("[GameMode] === 5초 대기 종료! 경기 시작! 입력을 활성화합니다. ==="));
 
-	
-	// State 데이터 초기화
-	if (ASGMainGameState* SG_GameState = GetGameState<ASGMainGameState>())
-	{
-		SG_GameState->CurrentGameTime = TotalMatchTime;
-		SG_GameState->RedTeamScore = 0;
-		SG_GameState->BlueTeamScore = 0;
-		SG_GameState->CurrentMatchStateTag = FGameplayTag::RequestGameplayTag(FName("Match.State.WaitingToStart"));
-	}
-	//BeginPlay의 매치 타이머 부분을 StartGame으로 옮김
-	GetWorldTimerManager().SetTimer(
-		MatchTimerHandle,
-		this,
-		&ASGMainGameMode::UpdateMatchTime,
-		UpdateLoadingTime,
-		true
-	);
-}
-
-
-void ASGMainGameMode::OnGoalScored(bool bIsRedTeamGoal)
-{
-}
-
-void ASGMainGameMode::EndMatch()
-{
-}
-
-void ASGMainGameMode::RestartRound()
-{
-}
-
-void ASGMainGameMode::SpawnNewBall()
-{
+   // 제한해두었던 플레이어들의 이동 및 시선 입력을 모두 해제
+   for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+   {
+      if (ASGMainPlayerController* PC = Cast<ASGMainPlayerController>(It->Get()))
+      {
+         
+         //PC->SetIgnoreMoveInput(false);
+         //PC->SetIgnoreLookInput(false);
+         //// 호루라기 소리 사운드 재생이나 UI 알림을 넣기 좋은 타이밍입니다.
+         //PC->ClientMessage(TEXT("경기 시작!! 움직일 수 있습니다!"));
+      }
+   }
+   if (ASGMainGameState* SG_GameState = GetGameState<ASGMainGameState>())
+   {
+      SG_GameState->CurrentGameTime = TotalMatchTime;
+      SG_GameState->RedTeamScore = 0;
+      SG_GameState->BlueTeamScore = 0;
+      //SG_GameState->CurrentMatchStateTag = FGameplayTag::RequestGameplayTag(FName("Match.State.WaitingToStart"));
+       
+      UE_LOG(LogTemp, Log, TEXT("[Debug_State] GameState 초기화 및 대기 상태 태그 설정 완료"));
+   }
+   GetWorldTimerManager().SetTimer(
+       MatchTimerHandle,
+       this,
+       &ASGMainGameMode::UpdateMatchTime,
+       1.0f,
+       true
+   );
 }
 
 void ASGMainGameMode::UpdateMatchTime()
 {
-	ASGMainGameState* SG_GameState = GetGameState<ASGMainGameState>();
-	if (SG_GameState)
-	{
-		SG_GameState->CurrentGameTime -= 1;
-		
-		if (SG_GameState->CurrentGameTime <= 0.0f)
-		{
-			SG_GameState->CurrentGameTime = 0.0f;
-			GetWorldTimerManager().ClearTimer(MatchTimerHandle);
-			
-			EndMatch();
-		}
-	}
+    UE_LOG(LogTemp, Log, TEXT("[Debug_Call] ASGMainGameMode::UpdateMatchTime() 호출됨"));
+
+    ASGMainGameState* SG_GameState = GetGameState<ASGMainGameState>();
+    if (SG_GameState)
+    {
+       SG_GameState->CurrentGameTime -= 1;
+       
+       // 🌟 [방법 B 적용] 차감된 시간을 모든 컨트롤러의 래퍼 함수를 통해 전달!
+       for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+       {
+          if (ASGMainPlayerController* PC = Cast<ASGMainPlayerController>(It->Get()))
+          {
+             // 컨트롤러 내부 위젯을 안전하게 노크하고 UI를 갱신합니다.
+             PC->UpdateTimerWidget(SG_GameState->CurrentGameTime);
+          }
+       }
+       
+       if (SG_GameState->CurrentGameTime <= 0.0f)
+       {
+          SG_GameState->CurrentGameTime = 0.0f;
+          UE_LOG(LogTemp, Warning, TEXT("[Debug_State] 경기 시간 종료 조건 충족"));
+          GetWorldTimerManager().ClearTimer(MatchTimerHandle);
+          
+          //EndMatch();
+       }
+    }
 }
 
 AActor* ASGMainGameMode::ChoosePlayerStart_Implementation(AController* Player)
 {
-	if (!Player)
-	{
-		return Super::ChoosePlayerStart_Implementation(Player);
-	}
+    // 🌟 호출 확인용 단순 디버그 로그 한 줄
+    UE_LOG(LogTemp, Log, TEXT("[Debug_Call] ASGMainGameMode::ChoosePlayerStart_Implementation() 호출됨"));
 
-	if (ASGPlayerStart** AssignedStart = AssignedInitialPlayerStarts.Find(Player))
-	{
-		if (IsValid(*AssignedStart))
-		{
-			return *AssignedStart;
-		}
-	}
+    if (!Player)
+    {
+       return Super::ChoosePlayerStart_Implementation(Player);
+    }
 
-	ASGMainPlayerState* MainPS = Player->GetPlayerState<ASGMainPlayerState>();
-	if (!MainPS)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[MainSpawn] %s has no SGMainPlayerState. Using default PlayerStart."), *GetNameSafe(Player));
-		return Super::ChoosePlayerStart_Implementation(Player);
-	}
+    if (ASGPlayerStart** AssignedStart = AssignedInitialPlayerStarts.Find(Player))
+    {
+       if (IsValid(*AssignedStart))
+       {
+          return *AssignedStart;
+       }
+    }
 
-	const FGameplayTag RedTeamTag = FGameplayTag::RequestGameplayTag(FName("Team.Red"));
-	const FGameplayTag BlueTeamTag = FGameplayTag::RequestGameplayTag(FName("Team.Blue"));
+    ASGMainPlayerState* MainPS = Player->GetPlayerState<ASGMainPlayerState>();
+    if (!MainPS)
+    {
+       return Super::ChoosePlayerStart_Implementation(Player);
+    }
 
-	ETeamId DesiredTeam = ETeamId::None;
-	if (MainPS->CurrentTeamTag == RedTeamTag)
-	{
-		DesiredTeam = ETeamId::Red;
-	}
-	else if (MainPS->CurrentTeamTag == BlueTeamTag)
-	{
-		DesiredTeam = ETeamId::Blue;
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[MainSpawn] %s has unsupported team %s. Using default PlayerStart."),
-			*GetNameSafe(Player),
-			*MainPS->CurrentTeamTag.ToString());
-		return Super::ChoosePlayerStart_Implementation(Player);
-	}
+    const FGameplayTag RedTeamTag = FGameplayTag::RequestGameplayTag(FName("Team.Red"));
+    const FGameplayTag BlueTeamTag = FGameplayTag::RequestGameplayTag(FName("Team.Blue"));
 
-	TArray<AActor*> FoundPlayerStarts;
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ASGPlayerStart::StaticClass(), FoundPlayerStarts);
-	TArray<ASGPlayerStart*> TeamPlayerStarts;
+    ETeamId DesiredTeam = ETeamId::None;
+    if (MainPS->CurrentTeamTag == RedTeamTag)
+    {
+       DesiredTeam = ETeamId::Red;
+    }
+    else if (MainPS->CurrentTeamTag == BlueTeamTag)
+    {
+       DesiredTeam = ETeamId::Blue;
+    }
+    else
+    {
+       return Super::ChoosePlayerStart_Implementation(Player);
+    }
 
-	for (AActor* FoundActor : FoundPlayerStarts)
-	{
-		ASGPlayerStart* SGPlayerStart = Cast<ASGPlayerStart>(FoundActor);
-		if (!SGPlayerStart || !SGPlayerStart->bUseForInitialSpawn || SGPlayerStart->TeamId != DesiredTeam)
-		{
-			continue;
-		}
+    TArray<AActor*> FoundPlayerStarts;
+    UGameplayStatics::GetAllActorsOfClass(GetWorld(), ASGPlayerStart::StaticClass(), FoundPlayerStarts);
+    TArray<ASGPlayerStart*> TeamPlayerStarts;
 
-		TeamPlayerStarts.Add(SGPlayerStart);
-	}
+    for (AActor* FoundActor : FoundPlayerStarts)
+    {
+       ASGPlayerStart* SGPlayerStart = Cast<ASGPlayerStart>(FoundActor);
+       if (!SGPlayerStart || !SGPlayerStart->bUseForInitialSpawn || SGPlayerStart->TeamId != DesiredTeam)
+       {
+          continue;
+       }
 
-	TeamPlayerStarts.Sort([](const ASGPlayerStart& A, const ASGPlayerStart& B)
-	{
-		return A.SpawnIndex < B.SpawnIndex;
-	});
+       TeamPlayerStarts.Add(SGPlayerStart);
+    }
 
-	for (ASGPlayerStart* CandidateStart : TeamPlayerStarts)
-	{
-		if (AssignedInitialPlayerStarts.FindKey(CandidateStart))
-		{
-			continue;
-		}
+    TeamPlayerStarts.Sort([](const ASGPlayerStart& A, const ASGPlayerStart& B)
+    {
+       return A.SpawnIndex < B.SpawnIndex;
+    });
 
-		UE_LOG(LogTemp, Warning,
-			TEXT("[MainSpawn] Player=%s / Team=%s / Start=%s / SpawnIndex=%d"),
-			*GetNameSafe(Player),
-			*MainPS->CurrentTeamTag.ToString(),
-			*CandidateStart->GetName(),
-			CandidateStart->SpawnIndex);
+    for (ASGPlayerStart* CandidateStart : TeamPlayerStarts)
+    {
+       if (AssignedInitialPlayerStarts.FindKey(CandidateStart))
+       {
+          continue;
+       }
 
-		AssignedInitialPlayerStarts.Add(Player, CandidateStart);
-		return CandidateStart;
-	}
+       AssignedInitialPlayerStarts.Add(Player, CandidateStart);
+       return CandidateStart;
+    }
 
-	UE_LOG(LogTemp, Error, TEXT("[MainSpawn] No available PlayerStart for %s / Team=%s. Using default PlayerStart."),
-		*GetNameSafe(Player),
-		*MainPS->CurrentTeamTag.ToString());
+    return Super::ChoosePlayerStart_Implementation(Player);
+}
+void ASGMainGameMode::HandleSeamlessTravelPlayer(AController*& Controller)
+{
+    // 🌟 호출 확인용 단순 디버그 로그 한 줄
+    UE_LOG(LogTemp, Log, TEXT("[Debug_Call] ASGMainGameMode::HandleSeamlessTravelPlayer() 호출됨"));
 
-	return Super::ChoosePlayerStart_Implementation(Player);
+    Super::HandleSeamlessTravelPlayer(Controller);
+
+    if (APlayerController* PC = Cast<APlayerController>(Controller))
+    {
+       // 로딩 중에는 조작을 완전히 차단
+       PC->SetInputMode(FInputModeGameOnly());
+       PC->bShowMouseCursor = false;
+       PC->DisableInput(PC); 
+    }
 }

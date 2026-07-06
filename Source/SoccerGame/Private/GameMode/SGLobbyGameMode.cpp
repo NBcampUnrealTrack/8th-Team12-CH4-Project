@@ -223,7 +223,25 @@ void ASGLobbyGameMode::TransitionToGameLevel()
 {
 	NotifyAllPlayers(TEXT("Launching match"));
 
-	UE_LOG(LogTemp, Warning,TEXT("Level Path: %s"), *GameplayLevelPath);
+	UE_LOG(LogTemp, Warning, TEXT("================ [LobbyGameMode - Travel Sequence Start] ================"));
+
+	int32 CommandedControllersCount = 0;
+
+	// 서버에 접속해 있는 모든 '플레이어 컨트롤러'를 순회하며 각자 저장하라고 지시
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		if (ASGLobbyPlayerController* LobbyPC = Cast<ASGLobbyPlayerController>(It->Get()))
+		{
+			CommandedControllersCount++;
+			// 각 컨트롤러에게 데이터 세이브 위임 명령
+			LobbyPC->SaveDataToSubsystem(); 
+		}
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[LobbyGameMode - SaveComplete] 총 %d 명의 컨트롤러에게 데이터 백업 명령을 완료했습니다."), CommandedControllersCount);
+	UE_LOG(LogTemp, Warning, TEXT("[LobbyGameMode - Travel] 다음 레벨로 이동을 시작합니다. Path: %s"), *GameplayLevelPath);
+	UE_LOG(LogTemp, Warning, TEXT("========================================================================="));
+	
 	GetWorld()->ServerTravel(GameplayLevelPath);
 	
 }

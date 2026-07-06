@@ -7,6 +7,7 @@
 #include "SoccerGame/Public/UI/SGLobbyWidget.h"
 #include "GameMode/SGLobbyGameMode.h"
 #include "PlayerState/SGLobbyPlayerState.h"
+#include "SoccerGame/Public/Instance/SGPlayerGameInstanceSubsystem.h"
 
 void ASGLobbyPlayerController::BeginPlay()
 {
@@ -135,6 +136,50 @@ void ASGLobbyPlayerController::InitializeLocalPlayerLobbyUI()
 			}
 		}
 	}
+}
+
+void ASGLobbyPlayerController::SaveDataToSubsystem()
+{
+	FString PCName = GetNameSafe(this);
+	UE_LOG(LogTemp, Log, TEXT("[LobbyPC - SaveStart] %s 가 데이터 백업을 시작합니다."), *PCName);
+
+	// 1. 내 PlayerState 가져오기 및 검증 로그
+	ASGLobbyPlayerState* LobbyPS = GetPlayerState<ASGLobbyPlayerState>();
+	if (!LobbyPS)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[LobbyPC - SaveFailed] %s 의 PlayerState를 찾을 수 없습니다!"), *PCName);
+		return;
+	}
+
+	// 2. GameInstanceSubsystem 가져오기
+	UGameInstance* GI = GetGameInstance();
+	USGPlayerGameInstanceSubsystem* DataSubsystem = GI ? GI->GetSubsystem<USGPlayerGameInstanceSubsystem>() : nullptr;
+	if (!DataSubsystem)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[LobbyPC - SaveFailed] %s 가 GameInstanceSubsystem에 접근할 수 없습니다!"), *PCName);
+		return;
+	}
+
+	// 3. UniqueId 유효성 확인 및 로그
+	FUniqueNetIdRepl UniqueId = LobbyPS->GetUniqueId();
+	if (!UniqueId.IsValid())
+	{
+		UE_LOG(LogTemp, Error, TEXT("[LobbyPC - SaveFailed] %s 의 UniqueId가 유효하지 않습니다!"), *PCName);
+		return;
+	}
+
+	// 4. 구조체에 데이터 채우기
+	FPlayerBackupData DataToSave;
+	DataToSave.PlayerName = LobbyPS->CustomPlayerName.IsEmpty() ? LobbyPS->GetPlayerName() : LobbyPS->CustomPlayerName;
+	DataToSave.PlayerTeam = LobbyPS->GetTeamTag();
+	DataToSave.Score = 0; 
+
+	// 데이터가 어떻게 가공되었는지 최종 확인 로그
+	UE_LOG(LogTemp, Warning, TEXT("[LobbyPC - PackData] %s -> 백업 준비 완료 [Name: %s | Team: %s]"), 
+		*PCName, *DataToSave.PlayerName, *DataToSave.PlayerTeam.ToString());
+
+	// 5. 서브시스템에 세이브 (서브시스템 내부 로그가 이어서 출력됩니다)
+	DataSubsystem->SavePlayerData(UniqueId, DataToSave);
 }
 
 void ASGLobbyPlayerController::ServerRequestChangeTeam_Implementation(FGameplayTag NewTeam)

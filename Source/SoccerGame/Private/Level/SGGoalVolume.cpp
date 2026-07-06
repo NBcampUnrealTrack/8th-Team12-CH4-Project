@@ -74,7 +74,7 @@ void ASGGoalVolume::HandleGoalScored()
     ASGMainGameMode* GM = Cast<ASGMainGameMode>(UGameplayStatics::GetGameMode(this));
     if (GM)
     {
-        GM->OnGoalScored(bIsRedTeamGoal);
+        //GM->OnGoalScored(bIsRedTeamGoal);
         
         // 득점 팀 확인용 디버그
         GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("%d"), bIsRedTeamGoal));
