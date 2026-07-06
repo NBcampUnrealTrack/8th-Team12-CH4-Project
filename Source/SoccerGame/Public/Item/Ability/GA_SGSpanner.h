@@ -28,24 +28,50 @@ protected:
 	virtual void ExecuteItemAbility(float TimeHeld) override;
 	
 private:
+	// 델리게이트 수신 함수
+	UFUNCTION()
+	void HandleProjectileHit(ASGProjectileBase* Projectile, AActor* TargetActor);
+	
+	UFUNCTION()
+	void HandleProjectileFinished(ASGProjectileBase* Projectile);
+	
+	// Impulse 적용
+	void ApplyHitImpulse(ASGProjectileBase* Projectile, AActor* TargetActor);
+	
+	// Damage 적용
+	bool IsOtherTeam(AActor* TargetActor) const;
+	void ApplyDamageEffect(AActor* TargetActor);
+	
+private:
 	// 발사체
-	UPROPERTY(EditDefaultsOnly, Category = "Item|Spanner")
+	UPROPERTY(EditDefaultsOnly, Category = "Item")
 	TSubclassOf<ASGProjectileBase> SpannerProjectileClass;
 	
 	UPROPERTY()
 	TObjectPtr<ASGProjectileBase> PreviewProjectileActor;
 	
+	//GE
+	UPROPERTY(EditDefaultsOnly, Category = "Item|GameplayEffect")
+	TSubclassOf<UGameplayEffect> DamageEffectClass;
+	
 	// 발사체 설정
-	UPROPERTY(EditAnywhere, Category = "Item|Spanner")
+	UPROPERTY(EditAnywhere, Category = "Item")
 	float TargetDistance;
 	
-	UPROPERTY(EditAnywhere, Category = "Item|Spanner")
+	UPROPERTY(EditAnywhere, Category = "Item")
 	float ThrowSpeed;
 	
 	// 발사체 Spawn 위치 설정
-	UPROPERTY(EditAnywhere, Category = "Item|Spanner")
+	UPROPERTY(EditAnywhere, Category = "Item")
 	float ThrowForwardOffset;
 	
-	UPROPERTY(EditAnywhere, Category = "Item|Spanner")
+	UPROPERTY(EditAnywhere, Category = "Item")
 	float ThrowHeightOffset;
+	
+	// Impulse
+	UPROPERTY(EditAnywhere, Category = "Item|Impulse")
+	float HitImpulseStrength;
+	
+	UPROPERTY(EditAnywhere, Category = "Item|Impulse")
+	float HitImpulseUpRatio;
 };

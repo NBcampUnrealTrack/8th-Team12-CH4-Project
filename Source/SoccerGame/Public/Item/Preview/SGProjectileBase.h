@@ -9,6 +9,9 @@
 class UProjectileMovementComponent;
 class USphereComponent;
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnProjectileHitTarget, ASGProjectileBase*, Projectile, AActor*, TargetActor);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnProjectileFinished, ASGProjectileBase*, Projectile);
+
 UCLASS()
 class SOCCERGAME_API ASGProjectileBase : public AActor
 {
@@ -20,6 +23,7 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	
 public:
 	// Preview 초기 설정
@@ -40,6 +44,20 @@ public:
 private:
 	// 발사체 충돌 예측 지점 계산
 	bool CalculateTrajectory(FVector& OutStartLocation, FVector& OutLaunchVelocity, FHitResult& OutHitResult) const;
+	
+	// 발사체 충돌
+	UFUNCTION()
+	void OnProjectileHit(
+		UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
+		FVector NormalImpulse, const FHitResult& Hit);
+	
+public:
+	// 델리게이트
+	UPROPERTY()
+	FOnProjectileHitTarget OnProjectileHitTarget;
+	
+	UPROPERTY()
+	FOnProjectileFinished OnProjectileFinished;
 	
 private:
 	UPROPERTY(VisibleAnywhere, Category = "Projectile")

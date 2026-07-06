@@ -27,6 +27,7 @@ ASGProjectileBase::ASGProjectileBase() :
 	CollisionComponent = CreateDefaultSubobject<USphereComponent>(TEXT("CollisionComponent"));
 	SetRootComponent(CollisionComponent);
 	CollisionComponent->SetCollisionProfileName(TEXT("BlockAllDynamic"));
+	CollisionComponent->OnComponentHit.AddDynamic(this, &ASGProjectileBase::OnProjectileHit);
 	
 	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeshComponent"));
 	MeshComponent->SetupAttachment(CollisionComponent);
@@ -46,6 +47,15 @@ void ASGProjectileBase::BeginPlay()
 	if (HasAuthority()){
 		SetLifeSpan(LifeTime);
 	}
+}
+
+void ASGProjectileBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (!bPreview){
+		OnProjectileFinished.Broadcast(this);
+	}
+	
+	Super::EndPlay(EndPlayReason);
 }
 
 void ASGProjectileBase::Tick(float DeltaSeconds)
@@ -107,12 +117,15 @@ bool ASGProjectileBase::LaunchByTrajectory(AActor* InPlayerActor, float InTarget
 	ThrowHeightOffset = InThrowHeightOffset;
 	bPreview = false;
 	
+	// 자기 자신과의 충돌 무시
+	CollisionComponent->IgnoreActorWhenMoving(PlayerActor, true);
+	
 	// 충돌 예측 지점 계산
 	FVector StartLocation, LaunchVelocity;
 	FHitResult HitResult;
 	if (!CalculateTrajectory(StartLocation, LaunchVelocity, HitResult)) return false;
 	
-	// 시작 지점과 Rotation
+	// 발사 시작 위치와 이동 방향 적용
 	SetActorLocationAndRotation(StartLocation, LaunchVelocity.Rotation());
 	
 	// Velocity 적용 및 movement 활성화
@@ -155,7 +168,7 @@ bool ASGProjectileBase::CalculateTrajectory(
 	PathParams.LaunchVelocity = OutLaunchVelocity;
 	PathParams.ProjectileRadius = CollisionComponent->GetScaledSphereRadius();
 	PathParams.MaxSimTime = LifeTime;
-	PathParams.TraceChannel = ECC_Visibility;
+	PathParams.TraceChannel = ECC_Pawn;
 	PathParams.bTraceWithCollision = true;
 	PathParams.ActorsToIgnore.Add(PlayerActor);
 
@@ -175,4 +188,14 @@ bool ASGProjectileBase::CalculateTrajectory(
 	}
 	
 	return false;
+}
+
+void ASGProjectileBase::OnProjectileHit(UPrimitiveComponent* HitComponent, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
+{
+	if (!HasAuthority() || bPreview) return;
+	if (!IsValid(OtherActor) || OtherActor == this || OtherActor == PlayerActor) return;
+	
+	OnProjectileHitTarget.Broadcast(this, OtherActor);
+	Destroy();
 }
