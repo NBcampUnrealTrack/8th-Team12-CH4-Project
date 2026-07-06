@@ -29,7 +29,7 @@ protected:
 protected:
 	// 타이머 텍스트
 	UPROPERTY(meta = (BindWidgetOptional))
-	TObjectPtr<UTextBlock> Text_Timer;
+	TObjectPtr<UTextBlock> WBP_Timer;
 	
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<USGScoreBoardWidget> WBP_ScoreBoardWidget;

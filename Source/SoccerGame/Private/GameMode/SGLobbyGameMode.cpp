@@ -155,6 +155,12 @@ void ASGLobbyGameMode::ProcessChangeTeamRequest(APlayerController* TargetPC, con
 
 	TargetPS->SetTeamInternal(RequestedTeamTag);
 	TargetPS->SetReadyState(false);
+	
+	if (ASGLobbyGameState* GS = GetGameState<ASGLobbyGameState>())
+	{
+		GS->BroadcastLobbyInfo(); 
+	}
+	
 }
 
 void ASGLobbyGameMode::StartCountdown()

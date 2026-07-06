@@ -185,7 +185,6 @@ void USGLobbyWidget::UpdateCountdownText(int32 NewTime)
 		// UI 화면에서 완전히 숨김 처리합니다.
 		Text_StartTimer->SetVisibility(ESlateVisibility::Collapsed);
 	}
-	// 2. 카운트다운이 정상 진행 중인 경우 (1초 이상)
 	else
 	{
 		// 숨겨져 있었다면 다시 화면에 보이도록 설정합니다.

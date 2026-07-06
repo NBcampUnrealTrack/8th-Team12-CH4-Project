@@ -15,13 +15,9 @@ ASGMainGameMode::ASGMainGameMode()
 	// GameMode는 오직 서버에만 존재하므로 복제(Replicate)할 필요가 없습니다.
 	bReplicates = false;
 
-	// Main Game Mode 용 PlayerController, PlayerState, GameState
 	PlayerControllerClass = ASGMainPlayerController::StaticClass();
 	PlayerStateClass = ASGMainPlayerState::StaticClass();
 	GameStateClass = ASGMainGameState::StaticClass();
-
-	UE_LOG(LogTemp, Warning, TEXT("In Main Server"));
-	
 }
 
 void ASGMainGameMode::BeginPlay()
@@ -32,17 +28,15 @@ void ASGMainGameMode::BeginPlay()
 	
 	UE_LOG(LogTemp, Warning, TEXT("In Main Server"));
 	
-	// 2. 초기 맵 세팅 및 공 스폰 부분 StartGame 부분으로 옮김
-	// 최초 진입 시 GameState 세팅 및 시간 잠금(준비 상태 태그 적용)
+	// 최초 진입 시 GameState 설정 세팅 및 대기 상태 태그 적용
 	if (ASGMainGameState* SG_GameState = GetGameState<ASGMainGameState>())
 	{
 		SG_GameState->CurrentGameTime = TotalMatchTime;
 		SG_GameState->RedTeamScore = 0;
 		SG_GameState->BlueTeamScore = 0;
 		SG_GameState->CurrentMatchStateTag = FGameplayTag::RequestGameplayTag(FName("Match.State.WaitingToStart"));
-		// 직접 들고 있지 않고, GameState의 상태 변수를 변경하여 클라이언트에 전파!
 	}
-	//  1초 간격 인게임 타이머 가동 -> 이 부분은 실제 StartGame 부분으로 이동
+	
 	StartLoading();
 }
 
