@@ -1,7 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "Item/Obstacle/SGObstacleBase.h"
+#include "Item/Preview/SGObstacleBase.h"
 
 // Sets default values
 ASGObstacleBase::ASGObstacleBase() : LifeTime(5.f), PreviewForwardDistance(500.f), bPreview(false)
