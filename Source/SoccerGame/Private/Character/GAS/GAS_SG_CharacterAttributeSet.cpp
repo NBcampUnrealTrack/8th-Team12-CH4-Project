@@ -2,6 +2,7 @@
 
 
 #include "Character/GAS/GAS_SG_CharacterAttributeSet.h"
+#include "GameplayEffectExtension.h"
 #include "Net/UnrealNetwork.h"
 
 UGAS_SG_CharacterAttributeSet::UGAS_SG_CharacterAttributeSet()
@@ -9,7 +10,7 @@ UGAS_SG_CharacterAttributeSet::UGAS_SG_CharacterAttributeSet()
 	// 속성 초기화
 	InitHp(100.f);
 	InitMaxHp(100.f);
-	InitStamina(100.f);
+	InitStamina(0.f);
 	InitMaxStamina(100.f);
 	InitKickPower(2000.f);
 	InitSpeedMultiplier(1.f);
@@ -33,7 +34,7 @@ bool UGAS_SG_CharacterAttributeSet::PreGameplayEffectExecute(struct FGameplayEff
 {
 	Super::PreGameplayEffectExecute(Data);
 	
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("PreGameplayEffectExecute"));
+	// GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("PreGameplayEffectExecute"));
 	
 	return true;
 }
@@ -42,7 +43,16 @@ void UGAS_SG_CharacterAttributeSet::PreAttributeChange(const FGameplayAttribute&
 {
 	Super::PreAttributeChange(Attribute, NewValue);
 	
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("PreAttributeChange"));
+	if (Attribute == GetHpAttribute())
+	{
+		NewValue = FMath::Clamp(NewValue, 0.0f, GetMaxHp());
+	}
+	else if (Attribute == GetStaminaAttribute())
+	{
+		NewValue = FMath::Clamp(NewValue, 0.f, GetMaxStamina());
+	}
+	
+	// GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("PreAttributeChange"));
 }
 
 void UGAS_SG_CharacterAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribute, float OldValue,
@@ -50,14 +60,24 @@ void UGAS_SG_CharacterAttributeSet::PostAttributeChange(const FGameplayAttribute
 {
 	Super::PostAttributeChange(Attribute, OldValue, NewValue);
 	
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("PostAttributeChange"));
+	// GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("PostAttributeChange"));
 }
 
 void UGAS_SG_CharacterAttributeSet::PostGameplayEffectExecute(const struct FGameplayEffectModCallbackData& Data)
 {
 	Super::PostGameplayEffectExecute(Data);
 	
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("PostGameplayEffectExecute"));
+	if (Data.EvaluatedData.Attribute == GetHpAttribute())
+	{
+		// SetHp는 BaseHp를 Set해준다.
+		SetHp(GetHp());
+	}
+	else if (Data.EvaluatedData.Attribute == GetStaminaAttribute())
+	{
+		SetStamina(GetStamina());
+	}
+	
+	// GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("PostGameplayEffectExecute"));
 }
 
 // GAMEPLAYATTRIBUTE_REPNOTIFY 매크로를 사용해 내부 예측(Prediction) 시스템과 연동

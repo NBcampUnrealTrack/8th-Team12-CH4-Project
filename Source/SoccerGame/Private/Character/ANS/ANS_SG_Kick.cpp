@@ -9,7 +9,7 @@
 UANS_SG_Kick::UANS_SG_Kick()
 {
     SocketName = TEXT("RightToeSocket");
-    TraceRadius = 50.0f;
+    TraceRadius = 10.0f;
     bDrawDebug = true;
 }
 
@@ -31,6 +31,29 @@ void UANS_SG_Kick::NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequenceBas
     }
 
     AActor* MyCharacter = MeshComp->GetOwner();
+    
+    if (MyCharacter->GetWorld() && MyCharacter->GetWorld()->WorldType == EWorldType::EditorPreview)
+    {
+        return;
+    }
+    
+    // APawn* MyPawn = Cast<APawn>(MyCharacter);
+    // if (!MyPawn || !MyPawn->IsLocallyControlled())
+    // {
+    //     return; 
+    // }
+    
+    APawn* MyPawn = Cast<APawn>(MyCharacter);
+    if (MyPawn)
+    {
+        // 내가 조종하는 것도 아니고, 서버 권한도 없다면 패스!
+        // 즉, 서버 컴퓨터거나 혹은 내 화면(로컬)일 때만 이 아래 트레이스 로직을 통과합니다.
+        if (!MyPawn->IsLocallyControlled() && !MyPawn->HasAuthority())
+        {
+            return;
+        }
+    }
+    
     UWorld* World = MyCharacter->GetWorld();
     if (!World)
     {
@@ -87,7 +110,7 @@ void UANS_SG_Kick::NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequenceBas
         Payload.Target = HitEnemy;        // 피격자
 
         // GAS 내장 라이브러리를 통해 캐릭터 어빌리티 시스템에 무전 송신
-        FGameplayTag HitTag = FGameplayTag::RequestGameplayTag(TEXT("Character.Skill.Kick.Hit"));
+        FGameplayTag HitTag = FGameplayTag::RequestGameplayTag(TEXT("Character.Skill.Kick"));
         UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(MyCharacter, HitTag, Payload);
     }
 }
