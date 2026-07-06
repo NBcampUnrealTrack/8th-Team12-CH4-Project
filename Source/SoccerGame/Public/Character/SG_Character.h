@@ -28,8 +28,8 @@ enum class ESGAbilityInputID : uint8
 	Cancel			UMETA(DisplayName = "Cancel"),
 	
 	// --- 추가 항목 ---
-	Kick			UMETA(DisplayName = "Kick")
-	// DropKick			UMETA(DisplayName = "DropKick")
+	Kick			UMETA(DisplayName = "Kick"),
+	DropKick		UMETA(DisplayName = "DropKick")
 };
 
 UCLASS()
@@ -105,6 +105,15 @@ protected:
 	// 에디터에서 할당할 발차기 GA 클래스 타입
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GAS")
 	TSubclassOf<class UGameplayAbility> KickAbilityClass;
+	
+	//-------------------------------- Drop Kick --------------------------------//
+	// DropKick 버튼
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	class UInputAction* IA_DropKick;
+	
+	// 에디터에서 할당할 발차기 GA 클래스 타입
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GAS")
+	TSubclassOf<class UGameplayAbility> DropKickAbilityClass;
 	
 	// 클라이언트에서 폰이 플레이어 스테이트를 리플리케이션 받았을 때 호출되는 함수
 	virtual void OnRep_PlayerState() override;

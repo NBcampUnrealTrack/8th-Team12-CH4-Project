@@ -1,0 +1,45 @@
+// GA_SG_DropKick.h
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Abilities/GameplayAbility.h"
+#include "GA_SG_DropKick.generated.h"
+
+UCLASS()
+class SOCCERGAME_API UGA_SG_DropKick : public UGameplayAbility
+{
+	GENERATED_BODY()
+	
+public:
+	UGA_SG_DropKick();
+	
+	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
+	
+	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
+
+protected:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ability|Animation")
+	TObjectPtr<UAnimMontage> DropKickMontage;
+    
+	// 축구공을 차는(드롭킥) 함수
+	UFUNCTION(BlueprintCallable, Category = "Ability|DropKick")
+	void PushBall(AActor* BallActor);
+    
+	// BP_GE_SG_DropKick 담는 변수
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ability|Damage")
+	TSubclassOf<UGameplayEffect> DamageEffectClass;
+    
+	// 타겟 하나를 지정해서 데미지를 주는 방식
+	UFUNCTION()
+	void ApplyDamageToTarget(AActor* HitEnemy, const FGameplayEventData& Payload);
+
+	// 날아가는 동안(드롭킥) 매 프레임 호출될 콜백 함수
+	UFUNCTION()
+	void OnGameplayEventReceived(FGameplayEventData Payload);
+
+private:
+	// 중복 타격 방지 액터 리스트
+	UPROPERTY()
+	TArray<TObjectPtr<AActor>> AlreadyHitActors;
+};

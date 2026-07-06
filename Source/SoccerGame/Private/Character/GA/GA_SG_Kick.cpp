@@ -15,6 +15,7 @@ UGA_SG_Kick::UGA_SG_Kick()
 {
 	// 인스턴싱 정책 설정
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
+	bReplicateInputDirectly = true;
 }
 
 void UGA_SG_Kick::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
@@ -124,21 +125,6 @@ void UGA_SG_Kick::InputReleased(const FGameplayAbilitySpecHandle Handle, const F
           WaitEventTask->EventReceived.AddDynamic(this, &UGA_SG_Kick::OnGameplayEventReceived);
           WaitEventTask->ReadyForActivation();
        }
-       
-       // 공 처리 레이더와 다르게 '데미지 주입 무전기'는 오직 주도권을 가진 서버만 개방합니다.
-       // if (HasAuthority(&CurrentActivationInfo))
-       // {
-       //    // FGameplayTag HitTag = FGameplayTag::RequestGameplayTag(TEXT("Character.Skill.Kick.Hit"));
-       //    UAbilityTask_WaitGameplayEvent* WaitHitEventTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
-       //       this, MyAbilityTag, nullptr, false             
-       //    );
-       //
-       //    if (WaitHitEventTask)
-       //    {
-       //       WaitHitEventTask->EventReceived.AddDynamic(this, &UGA_SG_Kick::OnEnemyHitReceived);
-       //       WaitHitEventTask->ReadyForActivation();
-       //    }
-       // }
     }
     else
     {
@@ -267,21 +253,21 @@ void UGA_SG_Kick::OnEnemyHitReceived(FGameplayEventData Payload)
     
 	if (NewHandle.IsValid())
 	{
-		// ⚔️ 실제 데미지 적용 및 결과 구조체 반환
+		// 실제 데미지 적용 및 결과 구조체 반환
 		FActiveGameplayEffectHandle ActiveGEHandle = MyASC->ApplyGameplayEffectSpecToTarget(*NewHandle.Data.Get(), TargetASC);
         
 		if (ActiveGEHandle.IsValid())
 		{
-			UE_LOG(LogTemp, Log, TEXT("⚔️ [서버] 발차기 데미지(GE) 가 성공적으로 타겟에 활성화 및 주입되었습니다!"));
+			UE_LOG(LogTemp, Log, TEXT("발차기 데미지(GE) 활성화"));
 		}
 		else
 		{
-			UE_LOG(LogTemp, Error, TEXT("🚨 [데미지 에러] ApplyGameplayEffectSpecToTarget 함수가 실패했습니다! GE 에셋 내부 설정을 확인하세요."));
+			UE_LOG(LogTemp, Error, TEXT("ApplyGameplayEffectSpecToTarget 실패"));
 		}
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("🚨 [데미지 에러] GameplayEffectSpecHandle을 생성하지 못했습니다."));
+		UE_LOG(LogTemp, Error, TEXT("[실패] GameplayEffectSpecHandle 없음"));
 	}
 	
 	// if (MyASC && TargetASC)

@@ -9,7 +9,7 @@
 UANS_SG_Kick::UANS_SG_Kick()
 {
     SocketName = TEXT("RightToeSocket");
-    TraceRadius = 50.0f;
+    TraceRadius = 10.0f;
     bDrawDebug = true;
 }
 

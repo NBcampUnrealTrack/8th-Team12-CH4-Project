@@ -114,7 +114,7 @@ void ASG_Character::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 		EnhancedInputComponent->BindAction(UseItemAction, ETriggerEvent::Started, this, &ASG_Character::UseItemPressed);
 		EnhancedInputComponent->BindAction(UseItemAction, ETriggerEvent::Completed, this, &ASG_Character::UseItemReleased);
 
-		// GAS 연동
+		// GAS + EnhancedInputComponent
 		if (AbilitySystemComponent)
 		{
 			FTopLevelAssetPath AbilityInputBindsAssetPath = FTopLevelAssetPath(TEXT("/Script/SoccerGame"), TEXT("ESGAbilityInputID"));
@@ -136,6 +136,12 @@ void ASG_Character::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
             
 				// 떼는 순간 GAS에 Release 신호 전달 (WaitInputRelease Task가 이 신호를 감지)
 				EnhancedInputComponent->BindAction(IA_Kick, ETriggerEvent::Completed, this, &ASG_Character::AbilityInputReleased, static_cast<int32>(ESGAbilityInputID::Kick));
+			}
+			
+			if (IA_DropKick)
+			{
+				// 누르는 순간 즉시 GAS에 Press 신호를 전달하여 어빌리티 실행
+				EnhancedInputComponent->BindAction(IA_DropKick, ETriggerEvent::Started, this, &ASG_Character::AbilityInputPressed, static_cast<int32>(ESGAbilityInputID::DropKick));
 			}
 		}
 	}
@@ -225,22 +231,39 @@ void ASG_Character::GiveDefaultAbilities()
 		// 발차기 능력 생성
 		FGameplayAbilitySpec KickSpec(KickAbilityClass);
 		
-		// 발차기 능력에 아까 만든 [Kick]을 매핑
+		// 발차기 능력에 [Enum::Kick]을 매핑
 		KickSpec.InputID = static_cast<int32>(ESGAbilityInputID::Kick);
 		
 		AbilitySystemComponent->GiveAbility(KickSpec);
+	}
+	
+	if (DropKickAbilityClass)
+	{
+		// 드롭킥 능력 생성
+		FGameplayAbilitySpec DropKickSpec(DropKickAbilityClass);
+		
+		// 드롭킥 능력에 [Enum::DropKick]을 매핑
+		DropKickSpec.InputID = static_cast<int32>(ESGAbilityInputID::DropKick);
+		
+		AbilitySystemComponent->GiveAbility(DropKickSpec);
 	}
 }
 	
 void ASG_Character::UseItemPressed()
 {
-	if (!ItemSlotComponent) return;
+	if (!ItemSlotComponent)
+	{
+		return;
+	}
 	ItemSlotComponent->UseItemPressed();
 }
 
 void ASG_Character::UseItemReleased()
 {
-	if (!ItemSlotComponent) return;
+	if (!ItemSlotComponent)
+	{
+		return;
+	}
 	ItemSlotComponent->UseItemReleased();
 }
 
