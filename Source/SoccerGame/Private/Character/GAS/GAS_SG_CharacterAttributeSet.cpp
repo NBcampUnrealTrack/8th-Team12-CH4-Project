@@ -2,6 +2,7 @@
 
 
 #include "Character/GAS/GAS_SG_CharacterAttributeSet.h"
+#include "GameplayEffectExtension.h"
 #include "Net/UnrealNetwork.h"
 
 UGAS_SG_CharacterAttributeSet::UGAS_SG_CharacterAttributeSet()
@@ -42,6 +43,15 @@ void UGAS_SG_CharacterAttributeSet::PreAttributeChange(const FGameplayAttribute&
 {
 	Super::PreAttributeChange(Attribute, NewValue);
 	
+	if (Attribute == GetHpAttribute())
+	{
+		NewValue = FMath::Clamp(NewValue, 0.0f, GetMaxHp());
+	}
+	else if (Attribute == GetStaminaAttribute())
+	{
+		NewValue = FMath::Clamp(NewValue, 0.f, GetMaxStamina());
+	}
+	
 	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("PreAttributeChange"));
 }
 
@@ -56,6 +66,16 @@ void UGAS_SG_CharacterAttributeSet::PostAttributeChange(const FGameplayAttribute
 void UGAS_SG_CharacterAttributeSet::PostGameplayEffectExecute(const struct FGameplayEffectModCallbackData& Data)
 {
 	Super::PostGameplayEffectExecute(Data);
+	
+	if (Data.EvaluatedData.Attribute == GetHpAttribute())
+	{
+		// SetHp는 BaseHp를 Set해준다.
+		SetHp(GetHp());
+	}
+	else if (Data.EvaluatedData.Attribute == GetStaminaAttribute())
+	{
+		SetStamina(GetStamina());
+	}
 	
 	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("PostGameplayEffectExecute"));
 }

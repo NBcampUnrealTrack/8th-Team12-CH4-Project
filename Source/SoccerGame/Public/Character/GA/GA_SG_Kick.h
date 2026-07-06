@@ -58,8 +58,7 @@ protected:
 	void OnEnemyHitReceived(FGameplayEventData Payload);
 	
 	// 차징 후 마우스를 떼면 호출되는 함수
-	UFUNCTION()
-	void OnInputReleased(float TimeHeld);
+	virtual void InputReleased(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) override;
 	
 	// 이벤트 수신 태그(현재 필요없어짐!!)
 	// UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ability|Kick")

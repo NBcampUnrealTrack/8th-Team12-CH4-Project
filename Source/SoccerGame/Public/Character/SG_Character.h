@@ -106,6 +106,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GAS")
 	TSubclassOf<class UGameplayAbility> KickAbilityClass;
 	
+	// 클라이언트에서 폰이 플레이어 스테이트를 리플리케이션 받았을 때 호출되는 함수
+	virtual void OnRep_PlayerState() override;
+	
 protected:
 	// SlotComponent
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ItemSlot")

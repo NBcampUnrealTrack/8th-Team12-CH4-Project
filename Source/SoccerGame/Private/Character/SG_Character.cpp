@@ -14,6 +14,7 @@
 #include "Character/GAS/GAS_SG_CharacterAttributeSet.h"
 #include "AbilitySystemComponent.h"
 #include "Item/SGItemSlotComponent.h"
+#include "PlayerState/SGMainPlayerState.h"
 
 DEFINE_LOG_CATEGORY(Log_SG_Character);
 
@@ -52,6 +53,9 @@ ASG_Character::ASG_Character()
 	// 네트워크 설정
 	AbilitySystemComponent->SetIsReplicated(true); 
 	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
+	bReplicates = true;
+	SetReplicateMovement(true);
+	GetMesh()->SetIsReplicated(true);
 	
 	AttributeSet = CreateDefaultSubobject<UGAS_SG_CharacterAttributeSet>(TEXT("GASAttributeSetBase"));
 	// CreateDefaultSubobject<UGAS_SG_CharacterAttributeSet>(TEXT("AttributeSet"));
@@ -66,10 +70,10 @@ void ASG_Character::BeginPlay()
 	if (AbilitySystemComponent)
 	{
 		// ASC 내부 초기화 함수 호출 (Owner와 Avatar 세팅)
-		AbilitySystemComponent->InitAbilityActorInfo(this, this);
+		// AbilitySystemComponent->InitAbilityActorInfo(this, this);
 		
 		// 기본 능력 부여
-		GiveDefaultAbilities();
+		// GiveDefaultAbilities();
 		
 		// SpeedMultiplier 변경 사항 감지
 		if (!AttributeSet) return;
@@ -145,7 +149,11 @@ void ASG_Character::PossessedBy(AController* NewConroller)
 {
 	Super::PossessedBy(NewConroller);
 	
-	AbilitySystemComponent->InitAbilityActorInfo(this, this);
+	if (AbilitySystemComponent)
+	{
+		AbilitySystemComponent->InitAbilityActorInfo(this, this);
+		GiveDefaultAbilities(); 
+	}
 }
 
 void ASG_Character::Tick(float DeltaTime)
@@ -234,6 +242,23 @@ void ASG_Character::UseItemReleased()
 {
 	if (!ItemSlotComponent) return;
 	ItemSlotComponent->UseItemReleased();
+}
+
+void ASG_Character::OnRep_PlayerState()
+{
+	Super::OnRep_PlayerState();
+	
+	// 서버로부터 플레이어 정보가 복제되어 넘어왔을 때 세팅
+	if (AbilitySystemComponent)
+	{
+		AbilitySystemComponent->InitAbilityActorInfo(this, this);
+		
+		// PlayerState에서 팀 태그를 가져와 내 GAS 태그로 등록
+		if (ASGMainPlayerState* TargetPS = GetPlayerState<ASGMainPlayerState>())
+		{
+			AbilitySystemComponent->AddLooseGameplayTag(TargetPS->CurrentTeamTag);
+		}
+	}
 }
 
 void ASG_Character::OnSpeedMultiplierChanged(const FOnAttributeChangeData& Data)
