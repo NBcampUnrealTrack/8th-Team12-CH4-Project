@@ -12,7 +12,12 @@ UCLASS()
 class SOCCERGAME_API ASGMainPlayerController : public APlayerController
 {
 	GENERATED_BODY()
-
+	
 protected:
 	virtual void BeginPlay() override;
+	virtual void OnPossess(APawn* InPawn) override;
+	virtual void AcknowledgePossession(APawn* P) override;
+
+private:
+	void ApplyGameInputMode();
 };
