@@ -114,7 +114,10 @@ void USGItemSlotComponent::UseItemReleased()
 			ActivationPredictionKey); 
 	
 	// 아이템 사용 성공 여부와는 관계없이 서버에서 소모처리
-	if (!Owner->HasAuthority()){
+	if (Owner->HasAuthority()){
+		ConsumeItem();
+	}
+	else{
 		Server_ConsumeItem();
 	}
 }
@@ -134,13 +137,13 @@ void USGItemSlotComponent::OnRep_ItemSlots()
 	OnItemSlotChanged.Broadcast();
 }
 
-void USGItemSlotComponent::Server_ConsumeItem_Implementation()
+void USGItemSlotComponent::ConsumeItem()
 {
 	if (ItemSlots.IsEmpty()) return;
 	if (!ItemAbilityHandles.IsValidIndex(0)) return;
 	
 	AActor* Owner = GetOwner();
-	if (!IsValid(Owner)) return;
+	if (!IsValid(Owner) || !Owner->HasAuthority()) return;
 	
 	UAbilitySystemComponent* AbilitySystemComponent = Owner->FindComponentByClass<UAbilitySystemComponent>();
 	if (!IsValid(AbilitySystemComponent)) return;
@@ -159,4 +162,9 @@ void USGItemSlotComponent::Server_ConsumeItem_Implementation()
 	
 	ItemSlots.RemoveAt(0);
 	ItemAbilityHandles.RemoveAt(0);
+}
+
+void USGItemSlotComponent::Server_ConsumeItem_Implementation()
+{
+	ConsumeItem();
 }
