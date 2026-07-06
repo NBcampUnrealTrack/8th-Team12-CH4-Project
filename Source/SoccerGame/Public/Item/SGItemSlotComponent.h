@@ -45,6 +45,8 @@ private:
     UFUNCTION()
     void OnRep_ItemSlots();
 	
+	void ConsumeItem();
+	
 	UFUNCTION(Server, Reliable)
 	void Server_ConsumeItem();
 	

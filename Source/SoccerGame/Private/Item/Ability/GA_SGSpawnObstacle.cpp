@@ -3,7 +3,7 @@
 
 #include "Item/Ability/GA_SGSpawnObstacle.h"
 
-#include "Item/Obstacle/SGObstacleBase.h"
+#include "Item/Preview/SGObstacleBase.h"
 
 UGA_SGSpawnObstacle::UGA_SGSpawnObstacle() : SpawnForwardDistance(500.f), PreviewOpacity(0.35f)
 {

@@ -9,11 +9,13 @@
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "AbilitySystemGlobals.h"
+#include "AbilitySystemInterface.h"
 
 UGA_SG_Kick::UGA_SG_Kick()
 {
 	// 인스턴싱 정책 설정
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
+	bReplicateInputDirectly = true;
 }
 
 void UGA_SG_Kick::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
@@ -28,7 +30,8 @@ void UGA_SG_Kick::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const
 	}
 	
 	// TEST!!
-	UE_LOG(LogTemp, Warning, TEXT("발차기 차징 시작!"));
+	FString NetMode = HasAuthority(&CurrentActivationInfo) ? TEXT("서버") : TEXT("클라이언트");
+	UE_LOG(LogTemp, Warning, TEXT("[%s] 발차기 차징 시작!"), *NetMode);
 	
 	// 차징 시간 계산
 	if (GetWorld())
@@ -36,18 +39,13 @@ void UGA_SG_Kick::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const
 		ChargeStartTime = GetWorld()->GetTimeSeconds();
 	}
 	
-	// 마우스를 뗄 때까지 기다리는 GAS 내장 Task
-	UAbilityTask_WaitInputRelease* WaitInputReleaseTask = UAbilityTask_WaitInputRelease::WaitInputRelease(this, false);
+	UAbilityTask_WaitInputRelease* WaitInputReleaseTask = UAbilityTask_WaitInputRelease::WaitInputRelease(this, true);
 	if (WaitInputReleaseTask)
 	{
-		// 마우스를 떼면 OnInputReleased 함수가 실행되도록 바인딩
-		WaitInputReleaseTask->OnRelease.AddDynamic(this, &UGA_SG_Kick::OnInputReleased);
 		WaitInputReleaseTask->ReadyForActivation();
 	}
 	else
 	{
-		// 태스크 생성 실패 시 예외 처리 및 능력 즉시 종료
-		// FindAndPushBall();
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
 	}
 }
@@ -56,6 +54,82 @@ void UGA_SG_Kick::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGam
 	const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
+}
+
+void UGA_SG_Kick::InputReleased(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo)
+{
+    Super::InputReleased(Handle, ActorInfo, ActivationInfo);
+	
+    float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+    float ActualChargeTime = CurrentTime - ChargeStartTime;
+	
+	FString NetMode = HasAuthority(&CurrentActivationInfo) ? TEXT("서버") : TEXT("클라이언트");
+    UE_LOG(LogTemp, Log, TEXT("[%s] 마우스 입력 해제, 누른 시간: %f 초"), *NetMode, ActualChargeTime);
+    
+    float BaseKickPower = 1000.0f;
+    UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+    if (ASC)
+    {
+       const UGAS_SG_CharacterAttributeSet* AttributeSet = ASC->GetSet<UGAS_SG_CharacterAttributeSet>();
+       if (AttributeSet)
+       {
+          BaseKickPower = AttributeSet->GetKickPower();
+       }
+    }
+    
+    float ChargeRatio = FMath::Clamp(ActualChargeTime / MaxChargeTime, 0.0f, 1.0f);
+    float FinalMultiplier = FMath::Lerp(1.0f, MaxPowerMultiplier, ChargeRatio);
+    CachedFinalKickPower = BaseKickPower * FinalMultiplier; 
+    
+    UAnimMontage* MontageToPlay = nullptr;
+
+    if (ActualChargeTime < ActionSplitTime)
+    {
+       UE_LOG(LogTemp, Log, TEXT("숏 차징 (%f초) -> 패스 모션 재생"), ActualChargeTime);
+       MontageToPlay = PassMontage;
+    }
+    else
+    {
+       UE_LOG(LogTemp, Log, TEXT("롱 차징 (%f초) -> 슛 모션 재생"), ActualChargeTime);
+       MontageToPlay = ShootMontage;
+    }
+
+    if (MontageToPlay)
+    {
+       UAbilityTask_PlayMontageAndWait* PlayMontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
+          this, NAME_None, MontageToPlay, 1.0f, NAME_None, true
+       );
+       
+       if (PlayMontageTask)
+       {
+          PlayMontageTask->OnCompleted.AddDynamic(this, &UGA_SG_Kick::K2_EndAbility);
+          PlayMontageTask->OnBlendOut.AddDynamic(this, &UGA_SG_Kick::K2_EndAbility);
+          PlayMontageTask->OnInterrupted.AddDynamic(this, &UGA_SG_Kick::K2_EndAbility);
+          PlayMontageTask->OnCancelled.AddDynamic(this, &UGA_SG_Kick::K2_EndAbility);
+          PlayMontageTask->ReadyForActivation();
+       }
+       
+       FGameplayTagContainer AssetTagsContainer = GetAssetTags();
+       FGameplayTag MyAbilityTag = FGameplayTag::EmptyTag;
+       if (AssetTagsContainer.Num() > 0)
+       {
+          MyAbilityTag = AssetTagsContainer.GetByIndex(0);
+       }
+
+       UAbilityTask_WaitGameplayEvent* WaitEventTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
+          this, MyAbilityTag, nullptr, false
+       );
+       
+       if (WaitEventTask)
+       {
+          WaitEventTask->EventReceived.AddDynamic(this, &UGA_SG_Kick::OnGameplayEventReceived);
+          WaitEventTask->ReadyForActivation();
+       }
+    }
+    else
+    {
+       K2_EndAbility();
+    }
 }
 
 void UGA_SG_Kick::FindAndPushBall()
@@ -100,7 +174,7 @@ void UGA_SG_Kick::FindAndPushBall()
 				UStaticMeshComponent* BallMesh = Cast<UStaticMeshComponent>(HitActor->GetRootComponent());
 				if (BallMesh && BallMesh->IsSimulatingPhysics())
 				{
-					// 밀어낼 방향 계산 (참고! PushDirection.Z 값이 클 수록 위로 뜹니다)
+					// 밀어낼 방향 계산 (PushDirection.Z 값이 클 수록 위로 뜬다)
 					FVector PushDirection = (HitActor->GetActorLocation() - Character->GetActorLocation()).GetSafeNormal();
 					PushDirection.Z += 1.2f; 
 					PushDirection = PushDirection.GetSafeNormal();
@@ -116,122 +190,17 @@ void UGA_SG_Kick::FindAndPushBall()
 	K2_EndAbility();
 }
 
-void UGA_SG_Kick::OnInputReleased(float TimeHeld)
-{
-	// 입력이 해제된 시점의 시간 구하기
-	float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-	// 실제 누르고 있었던 시간 계산
-	float ActualChargeTime = CurrentTime - ChargeStartTime;
-
-	UE_LOG(LogTemp, Log, TEXT("마우스 입력 해제! 누른 시간: %f 초"), ActualChargeTime);
-	
-	float BaseKickPower = 1000.0f;
-	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
-	if (ASC)
-	{
-		const UGAS_SG_CharacterAttributeSet* AttributeSet = ASC->GetSet<UGAS_SG_CharacterAttributeSet>();
-		if (AttributeSet)
-		{
-			BaseKickPower = AttributeSet->GetKickPower();
-		}
-	}
-    
-	float ChargeRatio = FMath::Clamp(ActualChargeTime / MaxChargeTime, 0.0f, 1.0f);
-	float FinalMultiplier = FMath::Lerp(1.0f, MaxPowerMultiplier, ChargeRatio);
-    
-	// 최종 파워 저장
-	CachedFinalKickPower = BaseKickPower * FinalMultiplier; 
-	
-	UAnimMontage* MontageToPlay = nullptr;
-
-	// 0.5초(ActionSplitTime)보다 짧게 누르면 패스, 길게 누르면 슛
-	if (ActualChargeTime < ActionSplitTime)
-	{
-		UE_LOG(LogTemp, Log, TEXT("숏 차징 (%f초) -> 패스 모션 재생"), ActualChargeTime);
-		MontageToPlay = PassMontage;
-	}
-	else
-	{
-		UE_LOG(LogTemp, Log, TEXT("롱 차징 (%f초) -> 슛 모션 재생"), ActualChargeTime);
-		MontageToPlay = ShootMontage;
-	}
-
-	// 캐릭터 몽타주 재생
-	if (MontageToPlay)
-	{
-		// 단순히 몽타주만 재생하는 Task(델리게이트 바인딩 안 해도 됨)
-		UAbilityTask_PlayMontageAndWait* PlayMontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
-		   this,
-		   NAME_None, 
-		   MontageToPlay, 
-		   1.0f, 
-		   NAME_None, 
-		   true
-		);
-		
-		if (PlayMontageTask)
-		{
-			// 캔슬, 인터럽트(피격)등이 발생하면 어빌리티 종료
-			PlayMontageTask->OnCompleted.AddDynamic(this, &UGA_SG_Kick::K2_EndAbility);
-			PlayMontageTask->OnBlendOut.AddDynamic(this, &UGA_SG_Kick::K2_EndAbility);
-			PlayMontageTask->OnInterrupted.AddDynamic(this, &UGA_SG_Kick::K2_EndAbility);
-			PlayMontageTask->OnCancelled.AddDynamic(this, &UGA_SG_Kick::K2_EndAbility);
-			
-			PlayMontageTask->ReadyForActivation();
-		}
-		
-		// 어빌리티 태그 정보가 private 일 수도 있어서 엔진이 제공하는 GetAssetTags()라는 함수를 사용하여 불러와야한다.
-		FGameplayTagContainer AssetTagsContainer = GetAssetTags();
-		FGameplayTag MyAbilityTag = FGameplayTag::EmptyTag;
-		if (AssetTagsContainer.Num() > 0)
-		{
-			MyAbilityTag = AssetTagsContainer.GetByIndex(0);
-		}
-
-		// --- 태그 이벤트를 기다리는 Task ---
-		UAbilityTask_WaitGameplayEvent* WaitEventTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
-		   this, 
-		   MyAbilityTag,     // 에디터에서 설정한 GA_SG_Kick의 Tag
-		   nullptr,          // Optional External Optional Actor
-		   false             // bOnlyTriggerOnce (한 번만 트리거할지 여부)
-		);
-		
-		if (WaitEventTask)
-		{
-			// 이벤트가 들어오면 실행할 함수 바인딩
-			WaitEventTask->EventReceived.AddDynamic(this, &UGA_SG_Kick::OnGameplayEventReceived);
-			WaitEventTask->ReadyForActivation();
-		}
-
-		// --- 적 플레이어 감지용 Task ---
-		FGameplayTag HitTag = FGameplayTag::RequestGameplayTag(TEXT("Character.Skill.Kick.Hit"));
-		UAbilityTask_WaitGameplayEvent* WaitHitEventTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
-		   this, 
-		   HitTag, 
-		   nullptr,          
-		   false             
-		);
-		
-		if (WaitHitEventTask)
-		{
-			// ANS가 Actor를 전송하면 OnEnemyHitReceived 함수 실행
-			WaitHitEventTask->EventReceived.AddDynamic(this, &UGA_SG_Kick::OnEnemyHitReceived);
-			WaitHitEventTask->ReadyForActivation();
-		}
-		
-		
-	}
-	else
-	{
-		// 몽타주가 세팅이 안 되어 있다면 어빌리티 즉시 종료
-		K2_EndAbility();
-	}
-}
-
 void UGA_SG_Kick::OnGameplayEventReceived(FGameplayEventData Payload)
 {
+	if (!HasAuthority(&CurrentActivationInfo))
+	{
+		return;
+	}
+	
 	UE_LOG(LogTemp, Log, TEXT("FindAndPushBall Test"));
 	FindAndPushBall();
+	
+	OnEnemyHitReceived(Payload);
 }
 
 void UGA_SG_Kick::OnEnemyHitReceived(FGameplayEventData Payload)
@@ -242,7 +211,7 @@ void UGA_SG_Kick::OnEnemyHitReceived(FGameplayEventData Payload)
 		return;
 	}
 
-	// ANS Enemy 액터를 꺼낸다.
+	// 타겟 액터 유효성 검사
 	AActor* HitEnemy = const_cast<AActor*>(Payload.Target.Get());
 	if (!HitEnemy || !DamageEffectClass)
 	{
@@ -251,25 +220,93 @@ void UGA_SG_Kick::OnEnemyHitReceived(FGameplayEventData Payload)
 
 	// 나의 어빌리티 시스템(ASC)과 적의 어빌리티 시스템(ASC)을 가져옴
 	UAbilitySystemComponent* MyASC = GetAbilitySystemComponentFromActorInfo();
-	UAbilitySystemComponent* TargetASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(HitEnemy);
-
-	if (MyASC && TargetASC)
+	// UAbilitySystemComponent* TargetASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(HitEnemy);
+	UAbilitySystemComponent* TargetASC = nullptr;
+	if (IAbilitySystemInterface* ASCInterface = Cast<IAbilitySystemInterface>(HitEnemy))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("서버에서 데미지 계산"));
+		TargetASC = ASCInterface->GetAbilitySystemComponent();
+	}
+	else
+	{
+		TargetASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(HitEnemy);
+	}
 
-		// 데미지 적용에 필요한 Context(인스티게이터 정보 등) 생성
-		FGameplayEffectContextHandle EffectContext = MyASC->MakeEffectContext();
-		EffectContext.AddSourceObject(this);
+	if (!MyASC)
+	{
+		UE_LOG(LogTemp, Error, TEXT("🚨 [데미지 에러] 공격자(나)의 ASC를 찾을 수 없습니다."));
+		return;
+	}
 
-		// 에디터에서 선택한 GE 스펙 핸들 생성
-		FGameplayEffectSpecHandle NewHandle = MyASC->MakeOutgoingSpec(DamageEffectClass, 1.0f, EffectContext);
+	if (!TargetASC)
+	{
+		UE_LOG(LogTemp, Error, TEXT("🚨 [데미지 에러] 피격자(%s)의 ASC를 가져오지 못했습니다! 대상에게 ASC가 없거나 인터페이스가 빠졌을 수 있습니다."), *HitEnemy->GetName());
+		return;
+	}
+	
+	// 모든 컴포넌트가 유효할 때 실행
+	UE_LOG(LogTemp, Warning, TEXT("🎯 [서버] 모든 조건 통과! %s 에게 데미지 주입 시도"), *HitEnemy->GetName());
+
+	FGameplayEffectContextHandle EffectContext = MyASC->MakeEffectContext();
+	EffectContext.AddSourceObject(this);
+
+	FGameplayEffectSpecHandle NewHandle = MyASC->MakeOutgoingSpec(DamageEffectClass, 1.0f, EffectContext);
+    
+	if (NewHandle.IsValid())
+	{
+		// 실제 데미지 적용 및 결과 구조체 반환
+		FActiveGameplayEffectHandle ActiveGEHandle = MyASC->ApplyGameplayEffectSpecToTarget(*NewHandle.Data.Get(), TargetASC);
         
-		if (NewHandle.IsValid())
+		if (ActiveGEHandle.IsValid())
 		{
-			// 상대방 캐릭터에게 데미지를 준다.(Apply)
-			MyASC->ApplyGameplayEffectSpecToTarget(*NewHandle.Data.Get(), TargetASC);
-            
-			UE_LOG(LogTemp, Log, TEXT("발차기 데미지 전달 완료"));
+			UE_LOG(LogTemp, Log, TEXT("발차기 데미지(GE) 활성화"));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("ApplyGameplayEffectSpecToTarget 실패"));
 		}
 	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("[실패] GameplayEffectSpecHandle 없음"));
+	}
+	
+	// if (MyASC && TargetASC)
+	// {
+	// 	// -------------------------- 중요! --------------------------
+	// 	// 데미지 테스트를 위해서 일단 주석처리, Tag 부여 후 같은팀, 적팀 테스트 예정
+	// 	// FGameplayTag BlueTeamTag = FGameplayTag::RequestGameplayTag(TEXT("Team.Blue"));
+	// 	// FGameplayTag RedTeamTag = FGameplayTag::RequestGameplayTag(TEXT("Team.Red"));
+	// 	//
+	// 	// // 내가 블루팀인지 레드팀인지 확인
+	// 	// bool bIAmBlue = MyASC->HasMatchingGameplayTag(BlueTeamTag);
+	// 	// bool bIAmRed = MyASC->HasMatchingGameplayTag(RedTeamTag);
+	// 	//
+	// 	// // 상대방이 블루팀인지 레드팀인지 확인
+	// 	// bool bTargetIsBlue = TargetASC->HasMatchingGameplayTag(BlueTeamTag);
+	// 	// bool bTargetIsRed = TargetASC->HasMatchingGameplayTag(RedTeamTag);
+	// 	//
+	// 	// // 둘의 팀이 완전히 일치하는 경우 (블루끼리 찼거나, 레드끼리 찼을 때)
+	// 	// if ((bIAmBlue && bTargetIsBlue) || (bIAmRed && bTargetIsRed))
+	// 	// {
+	// 	// 	UE_LOG(LogTemp, Log, TEXT("같은 팀이라서 데미지 무효"));
+	// 	// 	return; 
+	// 	// }
+	// 	//
+	// 	// UE_LOG(LogTemp, Warning, TEXT("적팀에게 가하는 데미지 계산(서버)"));
+	//
+	// 	// 데미지 적용에 필요한 Context(인스티게이터 정보 등) 생성
+	// 	FGameplayEffectContextHandle EffectContext = MyASC->MakeEffectContext();
+	// 	EffectContext.AddSourceObject(this);
+	//
+	// 	// 에디터에서 선택한 GE 스펙 핸들 생성
+	// 	FGameplayEffectSpecHandle NewHandle = MyASC->MakeOutgoingSpec(DamageEffectClass, 1.0f, EffectContext);
+ //        
+	// 	if (NewHandle.IsValid())
+	// 	{
+	// 		// 상대방 캐릭터에게 데미지를 준다.(Apply)
+	// 		MyASC->ApplyGameplayEffectSpecToTarget(*NewHandle.Data.Get(), TargetASC);
+ //            
+	// 		UE_LOG(LogTemp, Log, TEXT("발차기 데미지 전달 완료"));
+	// 	}
+	// }
 }
