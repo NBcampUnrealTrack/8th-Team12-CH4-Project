@@ -14,6 +14,7 @@
 #include "Character/GAS/GAS_SG_CharacterAttributeSet.h"
 #include "AbilitySystemComponent.h"
 #include "Item/SGItemSlotComponent.h"
+#include "PlayerState/SGMainPlayerState.h"
 
 DEFINE_LOG_CATEGORY(Log_SG_Character);
 
@@ -52,6 +53,9 @@ ASG_Character::ASG_Character()
 	// 네트워크 설정
 	AbilitySystemComponent->SetIsReplicated(true); 
 	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
+	bReplicates = true;
+	SetReplicateMovement(true);
+	GetMesh()->SetIsReplicated(true);
 	
 	AttributeSet = CreateDefaultSubobject<UGAS_SG_CharacterAttributeSet>(TEXT("GASAttributeSetBase"));
 	// CreateDefaultSubobject<UGAS_SG_CharacterAttributeSet>(TEXT("AttributeSet"));
@@ -63,16 +67,36 @@ void ASG_Character::BeginPlay()
 {
 	Super::BeginPlay();
 	
+	if (HasAuthority() && StaminaRegenEffectClass) // 서버에서 적용하면 클라로 동기화
+	{
+		UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+		if (ASC)
+		{
+			FGameplayEffectContextHandle EffectContext = ASC->MakeEffectContext();
+			EffectContext.AddSourceObject(this);
+
+			// 기본 스태미나 회복이라서 나 자신에게 적용
+			FGameplayEffectSpecHandle NewHandle = ASC->MakeOutgoingSpec(StaminaRegenEffectClass, 1.0f, EffectContext);
+			if (NewHandle.IsValid())
+			{
+				ASC->ApplyGameplayEffectSpecToSelf(*NewHandle.Data.Get());
+			}
+		}
+	}
+	
 	if (AbilitySystemComponent)
 	{
 		// ASC 내부 초기화 함수 호출 (Owner와 Avatar 세팅)
-		AbilitySystemComponent->InitAbilityActorInfo(this, this);
+		// AbilitySystemComponent->InitAbilityActorInfo(this, this);
 		
 		// 기본 능력 부여
-		GiveDefaultAbilities();
+		// GiveDefaultAbilities();
 		
 		// SpeedMultiplier 변경 사항 감지
-		if (!AttributeSet) return;
+		if (!AttributeSet)
+		{
+			return;
+		}
 		AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(
 			AttributeSet->GetSpeedMultiplierAttribute()).AddUObject(this, &ASG_Character::OnSpeedMultiplierChanged);
 		ApplySpeedMultiplier(AttributeSet->GetSpeedMultiplier());
@@ -110,7 +134,7 @@ void ASG_Character::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 		EnhancedInputComponent->BindAction(UseItemAction, ETriggerEvent::Started, this, &ASG_Character::UseItemPressed);
 		EnhancedInputComponent->BindAction(UseItemAction, ETriggerEvent::Completed, this, &ASG_Character::UseItemReleased);
 
-		// GAS 연동
+		// GAS + EnhancedInputComponent
 		if (AbilitySystemComponent)
 		{
 			FTopLevelAssetPath AbilityInputBindsAssetPath = FTopLevelAssetPath(TEXT("/Script/SoccerGame"), TEXT("ESGAbilityInputID"));
@@ -133,6 +157,12 @@ void ASG_Character::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 				// 떼는 순간 GAS에 Release 신호 전달 (WaitInputRelease Task가 이 신호를 감지)
 				EnhancedInputComponent->BindAction(IA_Kick, ETriggerEvent::Completed, this, &ASG_Character::AbilityInputReleased, static_cast<int32>(ESGAbilityInputID::Kick));
 			}
+			
+			if (IA_DropKick)
+			{
+				// 누르는 순간 즉시 GAS에 Press 신호를 전달하여 어빌리티 실행
+				EnhancedInputComponent->BindAction(IA_DropKick, ETriggerEvent::Started, this, &ASG_Character::AbilityInputPressed, static_cast<int32>(ESGAbilityInputID::DropKick));
+			}
 		}
 	}
 	else
@@ -145,7 +175,11 @@ void ASG_Character::PossessedBy(AController* NewConroller)
 {
 	Super::PossessedBy(NewConroller);
 	
-	AbilitySystemComponent->InitAbilityActorInfo(this, this);
+	if (AbilitySystemComponent)
+	{
+		AbilitySystemComponent->InitAbilityActorInfo(this, this);
+		GiveDefaultAbilities(); 
+	}
 }
 
 void ASG_Character::Tick(float DeltaTime)
@@ -217,23 +251,57 @@ void ASG_Character::GiveDefaultAbilities()
 		// 발차기 능력 생성
 		FGameplayAbilitySpec KickSpec(KickAbilityClass);
 		
-		// 발차기 능력에 아까 만든 [Kick]을 매핑
+		// 발차기 능력에 [Enum::Kick]을 매핑
 		KickSpec.InputID = static_cast<int32>(ESGAbilityInputID::Kick);
 		
 		AbilitySystemComponent->GiveAbility(KickSpec);
+	}
+	
+	if (DropKickAbilityClass)
+	{
+		// 드롭킥 능력 생성
+		FGameplayAbilitySpec DropKickSpec(DropKickAbilityClass);
+		
+		// 드롭킥 능력에 [Enum::DropKick]을 매핑
+		DropKickSpec.InputID = static_cast<int32>(ESGAbilityInputID::DropKick);
+		
+		AbilitySystemComponent->GiveAbility(DropKickSpec);
 	}
 }
 	
 void ASG_Character::UseItemPressed()
 {
-	if (!ItemSlotComponent) return;
+	if (!ItemSlotComponent)
+	{
+		return;
+	}
 	ItemSlotComponent->UseItemPressed();
 }
 
 void ASG_Character::UseItemReleased()
 {
-	if (!ItemSlotComponent) return;
+	if (!ItemSlotComponent)
+	{
+		return;
+	}
 	ItemSlotComponent->UseItemReleased();
+}
+
+void ASG_Character::OnRep_PlayerState()
+{
+	Super::OnRep_PlayerState();
+	
+	// 서버로부터 플레이어 정보가 복제되어 넘어왔을 때 세팅
+	if (AbilitySystemComponent)
+	{
+		AbilitySystemComponent->InitAbilityActorInfo(this, this);
+		
+		// PlayerState에서 팀 태그를 가져와 내 GAS 태그로 등록
+		if (ASGMainPlayerState* TargetPS = GetPlayerState<ASGMainPlayerState>())
+		{
+			AbilitySystemComponent->AddLooseGameplayTag(TargetPS->CurrentTeamTag);
+		}
+	}
 }
 
 void ASG_Character::OnSpeedMultiplierChanged(const FOnAttributeChangeData& Data)
