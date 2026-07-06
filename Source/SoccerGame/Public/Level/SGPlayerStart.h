@@ -1,16 +1,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "GameFramework/PlayerStart.h"
 #include "SGPlayerStart.generated.h"
 
-// 팀 식별용 enum class
 UENUM(BlueprintType)
 enum class ETeamId : uint8
 {
 	None UMETA(DisplayName = "None"),
 	Blue UMETA(DisplayName = "Blue"),
-	Red UMETA(DisplayName = "Red")
+	Red  UMETA(DisplayName = "Red")
 };
 
 UCLASS()
@@ -19,7 +19,10 @@ class SOCCERGAME_API ASGPlayerStart : public APlayerStart
 	GENERATED_BODY()
 	
 public:
-	// 팀 Id: Blue / Red
+	// 팀 태그: Blue / Red
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spawn", meta = (Categories = "Team"))
+	FGameplayTag TeamTag;
+	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spawn")
 	ETeamId TeamId = ETeamId::None;
 	
