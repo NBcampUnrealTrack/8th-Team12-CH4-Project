@@ -33,33 +33,29 @@ void ASGMainGameMode::BeginPlay()
 	UE_LOG(LogTemp, Warning, TEXT("In Main Server"));
 	
 	// 2. 초기 맵 세팅 및 공 스폰 부분 StartGame 부분으로 옮김
-
-
-	// 3. GameState(전광판) 초기값 세팅 및 시작 명령 -> 시작 명령 부분은 실제 게임 시작하는 부분으로 옮김.
-	ASGMainGameState* SG_GameState = GetGameState<ASGMainGameState>();
-	if (SG_GameState)
+	// 최초 진입 시 GameState 세팅 및 시간 잠금(준비 상태 태그 적용)
+	if (ASGMainGameState* SG_GameState = GetGameState<ASGMainGameState>())
 	{
 		SG_GameState->CurrentGameTime = TotalMatchTime;
 		SG_GameState->RedTeamScore = 0;
 		SG_GameState->BlueTeamScore = 0;
+		SG_GameState->CurrentMatchStateTag = FGameplayTag::RequestGameplayTag(FName("Match.State.WaitingToStart"));
 		// 직접 들고 있지 않고, GameState의 상태 변수를 변경하여 클라이언트에 전파!
-		SG_GameState->CurrentMatchState = ESGMatchState::InProgress;
 	}
-
 	//  1초 간격 인게임 타이머 가동 -> 이 부분은 실제 StartGame 부분으로 이동
 	StartLoading();
 }
 
-void ASGMainGameMode::HandleSeamlessTravelPlayer(AController*& C)
+void ASGMainGameMode::HandleSeamlessTravelPlayer(AController*& Controller)
 {
-	UE_LOG(LogTemp, Warning, TEXT("[MainGame] HandleSeamlessTravelPlayer Before: %s"), *GetNameSafe(C));
-	Super::HandleSeamlessTravelPlayer(C);
-	UE_LOG(LogTemp, Warning, TEXT("[MainGame] HandleSeamlessTravelPlayer After: %s"), *GetNameSafe(C));
+	Super::HandleSeamlessTravelPlayer(Controller);
 
-	if (APlayerController* PC = Cast<APlayerController>(C))
+	if (APlayerController* PC = Cast<APlayerController>(Controller))
 	{
+		// 로딩 중에는 조작을 완전히 차단
 		PC->SetInputMode(FInputModeGameOnly());
 		PC->bShowMouseCursor = false;
+		PC->DisableInput(PC); 
 	}
 }
 
@@ -69,21 +65,55 @@ void ASGMainGameMode::StartLoading()
 	 // 여기서 스폰을 할까?
 	// 여기서 스폰하는 방식으로 변경 - PlayerState 복사가 제대로 이루어지고 있지 않았음
 	//BeginPlay -> StartLoading 호출 -> 0.5초마다 StartGame에서 준비 상태 check -> 준비되면 Start
-	UE_LOG(LogTemp, Warning, TEXT("[MainGame] StartLoading"));
+	UE_LOG(LogTemp, Warning, TEXT("[MainGame] StartLoading 시작"));
 
 	GetWorldTimerManager().SetTimer(
-		LoadingCheckTimerHandle,
-		this,
-		&ASGMainGameMode::StartGame,
-		0.5f,
-		true
+	   LoadingCheckTimerHandle,
+	   this,
+	   &ASGMainGameMode::UpdateLoadingProgress, // 내부 로직 검사용 함수 분리
+	   UpdateLoadingTime, 
+	   true
 	);
 }
+
+void ASGMainGameMode::UpdateLoadingProgress()
+{
+	// 1. 지정한 로딩 시간 채우기
+	if (LodingTime < UpdateStartTime)
+	{
+		LodingTime += UpdateLoadingTime;
+       
+		// [나영님 파트 참고] 여기에 클라이언트 레벨 UI 게이지를 올려주는 등의 
+		// UI Update RPC 로직을 구현하시면 됩니다.
+		return;
+	}
+
+	// 2. 시간이 다 찼다면 플레이어들의 PlayerState 복사가 완료되었는지 검증
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		APlayerController* PC = It->Get();
+		if (!PC || !PC->GetPlayerState<ASGMainPlayerState>())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[MainGame] 로딩 시간은 끝났으나 PlayerState 복사 대기 중..."));
+			return;
+		}
+	}
+
+	// 3. 조건 완전 충족 시 로딩 타이머를 안전하게 끄고 게임 시작!
+	LodingTime = 0.0f;
+	GetWorldTimerManager().ClearTimer(LoadingCheckTimerHandle);
+	StartGame();
+}
+
 
 void ASGMainGameMode::StartGame()
 {
 	// 실제 게임 시작 을 담당하는 부분
-	// UpdateMatchTime 
+	
+	UE_LOG(LogTemp, Warning, TEXT("[MainGame] All player states ready. StartGame"));
+	// 공 Spawn
+	SpawnNewBall();
+	
 	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
 	{
 		APlayerController* PC = It->Get();
@@ -93,36 +123,38 @@ void ASGMainGameMode::StartGame()
 			return;
 		}
 	}
+	
+	// 조작 잠금 해제
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		if (APlayerController* PC = It->Get())
+		{
+			PC->EnableInput(PC);
+		}
+	}
 
-	GetWorldTimerManager().ClearTimer(LoadingCheckTimerHandle);
-
-	UE_LOG(LogTemp, Warning, TEXT("[MainGame] All player states ready. StartGame"));
-
-	SpawnNewBall();
-
+	
+	// State 데이터 초기화
 	if (ASGMainGameState* SG_GameState = GetGameState<ASGMainGameState>())
 	{
 		SG_GameState->CurrentGameTime = TotalMatchTime;
 		SG_GameState->RedTeamScore = 0;
 		SG_GameState->BlueTeamScore = 0;
-		SG_GameState->CurrentMatchState = ESGMatchState::InProgress;
+		SG_GameState->CurrentMatchStateTag = FGameplayTag::RequestGameplayTag(FName("Match.State.WaitingToStart"));
 	}
 	//BeginPlay의 매치 타이머 부분을 StartGame으로 옮김
 	GetWorldTimerManager().SetTimer(
 		MatchTimerHandle,
 		this,
 		&ASGMainGameMode::UpdateMatchTime,
-		1.0f,
+		UpdateLoadingTime,
 		true
 	);
-		
-
 }
 
 
 void ASGMainGameMode::OnGoalScored(bool bIsRedTeamGoal)
 {
-
 }
 
 void ASGMainGameMode::EndMatch()
@@ -142,7 +174,7 @@ void ASGMainGameMode::UpdateMatchTime()
 	ASGMainGameState* SG_GameState = GetGameState<ASGMainGameState>();
 	if (SG_GameState)
 	{
-		SG_GameState->CurrentGameTime -= 1.0f;
+		SG_GameState->CurrentGameTime -= 1;
 		
 		if (SG_GameState->CurrentGameTime <= 0.0f)
 		{

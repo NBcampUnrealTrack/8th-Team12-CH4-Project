@@ -25,6 +25,20 @@ void ASGLobbyGameState::OnRep_IsReady()
 {
 }
 
+void ASGLobbyGameState::OnRep_CountdownTime()
+{
+	// 1. 이 함수는 클라이언트들에서 호출되므로, '로컬 플레이어 컨트롤러'를 가져옵니다.
+	APlayerController* LocalPC = GetWorld()->GetFirstPlayerController();
+	if (!LocalPC) return;
+
+	// 2. 현재 프로젝트의 로비 플레이어 컨트롤러로 캐스팅합니다.
+	if (ASGLobbyPlayerController* LobbyPC = Cast<ASGLobbyPlayerController>(LocalPC))
+	{
+		// UI가 켜져 있는지 확인하고 업데이트하는 전반적인 전권은 Controller에게 위임!
+//		LobbyPC->HandleCountdownTimeChanged(ReplicatedCountdownTime);
+	}
+}
+
 void ASGLobbyGameState::BroadcastLobbyInfo()
 {
 	// 현재 방에 있는 모든 플레이어의 최신 정보를 담을 배열 생성

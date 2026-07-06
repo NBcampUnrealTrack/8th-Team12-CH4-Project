@@ -72,6 +72,21 @@ void ASGLobbyPlayerController::Client_UpdateLobbyUI(const TArray<FSGPlayerLobbyI
 	}
 }
 
+void ASGLobbyPlayerController::TimeUIUpdate(int32 NewTime)
+{
+	// 본인 클래스의 멤버 변수이므로 안전하게 접근 가능!
+	if (UIWidgetInstance)
+	{
+		if (USGLobbyWidget* LobbyWidget = Cast<USGLobbyWidget>(UIWidgetInstance))
+		{
+			// 선택지 A 적용: 위젯의 카운트다운 전용 함수를 안전하게 호출
+			LobbyWidget->UpdateCountdownText(NewTime);
+            
+			UE_LOG(LogTemp, Log, TEXT("[LobbyPC] 위젯 카운트다운 텍스트 업데이트 성공: %d초"), NewTime);
+		}
+	}
+}
+
 void ASGLobbyPlayerController::InitializeLocalPlayerLobbyUI()
 {
 	if (IsValid(UILobbyWidgetClass) == true)

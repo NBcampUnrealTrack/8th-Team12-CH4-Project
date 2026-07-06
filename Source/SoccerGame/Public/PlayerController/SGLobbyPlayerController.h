@@ -30,6 +30,8 @@ public:
 	
 	void Client_UpdateLobbyUI(const TArray<FSGPlayerLobbyInfo>& InPlayerInfos);
 	
+	void TimeUIUpdate(int32 NewTime);
+	
 	// 블루프린트에서 GameStart 버튼 누른 직후 호출할 UI 데이터 주입 함수
 	UFUNCTION(BlueprintCallable, Category = "Lobby")
 	void InitializeLocalPlayerLobbyUI();
