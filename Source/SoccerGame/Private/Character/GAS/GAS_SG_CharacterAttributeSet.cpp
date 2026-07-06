@@ -10,7 +10,7 @@ UGAS_SG_CharacterAttributeSet::UGAS_SG_CharacterAttributeSet()
 	// 속성 초기화
 	InitHp(100.f);
 	InitMaxHp(100.f);
-	InitStamina(100.f);
+	InitStamina(0.f);
 	InitMaxStamina(100.f);
 	InitKickPower(2000.f);
 	InitSpeedMultiplier(1.f);
@@ -34,7 +34,7 @@ bool UGAS_SG_CharacterAttributeSet::PreGameplayEffectExecute(struct FGameplayEff
 {
 	Super::PreGameplayEffectExecute(Data);
 	
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("PreGameplayEffectExecute"));
+	// GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("PreGameplayEffectExecute"));
 	
 	return true;
 }
@@ -52,7 +52,7 @@ void UGAS_SG_CharacterAttributeSet::PreAttributeChange(const FGameplayAttribute&
 		NewValue = FMath::Clamp(NewValue, 0.f, GetMaxStamina());
 	}
 	
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("PreAttributeChange"));
+	// GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("PreAttributeChange"));
 }
 
 void UGAS_SG_CharacterAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribute, float OldValue,
@@ -60,7 +60,7 @@ void UGAS_SG_CharacterAttributeSet::PostAttributeChange(const FGameplayAttribute
 {
 	Super::PostAttributeChange(Attribute, OldValue, NewValue);
 	
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("PostAttributeChange"));
+	// GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("PostAttributeChange"));
 }
 
 void UGAS_SG_CharacterAttributeSet::PostGameplayEffectExecute(const struct FGameplayEffectModCallbackData& Data)
@@ -77,7 +77,7 @@ void UGAS_SG_CharacterAttributeSet::PostGameplayEffectExecute(const struct FGame
 		SetStamina(GetStamina());
 	}
 	
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("PostGameplayEffectExecute"));
+	// GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("PostGameplayEffectExecute"));
 }
 
 // GAMEPLAYATTRIBUTE_REPNOTIFY 매크로를 사용해 내부 예측(Prediction) 시스템과 연동

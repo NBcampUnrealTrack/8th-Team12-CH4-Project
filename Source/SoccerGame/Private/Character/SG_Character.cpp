@@ -67,6 +67,23 @@ void ASG_Character::BeginPlay()
 {
 	Super::BeginPlay();
 	
+	if (HasAuthority() && StaminaRegenEffectClass) // 서버에서 적용하면 클라로 동기화
+	{
+		UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+		if (ASC)
+		{
+			FGameplayEffectContextHandle EffectContext = ASC->MakeEffectContext();
+			EffectContext.AddSourceObject(this);
+
+			// 기본 스태미나 회복이라서 나 자신에게 적용
+			FGameplayEffectSpecHandle NewHandle = ASC->MakeOutgoingSpec(StaminaRegenEffectClass, 1.0f, EffectContext);
+			if (NewHandle.IsValid())
+			{
+				ASC->ApplyGameplayEffectSpecToSelf(*NewHandle.Data.Get());
+			}
+		}
+	}
+	
 	if (AbilitySystemComponent)
 	{
 		// ASC 내부 초기화 함수 호출 (Owner와 Avatar 세팅)
@@ -76,7 +93,10 @@ void ASG_Character::BeginPlay()
 		// GiveDefaultAbilities();
 		
 		// SpeedMultiplier 변경 사항 감지
-		if (!AttributeSet) return;
+		if (!AttributeSet)
+		{
+			return;
+		}
 		AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(
 			AttributeSet->GetSpeedMultiplierAttribute()).AddUObject(this, &ASG_Character::OnSpeedMultiplierChanged);
 		ApplySpeedMultiplier(AttributeSet->GetSpeedMultiplier());
