@@ -57,6 +57,9 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Projectile")
 	float LifeTime;
 	
+	UPROPERTY(EditAnywhere, Category = "Projectile|Preview")
+	float PreviewOpacity;
+	
 	// 발사체 설정
 	float TargetDistance;
 	float ThrowSpeed;

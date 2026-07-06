@@ -13,7 +13,8 @@ ASGProjectileBase::ASGProjectileBase() :
 	ThrowForwardOffset(0.f), 
 	ThrowHeightOffset(0.f), 
 	bPreview(false),
-	LifeTime(5.f)
+	LifeTime(5.f),
+	PreviewOpacity(0.35f)
 {
 	// Tick 사용, 초깃값 비활성화
  	PrimaryActorTick.bCanEverTick = true;
@@ -78,6 +79,16 @@ void ASGProjectileBase::InitializePreview(AActor* InPlayerActor, float InTargetD
 	SetLifeSpan(0.f);
 	SetReplicates(false);
 	SetActorEnableCollision(false);
+	
+	// 투명도 적용
+	if (IsValid(MeshComponent)){
+		for (int32 Index = 0; Index < MeshComponent->GetNumMaterials(); ++Index){
+			UMaterialInstanceDynamic* DynamicMaterial = MeshComponent->CreateDynamicMaterialInstance(Index);
+			if (!IsValid(DynamicMaterial)) continue;
+			
+			DynamicMaterial->SetScalarParameterValue(TEXT("Opacity"), PreviewOpacity);
+		}
+	}
 	
 	// Tick 활성화
 	PrimaryActorTick.SetTickFunctionEnable(true);
