@@ -174,6 +174,30 @@ void USGLobbyWidget::UpdateReadyButtonText()
 	}
 }
 
+void USGLobbyWidget::UpdateCountdownText(int32 NewTime)
+{
+	// [확인] meta = (BindWidget) 덕분에 에디터의 Text_StartTimer 가 이 포인터에 자동 연동되어 있습니다.
+	if (!Text_StartTimer) return;
+
+	// 1. 카운트다운이 취소되었거나 끝난 경우 (-1 이하 혹은 0초 도달 시)
+	if (NewTime <= 0 || NewTime == -1)
+	{
+		// UI 화면에서 완전히 숨김 처리합니다.
+		Text_StartTimer->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	else
+	{
+		// 숨겨져 있었다면 다시 화면에 보이도록 설정합니다.
+		Text_StartTimer->SetVisibility(ESlateVisibility::Visible);
+
+		// 출력하고 싶은 텍스트 포맷 생성
+		FString CountdownString = FString::Printf(TEXT("게임 시작까지 %d..."), NewTime);
+        
+		// UI 텍스트 업데이트
+		Text_StartTimer->SetText(FText::FromString(CountdownString));
+	}
+}
+
 void USGLobbyWidget::HandleSlotClicked(FGameplayTag RequestedTeamTag)
 {
 	// 내 정보가 유효한지 확인

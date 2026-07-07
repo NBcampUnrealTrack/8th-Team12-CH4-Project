@@ -10,8 +10,10 @@ void USGPlayerGameInstanceSubsystem::SavePlayerData(const FUniqueNetIdRepl& InNe
 	// 대입 연산자를 통해 구조체 통째로 Map에 저장 또는 갱신
 	ServerBackupDataMap.Emplace(InNetId, InData);
     
-	//UE_LOG(LogTemp, Log, TEXT("Subsystem: Player Data Saved. [Name: %s | Team: %d | Score: %d]"), 
-	//	*InData.PlayerName, static_cast<int32>(InData.PlayerTeam), InData.Score);
+	UE_LOG(LogTemp, Log, TEXT("Subsystem: Player Data Saved. [Name: %s | Team: %s | Score: %d]"), 
+	   *InData.PlayerName, 
+	   *InData.PlayerTeam.ToString(),
+	   InData.Score);
 }
 
 bool USGPlayerGameInstanceSubsystem::LoadPlayerData(const FUniqueNetIdRepl& InNetId, FPlayerBackupData& OutData)

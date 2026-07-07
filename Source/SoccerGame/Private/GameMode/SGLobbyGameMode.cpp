@@ -54,8 +54,9 @@ void ASGLobbyGameMode::CheckReadyState()
 		// 모든 조건 충족 (Ready 확인 로직 완료 -> 시작 카운트다운 가동)
 		if (!GetWorldTimerManager().IsTimerActive(CountdownTimerHandle))
 		{
-			UE_LOG(LogTemp, Log, TEXT("모든 플레이어가 준비되었습니다! 5초 후 경기를 시작합니다."));
-			GetWorldTimerManager().SetTimer(CountdownTimerHandle, this, &ASGLobbyGameMode::TransitionToGameLevel, 5.0f, false);
+			//UE_LOG(LogTemp, Log, TEXT("모든 플레이어가 준비되었습니다! 5초 후 경기를 시작합니다."));
+			//GetWorldTimerManager().SetTimer(CountdownTimerHandle, this, &ASGLobbyGameMode::TransitionToGameLevel, 5.0f, false);
+			StartCountdown();
 		}
 	}
 	else
@@ -64,8 +65,9 @@ void ASGLobbyGameMode::CheckReadyState()
 		// (Ready 취소 로직 자동 처리)
 		if (GetWorldTimerManager().IsTimerActive(CountdownTimerHandle))
 		{
-			GetWorldTimerManager().ClearTimer(CountdownTimerHandle);
-			UE_LOG(LogTemp, Warning, TEXT("준비되지 않은 플레이어가 있어 게임 시작 카운트다운이 취소되었습니다."));
+			CancelCountdown();
+			//GetWorldTimerManager().ClearTimer(CountdownTimerHandle);
+			//UE_LOG(LogTemp, Warning, TEXT("준비되지 않은 플레이어가 있어 게임 시작 카운트다운이 취소되었습니다."));
 		}
 	}
 }
@@ -153,6 +155,12 @@ void ASGLobbyGameMode::ProcessChangeTeamRequest(APlayerController* TargetPC, con
 
 	TargetPS->SetTeamInternal(RequestedTeamTag);
 	TargetPS->SetReadyState(false);
+	
+	if (ASGLobbyGameState* GS = GetGameState<ASGLobbyGameState>())
+	{
+		GS->BroadcastLobbyInfo(); 
+	}
+	
 }
 
 void ASGLobbyGameMode::StartCountdown()
@@ -178,6 +186,13 @@ void ASGLobbyGameMode::CancelCountdown()
 
 	// 카운트다운 타이머 초기화(해제)
 	GetWorld()->GetTimerManager().ClearTimer(CountdownTimerHandle);
+	
+	// [추가] 취소 시 GameState 변수를 -1로 만들어 모든 클라이언트 화면에서 카운트다운 UI 숨기기
+	if (ASGLobbyGameState* GS = GetGameState<ASGLobbyGameState>())
+	{
+		GS->ReplicatedCountdownTime = -1;
+		GS->OnRep_CountdownTime();
+	}
 	NotifyAllPlayers(TEXT("Player left. Waiting for players to refill..."));
 }
 
@@ -185,6 +200,13 @@ void ASGLobbyGameMode::TickCountdown()
 {
 	CurrentCountdownTime--;
 	UE_LOG(LogTemp, Warning, TEXT("Current Counttime %d"), CurrentCountdownTime);
+	
+	// [추가] 매 초 줄어드는 시간을 GameState를 통해 모든 클라이언트에 복제(Replication)
+	if (ASGLobbyGameState* GS = GetGameState<ASGLobbyGameState>())
+	{
+		GS->ReplicatedCountdownTime = CurrentCountdownTime;
+		GS->OnRep_CountdownTime();
+	}
 
 	if (CurrentCountdownTime > 0)
 	{
@@ -193,6 +215,7 @@ void ASGLobbyGameMode::TickCountdown()
 	else
 	{
 		GetWorld()->GetTimerManager().ClearTimer(CountdownTimerHandle);
+		TransitionToGameLevel();
 	}
 }
 
@@ -200,7 +223,25 @@ void ASGLobbyGameMode::TransitionToGameLevel()
 {
 	NotifyAllPlayers(TEXT("Launching match"));
 
-	UE_LOG(LogTemp, Warning,TEXT("Level Path: %s"), *GameplayLevelPath);
+	UE_LOG(LogTemp, Warning, TEXT("================ [LobbyGameMode - Travel Sequence Start] ================"));
+
+	int32 CommandedControllersCount = 0;
+
+	// 서버에 접속해 있는 모든 '플레이어 컨트롤러'를 순회하며 각자 저장하라고 지시
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		if (ASGLobbyPlayerController* LobbyPC = Cast<ASGLobbyPlayerController>(It->Get()))
+		{
+			CommandedControllersCount++;
+			// 각 컨트롤러에게 데이터 세이브 위임 명령
+			LobbyPC->SaveDataToSubsystem(); 
+		}
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[LobbyGameMode - SaveComplete] 총 %d 명의 컨트롤러에게 데이터 백업 명령을 완료했습니다."), CommandedControllersCount);
+	UE_LOG(LogTemp, Warning, TEXT("[LobbyGameMode - Travel] 다음 레벨로 이동을 시작합니다. Path: %s"), *GameplayLevelPath);
+	UE_LOG(LogTemp, Warning, TEXT("========================================================================="));
+	
 	GetWorld()->ServerTravel(GameplayLevelPath);
 	
 }
