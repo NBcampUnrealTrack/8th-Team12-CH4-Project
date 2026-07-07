@@ -125,7 +125,7 @@ void ASGMainPlayerController::UpdateScoreWidget(int32 BlueTeam,int32 RedTeam)
 
     if (UIMainGameWidgetInstance)
     {
-        UIMainGameWidgetInstance->UpdateScores(RedTeam, BlueTeam);
+        UIMainGameWidgetInstance->UpdateScores(BlueTeam, RedTeam);
     }
    
 }

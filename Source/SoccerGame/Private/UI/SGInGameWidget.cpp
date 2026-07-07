@@ -27,8 +27,8 @@ void USGInGameWidget::NativeConstruct()
 
 void USGInGameWidget::UpdateTimerUI(int32 NewTime)
 {
-	UTextBlock* RealTimerTextBlock = Cast<UTextBlock>(WBP_Timer->GetWidgetFromName(TEXT("Text_Timer")));
 	if (!IsValid(WBP_Timer)) return;
+	UTextBlock* RealTimerTextBlock = Cast<UTextBlock>(WBP_Timer->GetWidgetFromName(TEXT("Text_Timer")));
 
 	// 초 단위 시간을 MM:SS 형식으로 변환
 	int32 Minutes = NewTime / 60;
