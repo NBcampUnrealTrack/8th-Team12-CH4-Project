@@ -6,6 +6,9 @@
 #include "Blueprint/UserWidget.h"
 #include "SGInGameWidget.generated.h"
 
+// 전방선언
+class USGItemSlotComponent;
+class UImage;
 class UTextBlock;
 class USGScoreBoardWidget;
 /**
@@ -21,18 +24,36 @@ public:
 	
 	// 외부에 노출할 UI 갱신 함수 (전광판 조작 버튼)
 	void UpdateTimerUI(int32 NewTime);
-	void UpdateScores(int32 RedScore, int32 BlueScore);
+	void UpdateScores(int32 BlueScore , int32 RedScore);
 	
 protected:
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 	
+	UFUNCTION()
+	void RefreshAllItemSlots();
+
+	void UpdateSingleItemSlot(int32 Index, UImage* TargetImage);
+	
+	virtual void NativeDestruct() override;
+
 protected:
+	UPROPERTY()
+	TObjectPtr<USGItemSlotComponent> ItemSlotComp;
+
+	// TODO: WBP_InGame에서 바인딩할 위젯 2개
+	//UPROPERTY(meta = (BindWidget))
+	//TObjectPtr<UImage> WBP_ItemSlot;
+	//
+	//UPROPERTY(meta = (BindWidget))
+	//TObjectPtr<UImage> WBP_ItemSlot_1;
 	// 타이머 텍스트
+	
+	
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UUserWidget> WBP_Timer;
 	
 	UPROPERTY(meta = (BindWidgetOptional))
-	TObjectPtr<USGScoreBoardWidget> WBP_ScoreBoardWidget;
+	TObjectPtr<USGScoreBoardWidget> WBP_ScoreBoard;
 	
 private:
 	// 이전 프레임의 점수 저장

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
+#include "GameplayTagContainer.h"
 #include "SGMainGameMode.generated.h"
 
 class ASGPlayerStart;
@@ -20,6 +21,7 @@ public:
 	
 	// 플레이어 팀에 맞는 PlayerStart 선택
 	virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
+	void OnGoalScored(FGameplayTag GoalTeamTag);
 	
 	// 규칙 함수 
 protected:
@@ -33,6 +35,11 @@ protected:
 	void StartGame();
 	void UpdateMatchTime();
 	
+	void SpawnNewBall();
+	
+	void EndMatch();
+	void RestartRound();
+
 protected:
 	// 타이틀 룰 규칙
 	const float UpdateLoadingTime = 0.1f; // 매직넘버 방지용
@@ -55,8 +62,17 @@ protected:
 	FTimerHandle MatchTimerHandle;
 	// 로딩 진행 상황을 체크할 타이머 핸들
 	FTimerHandle LoadingCheckTimerHandle;
-
+	FTimerHandle RoundRestartTimerHandle;
+	
 	TMap<AController*, ASGPlayerStart*> AssignedInitialPlayerStarts;
+	
+	// 골 이후, 연출 등을 위해 재시작 이전 딜레이
+	UPROPERTY(EditDefaultsOnly, Category = "SG_Rules")
+	float GoalRestartDelay = 3.0f;
+
+	// 공 스폰 위치를 찾기 위한 Tag
+	UPROPERTY(EditDefaultsOnly, Category = "SG_Spawning")
+	FName BallSpawnTag = TEXT("BallSpawn");
 	
 	// 아직 사용하지않음
 	/*

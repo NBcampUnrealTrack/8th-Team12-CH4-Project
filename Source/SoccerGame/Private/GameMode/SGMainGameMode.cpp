@@ -177,6 +177,141 @@ void ASGMainGameMode::UpdateMatchTime()
     }
 }
 
+void ASGMainGameMode::OnGoalScored(FGameplayTag GoalTeamTag)
+{
+   if (!HasAuthority())
+   {
+      return;
+   }
+   static int32 Count = 0;
+   Count++;
+
+   UE_LOG(LogTemp, Warning,
+       TEXT("OnGoalScored %d : %s"),
+       Count,
+       *GoalTeamTag.ToString());
+   ASGMainGameState* SG_GameState = GetGameState<ASGMainGameState>();
+   if (!SG_GameState)
+   {
+      UE_LOG(LogTemp, Warning, TEXT("[MainGame] No SGMainGameState"));
+      return;
+   }
+   // 골 연출 동안 시간을 멈추기 위해 넣은 코드. 필요없다면 삭제하되, 유지한다면 RestartRound쪽에서 타이머 다시 재생해야함.
+   //GetWorldTimerManager().ClearTimer(MatchTimerHandle);
+   //GetWorldTimerManager().ClearTimer(RoundRestartTimerHandle);
+	
+   //SG_GameState->CurrentMatchState = ESGMatchState::GoalScored;
+   UE_LOG(LogTemp, Log, TEXT("Count Tag  : %s ]") , *GoalTeamTag.ToString());
+   // bIsRedTeamGoal : Red팀의 득점일 때
+   if (GoalTeamTag == FGameplayTag::RequestGameplayTag(FName("Team.Red")))
+   {
+      SG_GameState->BlueTeamScore++;
+      UE_LOG(LogTemp, Log, TEXT("RedTeam / BlueTeam Goal  : %s ]") 
+        , *GoalTeamTag.ToString());
+      //SG_GameState->OnRep_UpdateScore();
+      GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Red,
+         FString::Printf(TEXT("Goal! RedTeamScore: %d"), SG_GameState->RedTeamScore));
+   }
+   // !bIsRedTeamGoal : Blue팀의 득점일 때
+   else if (GoalTeamTag == FGameplayTag::RequestGameplayTag(FName("Team.Blue")))
+   {
+      SG_GameState->RedTeamScore++;
+      UE_LOG(LogTemp, Log, TEXT("Blueteam / RedTeam Goal  : %s ]") 
+        , *GoalTeamTag.ToString());
+      //SG_GameState->OnRep_UpdateScore();
+      GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Blue,
+         FString::Printf(TEXT("Goal! BlueTeamScore: %d"), SG_GameState->BlueTeamScore));
+   }
+	
+   // 🌟 2. [방법 B 핵심] 모든 클라이언트의 PlayerController를 순회하며 Client RPC 호출
+   // OnRep_UpdateScore() 수동 호출 대신, 네트워크를 통해 각 클라이언트 화면을 직접 갱신합니다.
+   //for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+   //{
+   //   if (ASGMainPlayerController* PC = Cast<ASGMainPlayerController>(It->Get()))
+   //   {
+   //      UE_LOG(LogTemp, Warning,
+   //        TEXT("Send RPC Blue=%d Red=%d"),
+   //        SG_GameState->BlueTeamScore,
+   //        SG_GameState->RedTeamScore);
+   //      // 🌟 순서를 확실하게 RedScore, BlueScore 순으로 변경합니다.
+   //      PC->UpdateScoreWidget( SG_GameState->BlueTeamScore,SG_GameState->RedTeamScore);
+   //   }
+   //}
+   // 공 제거
+   if (IsValid(SpawnedBall))
+   {
+      SpawnedBall->Destroy();
+      SpawnedBall = nullptr;
+   }
+	
+   // 승리 조건 체크
+   const bool bRedTeamWon = SG_GameState->RedTeamScore >= ScoreToWin;
+   const bool bBlueTeamWon = SG_GameState->BlueTeamScore >= ScoreToWin;
+	
+   if (bRedTeamWon || bBlueTeamWon)
+   {
+      EndMatch();
+      return;
+   }
+	
+   // RestartRound 이전 시간 딜레이
+   GetWorldTimerManager().SetTimer(
+      RoundRestartTimerHandle,
+      this,
+      &ASGMainGameMode::RestartRound,
+      GoalRestartDelay,
+      false
+   );
+}
+
+void ASGMainGameMode::SpawnNewBall()
+{
+   if (!HasAuthority())
+   {
+      return;
+   }
+	
+   if (!BallClass)
+   {
+      UE_LOG(LogTemp, Warning, TEXT("[MainGame] SpawnNewBall failed: BallClass is not set."));
+      return;
+   }
+	
+   // 공이 남아 있으면 제거
+   if (IsValid(SpawnedBall))
+   {
+      SpawnedBall->Destroy();
+      SpawnedBall = nullptr;
+   }
+	
+   FTransform SpawnTransform;
+	
+   // 레벨에 배치된 BallSpawn 태그 부착된 액터 찾기
+   TArray<AActor*> FoundSpawnPoints;
+   UGameplayStatics::GetAllActorsWithTag(GetWorld(), BallSpawnTag, FoundSpawnPoints);
+	
+   if (FoundSpawnPoints.Num() > 0 && IsValid(FoundSpawnPoints[0]))
+   {
+      SpawnTransform = FoundSpawnPoints[0]->GetActorTransform();
+   }
+
+   // 못찾았으면 임시로 원점 할당
+   else
+   {
+      SpawnTransform = FTransform(FRotator::ZeroRotator, FVector::ZeroVector);
+   }
+	
+   FActorSpawnParameters SpawnParams;
+   SpawnParams.Owner = this;
+   SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	
+   SpawnedBall = GetWorld()->SpawnActor<AActor>(
+      BallClass,
+      SpawnTransform,
+      SpawnParams
+   );
+}
+
 AActor* ASGMainGameMode::ChoosePlayerStart_Implementation(AController* Player)
 {
     // 🌟 호출 확인용 단순 디버그 로그 한 줄
@@ -265,4 +400,11 @@ void ASGMainGameMode::HandleSeamlessTravelPlayer(AController*& Controller)
        PC->bShowMouseCursor = false;
        PC->DisableInput(PC); 
     }
+}
+void ASGMainGameMode::EndMatch()
+{
+}
+
+void ASGMainGameMode::RestartRound()
+{
 }

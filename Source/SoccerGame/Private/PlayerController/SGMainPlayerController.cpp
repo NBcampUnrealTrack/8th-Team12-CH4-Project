@@ -9,6 +9,7 @@
 #include "SoccerGame/Public/PlayerState/SGMainPlayerState.h" // PlayerState 검증을 위해 추가
 
 
+
 void ASGMainPlayerController::BeginPlay()
 {
     Super::BeginPlay();
@@ -107,6 +108,26 @@ void ASGMainPlayerController::LoadPlayerData()
         MainPS->ForceNetUpdate();
         GetWorldTimerManager().ClearTimer(LoadDataTimerHandle); 
     }
+}
+
+void ASGMainPlayerController::UpdateScoreWidget(int32 BlueTeam,int32 RedTeam)
+{
+    FString NetRole = HasAuthority() ? TEXT("SERVER") : TEXT("CLIENT");
+
+    UE_LOG(LogTemp, Warning,
+        TEXT("[%s] %s | Local=%d | Pawn=%s"),
+        *NetRole,
+        *FString(__FUNCTION__),
+        IsLocalController(),
+        *GetNameSafe(GetPawn()));
+    
+    if (!IsLocalController()) return;
+
+    if (UIMainGameWidgetInstance)
+    {
+        UIMainGameWidgetInstance->UpdateScores(RedTeam, BlueTeam);
+    }
+   
 }
 
 

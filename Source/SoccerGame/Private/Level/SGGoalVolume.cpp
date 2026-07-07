@@ -34,26 +34,36 @@ void ASGGoalVolume::OnGoalBeginOverlap(
     const FHitResult& SweepResult
 )
 {
+    // 서버없는데 서버 호출하고 있음 . 
+    UE_LOG(LogTemp, Warning, TEXT("GOAL BEGIN OVERLAP"));
     if (!HasAuthority())
     {
+        
         return;
     }
-
+    GEngine->AddOnScreenDebugMessage(
+                -1,5.0f,FColor::Green,TEXT("Return"));
     if (!bGoalEnabled)
     {
+        GEngine->AddOnScreenDebugMessage(
+            -1,5.0f,FColor::Green,TEXT("Return2"));
         return;
     }
 
     if (!OtherActor)
     {
+        GEngine->AddOnScreenDebugMessage(
+            -1,5.0f,FColor::Green,TEXT("Return3"));
         return;
     }
     
     // 공인지 확인
     if (!OtherActor->ActorHasTag(TEXT("Ball")))
     {
+       
         return;
     }
+    
 
     HandleGoalScored();
 }
@@ -64,20 +74,26 @@ void ASGGoalVolume::HandleGoalScored()
     {
         return;
     }
-
+    GEngine->AddOnScreenDebugMessage(
+               -1,5.0f,FColor::Green,TEXT("Ball"));
     bGoalEnabled = false;
     
     // 팀 확인
-    bool bIsRedTeamGoal = DefendingTeamTag == FGameplayTag::RequestGameplayTag(FName("Team.Blue"));
+    //bool bIsRedTeamGoal = DefendingTeamTag == FGameplayTag::RequestGameplayTag(FName("Team.Blue"));
 
     // GameMode에 알림
     ASGMainGameMode* GM = Cast<ASGMainGameMode>(UGameplayStatics::GetGameMode(this));
+    GEngine->AddOnScreenDebugMessage(
+           -1,5.0f,FColor::Green,TEXT("Ball"));
     if (GM)
     {
-        //GM->OnGoalScored(bIsRedTeamGoal);
+        UE_LOG(LogTemp, Log, TEXT("HandleGoalScore  : %s ]") 
+        , *DefendingTeamTag.ToString());
+        //UE_LOG(LogTemp, Warning, TEXT("Goal Scores%s"),DefendingTeamTag);
+        GM->OnGoalScored(DefendingTeamTag);
         
         // 득점 팀 확인용 디버그
-        GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("%d"), bIsRedTeamGoal));
+        //GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("%d")));
     }
 
     // 골 먹힌 직후 트리거 비활성화 되도록 타이머 적용

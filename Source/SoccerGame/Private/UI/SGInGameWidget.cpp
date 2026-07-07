@@ -4,18 +4,29 @@
 #include "UI/SGInGameWidget.h"
 #include "UI/SGScoreBoardWidget.h"
 #include "Components/TextBlock.h"
+#include "SoccerGame/Public/Item/SGItemSlotComponent.h"
+#include "SoccerGame/Public/Item/Data/SGItemDefinition.h"
+#include "Components/Image.h"
 #include "GameState/SGMainGameState.h"
 #include "Kismet/GameplayStatics.h"
 
 void USGInGameWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
-	
+	APawn* MyPawn = GetOwningPlayerPawn();
+	if (MyPawn)
+	{
+		ItemSlotComp = MyPawn->FindComponentByClass<USGItemSlotComponent>();
+		if (ItemSlotComp)
+		{
+			ItemSlotComp->OnItemSlotChanged.AddDynamic(this, &USGInGameWidget::RefreshAllItemSlots);
+			RefreshAllItemSlots();
+		}
+	}
 }
 
 void USGInGameWidget::UpdateTimerUI(int32 NewTime)
 {
-	// 🌟 부품 위젯(WBP_Timer) 내부에서 'Text_Timer'라는 이름을 가진 텍스트 블록을 찾아옵니다.
 	UTextBlock* RealTimerTextBlock = Cast<UTextBlock>(WBP_Timer->GetWidgetFromName(TEXT("Text_Timer")));
 	if (!IsValid(WBP_Timer)) return;
 
@@ -25,8 +36,7 @@ void USGInGameWidget::UpdateTimerUI(int32 NewTime)
 
 	// FString::Printf를 사용하여 두 자리 숫자로 패딩 ("%02d")
 	FString TimeString = FString::Printf(TEXT("%02d:%02d"), Minutes, Seconds);
-	UE_LOG(LogTemp, Warning,TEXT("UpdateTimerUI : %02d:%02d"), Minutes, Seconds);
-	// 진짜 텍스트 블록에 글자 세팅!
+	
 	RealTimerTextBlock->SetText(FText::FromString(TimeString));
 	//WBP_Timer->SetText(FText::FromString(TimeString));
 }
@@ -38,10 +48,9 @@ void USGInGameWidget::UpdateScores(int32 RedScore, int32 BlueScore)
 	{
 		LastRedTeamScore = RedScore;
 		LastBlueTeamScore = BlueScore;
-
-		if (IsValid(WBP_ScoreBoardWidget))
+		if (IsValid(WBP_ScoreBoard))
 		{
-			WBP_ScoreBoardWidget->UpdateScores(RedScore, BlueScore);
+			WBP_ScoreBoard->UpdateScores( BlueScore,RedScore);
 		}
 	}
 }
@@ -74,5 +83,42 @@ void USGInGameWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 		}
 	}        
 	 */
+}
+
+void USGInGameWidget::RefreshAllItemSlots()
+{
+	//UpdateSingleItemSlot(0, WBP_ItemSlot);
+	//UpdateSingleItemSlot(1, WBP_ItemSlot_1);
+}
+
+void USGInGameWidget::UpdateSingleItemSlot(int32 Index, UImage* TargetImage)
+{
+	if (!ItemSlotComp || !TargetImage)
+	{
+		// 디버그 메세지
+		UE_LOG(LogTemp, Warning, TEXT("ItemSlotComp 혹은 TargetImage가 유효하지 않습니다."));
+		return;
+	}
+	
+	USGItemDefinition* ItemDef = ItemSlotComp->GetItemAt(Index);
+
+	if (ItemDef&& ItemDef->Icon)
+	{
+		TargetImage->SetBrushFromTexture(ItemDef->Icon);
+		TargetImage->SetVisibility(ESlateVisibility::Visible);
+	}
+	else
+	{
+		TargetImage->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
+void USGInGameWidget::NativeDestruct()
+{
+	if (ItemSlotComp)
+	{
+		ItemSlotComp->OnItemSlotChanged.RemoveDynamic(this, &USGInGameWidget::RefreshAllItemSlots);
+	}
+	Super::NativeDestruct();
 }
 

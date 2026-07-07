@@ -35,12 +35,7 @@ void ASGMainGameState::OnRep_UpdateScore()
 	ASGMainPlayerController* SG_PC = Cast<ASGMainPlayerController>(PC);
 	if (IsValid(SG_PC))
 	{
-		//USGInGameWidget* InGameWidget = SG_PC->GetInGameWidget();
-		//if (IsValid(InGameWidget))
-		//{
-		//	// 최신 레드팀 점수와 블루팀 점수를 UI에 통째로 갱신합니다.
-		//	InGameWidget->UpdateScores(RedTeamScore, BlueTeamScore);
-		//}
+		SG_PC->UpdateScoreWidget(BlueTeamScore,RedTeamScore);
 	}
 }
 void ASGMainGameState::OnRep_UpdateTime()

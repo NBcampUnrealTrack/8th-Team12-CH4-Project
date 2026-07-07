@@ -40,7 +40,7 @@ public:
 
 	UPROPERTY(ReplicatedUsing = OnRep_UpdateTime, BlueprintReadOnly, Category = "SG_Time")
 	int32 CurrentGameTime = 0;
-protected:
+public:
 	// --- OnRep 함수들 (클라이언트 UI 갱신용 노티파이) ---
 
 	UFUNCTION()

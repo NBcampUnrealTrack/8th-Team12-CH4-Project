@@ -15,6 +15,8 @@ class SOCCERGAME_API ASGMainPlayerController : public APlayerController
 public:
 	UFUNCTION(Client, Reliable)
 	void UpdateTimerWidget(int32 NewTime);
+	
+	void UpdateScoreWidget(int32 BlueTeam,int32 RedTeam);
 protected:
 	virtual void BeginPlay() override;
 	virtual void OnPossess(APawn* InPawn) override;
