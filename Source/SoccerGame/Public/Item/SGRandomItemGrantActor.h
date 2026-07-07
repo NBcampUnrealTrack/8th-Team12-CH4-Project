@@ -7,7 +7,9 @@
 #include "SGRandomItemGrantActor.generated.h"
 
 class USGItemDefinition;
-class USphereComponent;
+class UBoxComponent;
+class USceneComponent;
+class USGRandomItemGrantVisualComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnRandomItemGranted);
 
@@ -34,10 +36,16 @@ public:
 	
 private:
 	UPROPERTY(VisibleAnywhere, Category = "Item")
-	TObjectPtr<USphereComponent> Collision;
+	TObjectPtr<USceneComponent> SceneRoot;
+
+	UPROPERTY(VisibleAnywhere, Category = "Item")
+	TObjectPtr<UBoxComponent> Collision;	
 	
 	UPROPERTY(EditAnywhere, Category = "Item")
 	TArray<TObjectPtr<USGItemDefinition>> ItemPool;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Item|Visual", meta=(AllowPrivateAccess="true"))
+	TObjectPtr<USGRandomItemGrantVisualComponent> VisualComponent;
 	
 	bool bGranted;
 };
