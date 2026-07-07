@@ -16,7 +16,7 @@ class SOCCERGAME_API UGA_SGSpeedUp : public UGA_SGItemBase
 	GENERATED_BODY()
 	
 protected:
-	virtual void ExecuteItemAbility(float TimeHeld);
+	virtual void ExecuteItemAbility(float TimeHeld) override;
 	
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GA|Buff")

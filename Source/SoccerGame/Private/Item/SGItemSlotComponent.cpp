@@ -69,9 +69,8 @@ void USGItemSlotComponent::UseItemPressed()
 	if (AbilitySpec == nullptr) return;
 	
 	AbilitySystemComponent->AbilitySpecInputPressed(*AbilitySpec);
-	const UGameplayAbility* Ability = AbilitySpec ? AbilitySpec->Ability : nullptr;
 
-	const bool bActivated = AbilitySystemComponent->TryActivateAbility(AbilityHandle);
+	AbilitySystemComponent->TryActivateAbility(AbilityHandle);
 }
 
 void USGItemSlotComponent::UseItemReleased()
@@ -115,7 +114,10 @@ void USGItemSlotComponent::UseItemReleased()
 			ActivationPredictionKey); 
 	
 	// 아이템 사용 성공 여부와는 관계없이 서버에서 소모처리
-	if (!Owner->HasAuthority()){
+	if (Owner->HasAuthority()){
+		ConsumeItem();
+	}
+	else{
 		Server_ConsumeItem();
 	}
 }
@@ -135,11 +137,34 @@ void USGItemSlotComponent::OnRep_ItemSlots()
 	OnItemSlotChanged.Broadcast();
 }
 
-void USGItemSlotComponent::Server_ConsumeItem_Implementation()
+void USGItemSlotComponent::ConsumeItem()
 {
 	if (ItemSlots.IsEmpty()) return;
 	if (!ItemAbilityHandles.IsValidIndex(0)) return;
 	
+	AActor* Owner = GetOwner();
+	if (!IsValid(Owner) || !Owner->HasAuthority()) return;
+	
+	UAbilitySystemComponent* AbilitySystemComponent = Owner->FindComponentByClass<UAbilitySystemComponent>();
+	if (!IsValid(AbilitySystemComponent)) return;
+	
+	const FGameplayAbilitySpecHandle AbilityHandle = ItemAbilityHandles[0];
+	
+	// Ability가 활성화 중이라면 지연 제거 예약 / 제거
+	if (FGameplayAbilitySpec* AbilitySpec = AbilitySystemComponent->FindAbilitySpecFromHandle(AbilityHandle)){
+		if (AbilitySpec->IsActive()){
+			AbilitySystemComponent->SetRemoveAbilityOnEnd(AbilityHandle);
+		}
+		else{
+			AbilitySystemComponent->ClearAbility(AbilityHandle);
+		}
+	}
+	
 	ItemSlots.RemoveAt(0);
 	ItemAbilityHandles.RemoveAt(0);
+}
+
+void USGItemSlotComponent::Server_ConsumeItem_Implementation()
+{
+	ConsumeItem();
 }
