@@ -22,11 +22,14 @@ public:
 	UPROPERTY(ReplicatedUsing = OnRep_IsReady, BlueprintReadOnly, Category = "Lobby")
 	bool bIsReady = false;
 	
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Lobby")
+	UPROPERTY(ReplicatedUsing = OnRep_CountdownTime, BlueprintReadOnly, Category = "Lobby")
 	int32 ReplicatedCountdownTime = -1;
 	
 	UFUNCTION()
 	void OnRep_IsReady();
+	
+	UFUNCTION()
+	void OnRep_CountdownTime();
 	
 	void BroadcastLobbyInfo();
 };

@@ -36,6 +36,7 @@ void ASGLobbyPlayerState::SetReadyState(bool bNewReadyState)
 	if (HasAuthority())
 	{
 		bIsReady = bNewReadyState;
+		OnRep_IsReady();
 	}
 }
 
@@ -44,6 +45,7 @@ void ASGLobbyPlayerState::SetTeamInternal(const FGameplayTag& SelectTeamTag)
 	if (HasAuthority())
 	{
 		CurrentTeamTag = SelectTeamTag;
+		OnRep_ChangeTeam();
 	}
 }
 void ASGLobbyPlayerState::OnRep_IsReady()
