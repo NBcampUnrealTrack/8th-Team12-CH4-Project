@@ -8,6 +8,7 @@
 #include "Abilities/Tasks/AbilityTask_WaitInputRelease.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
+#include "Abilities/Tasks/AbilityTask_WaitDelay.h"
 #include "AbilitySystemGlobals.h"
 #include "AbilitySystemInterface.h"
 #include "Character/SG_SoccerBall.h"
@@ -67,7 +68,7 @@ void UGA_SG_Kick::InputReleased(const FGameplayAbilitySpecHandle Handle, const F
 	FString NetMode = HasAuthority(&CurrentActivationInfo) ? TEXT("서버") : TEXT("클라이언트");
     UE_LOG(LogTemp, Log, TEXT("[%s] 마우스 입력 해제, 누른 시간: %f 초"), *NetMode, ActualChargeTime);
     
-    float BaseKickPower = 1000.0f;
+    float BaseKickPower = 500.0f;
     UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
     if (ASC)
     {
@@ -94,6 +95,8 @@ void UGA_SG_Kick::InputReleased(const FGameplayAbilitySpecHandle Handle, const F
        UE_LOG(LogTemp, Log, TEXT("롱 차징 (%f초) -> 슛 모션 재생"), ActualChargeTime);
        MontageToPlay = ShootMontage;
     }
+	
+	// FindAndPushBall();
 
     if (MontageToPlay)
     {
@@ -109,7 +112,17 @@ void UGA_SG_Kick::InputReleased(const FGameplayAbilitySpecHandle Handle, const F
           PlayMontageTask->OnCancelled.AddDynamic(this, &UGA_SG_Kick::K2_EndAbility);
           PlayMontageTask->ReadyForActivation();
        }
+    	
+    	float KickSyncDelay = 0.45f; // 딜레이 시간 설정
        
+    	UAbilityTask_WaitDelay* WaitDelayTask = UAbilityTask_WaitDelay::WaitDelay(this, KickSyncDelay);
+    	if (WaitDelayTask)
+    	{
+    		// 딜레이가 끝나면 (발이 정확히 공에 배달되면) 오버랩 판정 실행
+    		WaitDelayTask->OnFinish.AddDynamic(this, &UGA_SG_Kick::FindAndPushBall);
+    		WaitDelayTask->ReadyForActivation();
+    	}
+    	
        FGameplayTagContainer AssetTagsContainer = GetAssetTags();
        FGameplayTag MyAbilityTag = FGameplayTag::EmptyTag;
        if (AssetTagsContainer.Num() > 0)
@@ -186,22 +199,35 @@ void UGA_SG_Kick::FindAndPushBall()
 				}
 				
 				UStaticMeshComponent* BallMesh = SoccerBall->GetSoccerBallMesh();
-				if (BallMesh && BallMesh->IsSimulatingPhysics())
+			
+				if (BallMesh)
 				{
 					// 밀어낼 방향 계산 (PushDirection.Z 값이 클 수록 위로 뜬다)
 					FVector PushDirection = (HitActor->GetActorLocation() - Character->GetActorLocation()).GetSafeNormal();
 					PushDirection.Z += 1.f; 
 					PushDirection = PushDirection.GetSafeNormal();
+					
+					// 🟢 [CLIENT] 0.4초 동안 서버 동기화 차단 
+					if (!HasAuthority(&CurrentActivationInfo))
+					{
+						SoccerBall->IgnoreServerPhysicsForDuration(0.4f);
+						UE_LOG(LogTemp, Warning, TEXT("🟢 [CLIENT] 로컬 예측 적용 완료"));
+					}
 
-					// AttributeSet의 KickPower를 사용하여 임펄스 설정
+					// 🔴 [SERVER] 서버는 바로 Owner 설정
+					if (HasAuthority(&CurrentActivationInfo))
+					{
+						SoccerBall->SetOwner(Character);
+						UE_LOG(LogTemp, Warning, TEXT("🔴 [SERVER] 서버 물리 적용 완료"));
+					}
 					BallMesh->AddImpulse(PushDirection * CachedFinalKickPower, NAME_None, true);
-					UE_LOG(LogTemp, Log, TEXT("파워: %f"), CachedFinalKickPower);
 				}
 			}
 		}
 	}
 	
-	K2_EndAbility();
+	// FindAndPushBall() 호출 위치가 바뀌었는데 해당 함수에 이미 K2_EndAbility()가 있으므로 없애기
+	// K2_EndAbility();
 }
 
 void UGA_SG_Kick::OnGameplayEventReceived(FGameplayEventData Payload)
@@ -211,8 +237,8 @@ void UGA_SG_Kick::OnGameplayEventReceived(FGameplayEventData Payload)
 		return;
 	}
 	
-	UE_LOG(LogTemp, Log, TEXT("FindAndPushBall Test"));
-	FindAndPushBall();
+	// UE_LOG(LogTemp, Log, TEXT("FindAndPushBall Test"));
+	// FindAndPushBall();
 	
 	OnEnemyHitReceived(Payload);
 }
@@ -247,18 +273,18 @@ void UGA_SG_Kick::OnEnemyHitReceived(FGameplayEventData Payload)
 
 	if (!MyASC)
 	{
-		UE_LOG(LogTemp, Error, TEXT("🚨 [데미지 에러] 공격자(나)의 ASC를 찾을 수 없습니다."));
+		UE_LOG(LogTemp, Error, TEXT("[데미지 에러] 공격자(나)의 ASC를 찾을 수 없습니다."));
 		return;
 	}
 
 	if (!TargetASC)
 	{
-		UE_LOG(LogTemp, Error, TEXT("🚨 [데미지 에러] 피격자(%s)의 ASC를 가져오지 못했습니다! 대상에게 ASC가 없거나 인터페이스가 빠졌을 수 있습니다."), *HitEnemy->GetName());
+		UE_LOG(LogTemp, Error, TEXT("[데미지 에러] 피격자(%s)의 ASC를 가져오지 못했습니다! 대상에게 ASC가 없거나 인터페이스가 빠졌을 수 있습니다."), *HitEnemy->GetName());
 		return;
 	}
 	
 	// 모든 컴포넌트가 유효할 때 실행
-	UE_LOG(LogTemp, Warning, TEXT("🎯 [서버] 모든 조건 통과! %s 에게 데미지 주입 시도"), *HitEnemy->GetName());
+	UE_LOG(LogTemp, Warning, TEXT("[서버] 모든 조건 통과! %s 에게 데미지 주입 시도"), *HitEnemy->GetName());
 
 	FGameplayEffectContextHandle EffectContext = MyASC->MakeEffectContext();
 	EffectContext.AddSourceObject(this);

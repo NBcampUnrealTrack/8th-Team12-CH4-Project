@@ -116,7 +116,7 @@ void UGA_SG_DropKick::PushBall(AActor* BallActor)
     UStaticMeshComponent* BallMesh = Cast<UStaticMeshComponent>(BallActor->GetRootComponent());
     if (BallMesh && BallMesh->IsSimulatingPhysics())
     {
-        float DropKickPower = 5000.f;
+        float DropKickPower = 2500.f;
         UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
         if (ASC)
         {

@@ -12,7 +12,7 @@ UGAS_SG_CharacterAttributeSet::UGAS_SG_CharacterAttributeSet()
 	InitMaxHp(100.f);
 	InitStamina(0.f);
 	InitMaxStamina(100.f);
-	InitKickPower(2000.f);
+	InitKickPower(1000.f);
 	InitSpeedMultiplier(1.f);
 }
 
