@@ -10,6 +10,7 @@
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "AbilitySystemGlobals.h"
 #include "AbilitySystemInterface.h"
+#include "Character/SG_SoccerBall.h"
 
 UGA_SG_Kick::UGA_SG_Kick()
 {
@@ -168,20 +169,33 @@ void UGA_SG_Kick::FindAndPushBall()
 	{
 		for (AActor* HitActor : OutActors)
 		{
-			// 축구공 찾기
-			if (HitActor->GetName().Contains(TEXT("SoccerBall")) || HitActor->ActorHasTag(TEXT("Ball")))
+			if (!HitActor)
 			{
-				UStaticMeshComponent* BallMesh = Cast<UStaticMeshComponent>(HitActor->GetRootComponent());
+				continue;
+			}
+			
+			if (ASG_SoccerBall* SoccerBall = Cast<ASG_SoccerBall>(HitActor))
+			{
+				FVector DirToBall = (HitActor->GetActorLocation() - Character->GetActorLocation()).GetSafeNormal2D();
+				float DotResult = FVector::DotProduct(Forward.GetSafeNormal2D(), DirToBall);
+
+				// 내적 값이 0보다 작으면 내 등 뒤(90도 초과)에 있다는 뜻이므로 제외
+				if (DotResult < 0.0f) 
+				{
+					continue; 
+				}
+				
+				UStaticMeshComponent* BallMesh = SoccerBall->GetSoccerBallMesh();
 				if (BallMesh && BallMesh->IsSimulatingPhysics())
 				{
 					// 밀어낼 방향 계산 (PushDirection.Z 값이 클 수록 위로 뜬다)
 					FVector PushDirection = (HitActor->GetActorLocation() - Character->GetActorLocation()).GetSafeNormal();
-					PushDirection.Z += 1.2f; 
+					PushDirection.Z += 1.f; 
 					PushDirection = PushDirection.GetSafeNormal();
 
 					// AttributeSet의 KickPower를 사용하여 임펄스 설정
 					BallMesh->AddImpulse(PushDirection * CachedFinalKickPower, NAME_None, true);
-					UE_LOG(LogTemp, Log, TEXT("킥 파워: %f"), CachedFinalKickPower);
+					UE_LOG(LogTemp, Log, TEXT("파워: %f"), CachedFinalKickPower);
 				}
 			}
 		}
