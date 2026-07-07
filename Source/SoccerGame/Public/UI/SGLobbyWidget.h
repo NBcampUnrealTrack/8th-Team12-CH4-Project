@@ -132,6 +132,8 @@ public:
 	// Ready 버튼 텍스트 갱신 함수 시그니처
 	void UpdateReadyButtonText();
 	
+	void UpdateCountdownText(int32 NewTime);
+	
 protected:
 	// 슬롯 클릭되었을 때 실행될 함수
 	UFUNCTION()

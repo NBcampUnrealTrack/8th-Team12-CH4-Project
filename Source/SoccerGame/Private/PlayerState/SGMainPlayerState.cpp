@@ -24,15 +24,36 @@ void ASGMainPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 void ASGMainPlayerState::BeginPlay()
 {
     Super::BeginPlay();
-	UE_LOG(LogTemp, Log, TEXT("MainPlayerState Start"));
+    UE_LOG(LogTemp, Log, TEXT("[PS_Debug] MainPlayerState Start -> 서버 권한 여부: %d / 현재 데이터: [이름: %s | 팀: %s]"), 
+        HasAuthority(), *CustomPlayerName, *CurrentTeamTag.ToString());
+}
 
-    
+// 🌟 데이터 복원 검증용: 심리스 트래블 동안 데이터 누수를 방지하고 복사를 추적하는 정석 가상 함수
+void ASGMainPlayerState::CopyProperties(APlayerState* NewPlayerState)
+{
+    Super::CopyProperties(NewPlayerState);
+
+    if (ASGMainPlayerState* NewPS = Cast<ASGMainPlayerState>(NewPlayerState))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[PS_Debug] CopyProperties() 시작 (원본 데이터) -> [이름: %s | 팀: %s | 스코어: %d]"),
+            *CustomPlayerName, *CurrentTeamTag.ToString(), PlayerScore);
+
+        // 데이터 이전 실행
+        NewPS->CustomPlayerName = this->CustomPlayerName;
+        NewPS->CurrentTeamTag = this->CurrentTeamTag;
+        NewPS->PlayerScore = this->PlayerScore;
+
+        UE_LOG(LogTemp, Warning, TEXT("[PS_Debug] CopyProperties() 완료 (사본 데이터) -> [이름: %s | 팀: %s | 스코어: %d]"),
+            *NewPS->CustomPlayerName, *NewPS->CurrentTeamTag.ToString(), NewPS->PlayerScore);
+    }
 }
 
 void ASGMainPlayerState::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
     if (HasAuthority() && EndPlayReason == EEndPlayReason::LevelTransition)
     {
+        UE_LOG(LogTemp, Warning, TEXT("[PS_Debug] EndPlay(LevelTransition) 감지! Subsystem에 데이터를 백업합니다."));
+
         if (UGameInstance* GI = GetGameInstance())
         {
             if (USGPlayerGameInstanceSubsystem* DataSubsystem = GI->GetSubsystem<USGPlayerGameInstanceSubsystem>())
@@ -42,6 +63,9 @@ void ASGMainPlayerState::EndPlay(const EEndPlayReason::Type EndPlayReason)
                 DataToSave.PlayerName = this->CustomPlayerName;
                 DataToSave.PlayerTeam = this->CurrentTeamTag;
                 DataToSave.Score = this->PlayerScore;
+
+                UE_LOG(LogTemp, Log, TEXT("[PS_Debug] 백업 데이터 내용 -> [이름: %s | 팀: %s | 스코어: %d]"), 
+                    *DataToSave.PlayerName, *DataToSave.PlayerTeam.ToString(), DataToSave.Score);
 
                 // 서브 시스템으로 데이터 토스
                 DataSubsystem->SavePlayerData(GetUniqueId(), DataToSave);
@@ -54,5 +78,14 @@ void ASGMainPlayerState::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void ASGMainPlayerState::OnRep_CustomPlayerName()
 {
-   
+    UE_LOG(LogTemp, Display, TEXT("[PS_Debug] OnRep_CustomPlayerName() 수신 -> 클라이언트 동기화 이름: %s"), *CustomPlayerName);
 }
+
+// 🌟 현재 팀 태그가 클라이언트에 복제되었을 때 호출되는 복제 함수가 있다면 로그 추가 (선택사항)
+// 만약 헤더에 OnRep_CurrentTeamTag() 가 구현되어 있다면 주석을 풀고 사용하세요.
+/*
+void ASGMainPlayerState::OnRep_CurrentTeamTag()
+{
+    UE_LOG(LogTemp, Display, TEXT("[PS_Debug] OnRep_CurrentTeamTag() 수신 -> 클라이언트 동기화 팀 태그: %s"), *CurrentTeamTag.ToString());
+}
+*/

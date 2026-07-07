@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
+#include "GameplayTagContainer.h"
 #include "SGMainGameMode.generated.h"
 
 class ASGPlayerStart;
@@ -16,43 +17,41 @@ public:
 	ASGMainGameMode();
 	
 	//Seamless Travel 모드에서 PlayerController Input Mode 전환
-	virtual void HandleSeamlessTravelPlayer(AController*& C) override;
-
+	virtual void HandleSeamlessTravelPlayer(AController*& Controller) override;
+	
 	// 플레이어 팀에 맞는 PlayerStart 선택
 	virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
-
-	// 골이 발생했을 때 골대 트리거에서 호출할 심판 함수 (서버 전용)
-	void OnGoalScored(bool bIsRedTeamGoal);
-
-	// 경기를 완전히 끝내는 함수
-	void EndMatch();
-
-	// 골 연출이 끝난 후 다음 라운드를 시작하는 함수
-	void RestartRound();
-
+	void OnGoalScored(FGameplayTag GoalTeamTag);
+	
+	// 규칙 함수 
 protected:
 	virtual void BeginPlay() override;
 
-	// 시작전 로딩 + 초기화 
+	// 초기 로딩 진입 및 프레임워크 검증 루프 
 	void StartLoading();
+	void UpdateLoadingProgress();
 	
-	// 게임 시작 
+	// 게임 시작 및 월드 타이머 기동 
 	void StartGame();
-
-	// 축구공을 맵 중앙에 스폰하는 함수
-	void SpawnNewBall();
-
-	// 1초마다 타이머를 줄이는 함수
 	void UpdateMatchTime();
+	
+	void SpawnNewBall();
+	
+	void EndMatch();
+	void RestartRound();
 
 protected:
-	// --- 에디터 설정 규칙 변수 ---
+	// 타이틀 룰 규칙
+	const float UpdateLoadingTime = 0.1f; // 매직넘버 방지용
+	const float UpdateStartTime = 5.0f;
+	float CurrentLoadingTime = 0.0f;
+	
 	UPROPERTY(EditDefaultsOnly, Category = "SG_Rules")
-	float TotalMatchTime = 300.0f;
-
+	int32 TotalMatchTime = 300;
 	UPROPERTY(EditDefaultsOnly, Category = "SG_Rules")
 	int32 ScoreToWin = 5;
-
+	
+	
 	UPROPERTY(EditDefaultsOnly, Category = "SG_Spawning")
 	TSubclassOf<AActor> BallClass;
 
@@ -60,16 +59,28 @@ protected:
 	UPROPERTY(Transient)
 	AActor* SpawnedBall;
 
+	FTimerHandle MatchTimerHandle;
+	// 로딩 진행 상황을 체크할 타이머 핸들
+	FTimerHandle LoadingCheckTimerHandle;
+	FTimerHandle RoundRestartTimerHandle;
+	
+	TMap<AController*, ASGPlayerStart*> AssignedInitialPlayerStarts;
+	
+	// 골 이후, 연출 등을 위해 재시작 이전 딜레이
+	UPROPERTY(EditDefaultsOnly, Category = "SG_Rules")
+	float GoalRestartDelay = 3.0f;
+
+	// 공 스폰 위치를 찾기 위한 Tag
+	UPROPERTY(EditDefaultsOnly, Category = "SG_Spawning")
+	FName BallSpawnTag = TEXT("BallSpawn");
+	
+	// 아직 사용하지않음
+	/*
 	UPROPERTY(Transient)
 	TArray<AController*> RedTeamPlayers;
-
 	UPROPERTY(Transient)
 	TArray<AController*> BlueTeamPlayers;
+	 */
 
-	FTimerHandle MatchTimerHandle;
-	FTimerHandle RoundRestartTimerHandle;
-	FTimerHandle LoadingCheckTimerHandle;
-
-	TMap<AController*, ASGPlayerStart*> AssignedInitialPlayerStarts;
 
 };
