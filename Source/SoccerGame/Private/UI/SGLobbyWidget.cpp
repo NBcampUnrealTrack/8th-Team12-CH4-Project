@@ -11,9 +11,9 @@
 
 #include "SoccerGame/Public/PlayerController/SGLobbyPlayerController.h"
 
-#define MAX_PLAYERS 6
-#define MAX_BLUETEAM 3
-#define MAX_REDTEAM 3
+constexpr int32 MaxPlayers = 6;
+constexpr int32 MaxBLueTeam = 3;
+constexpr int32 MaxRedTeam = 3;
 
 void USGLobbyWidget::NativeConstruct()
 {
@@ -124,7 +124,7 @@ void USGLobbyWidget::RefreshLobby()
 		if (PlayerInfo.TeamTag == BlueTag)
 		{
 			// 블루팀 자리 3개 이하일 때만 데이터 세팅
-			if (CurrentBlueIndex < MAX_BLUETEAM && BlueTeamSlots[CurrentBlueIndex])
+			if (CurrentBlueIndex < MaxBLueTeam && BlueTeamSlots[CurrentBlueIndex])
 			{
 				BlueTeamSlots[CurrentBlueIndex]->SetPlayerSlotInfo(PlayerInfo.UserName, PlayerInfo.bIsReady, PlayerInfo.TeamTag);
 				CurrentBlueIndex++;
@@ -132,7 +132,7 @@ void USGLobbyWidget::RefreshLobby()
 		}
 		else if (PlayerInfo.TeamTag == RedTag)
 		{
-			if (CurrentRedIndex < MAX_REDTEAM && RedTeamSlots[CurrentRedIndex])
+			if (CurrentRedIndex < MaxRedTeam && RedTeamSlots[CurrentRedIndex])
 			{
 				RedTeamSlots[CurrentRedIndex]->SetPlayerSlotInfo(PlayerInfo.UserName, PlayerInfo.bIsReady, PlayerInfo.TeamTag);
 				CurrentRedIndex++;
@@ -140,7 +140,7 @@ void USGLobbyWidget::RefreshLobby()
 		}
 		else if (PlayerInfo.TeamTag == WaitingTag)
 		{
-			if (CurrentWaitingIndex < MAX_PLAYERS && WaitingSlots[CurrentWaitingIndex])
+			if (CurrentWaitingIndex < MaxPlayers && WaitingSlots[CurrentWaitingIndex])
 			{
 				WaitingSlots[CurrentWaitingIndex]->SetPlayerSlotInfo(PlayerInfo.UserName, PlayerInfo.bIsReady, PlayerInfo.TeamTag);
 				CurrentWaitingIndex++;

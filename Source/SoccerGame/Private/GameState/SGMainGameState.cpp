@@ -5,7 +5,6 @@
 #include "Net/UnrealNetwork.h"
 #include "Kismet/GameplayStatics.h"
 #include "PlayerController/SGMainPlayerController.h"
-#include "UI/SGInGameWidget.h"
 
 ASGMainGameState::ASGMainGameState()
 {
