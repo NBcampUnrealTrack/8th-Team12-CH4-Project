@@ -17,6 +17,7 @@ class UInputAction;
 struct FInputActionValue;
 
 DECLARE_LOG_CATEGORY_EXTERN(Log_SG_Character, Log, All);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnStaminaChanged, float, CurrentStamina, float, MaxStamina, float, StaminaPercent);
 
 //-------------------------------- AbilityInputID를 설정하는 ENUM --------------------------------//
 UENUM(BlueprintType)
@@ -135,4 +136,14 @@ private:
 	
 	void OnSpeedMultiplierChanged(const FOnAttributeChangeData& Data);
 	void ApplySpeedMultiplier(float NewMultiplier);
+	
+	//-------------------------------- 스태미나 UI --------------------------------//
+public:
+	// 스태미나 변경 시 블루프린트(UI)로 전달할 브로드캐스트 델리게이트
+	UPROPERTY(BlueprintAssignable, Category = "UI|Stamina")
+	FOnStaminaChanged OnStaminaChanged;
+
+protected:
+	// 스태미나 변경 감지 함수
+	void OnStaminaAttributeChanged(const struct FOnAttributeChangeData& Data);
 };
