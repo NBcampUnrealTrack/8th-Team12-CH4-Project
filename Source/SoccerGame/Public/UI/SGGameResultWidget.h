@@ -17,7 +17,7 @@ class SOCCERGAME_API USGGameResultWidget : public UUserWidget
 	GENERATED_BODY()
 	
 protected:
-	virtual void NativeConstruct(); __override;
+	virtual void NativeConstruct() override;
 	
 #pragma region UMG Binding
 	
