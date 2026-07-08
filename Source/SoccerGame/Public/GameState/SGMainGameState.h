@@ -42,13 +42,12 @@ public:
 	int32 CurrentGameTime = 0;
 public:
 	// --- OnRep 함수들 (클라이언트 UI 갱신용 노티파이) ---
-
+	
 	UFUNCTION()
 	void OnRep_MatchState();
 	UFUNCTION()
 	void OnRep_UpdateScore();
 	UFUNCTION()
 	void OnRep_UpdateTime();
-
 	
 };

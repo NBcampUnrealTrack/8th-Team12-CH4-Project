@@ -98,6 +98,10 @@ void ASG_Character::BeginPlay()
 			return;
 		}
 		AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(
+        			AttributeSet->GetStaminaAttribute()
+        		).AddUObject(this, &ASG_Character::OnStaminaAttributeChanged);
+		
+		AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(
 			AttributeSet->GetSpeedMultiplierAttribute()).AddUObject(this, &ASG_Character::OnSpeedMultiplierChanged);
 		ApplySpeedMultiplier(AttributeSet->GetSpeedMultiplier());
 	}
@@ -312,4 +316,17 @@ void ASG_Character::OnSpeedMultiplierChanged(const FOnAttributeChangeData& Data)
 void ASG_Character::ApplySpeedMultiplier(float NewMultiplier)
 {
 	GetCharacterMovement()->MaxWalkSpeed = BaseWalkSpeed * NewMultiplier;
+}
+
+void ASG_Character::OnStaminaAttributeChanged(const FOnAttributeChangeData& Data)
+{
+	float CurrentStamina = Data.NewValue;
+
+	float MaxStamina = AbilitySystemComponent->GetNumericAttribute(
+		UGAS_SG_CharacterAttributeSet::GetMaxStaminaAttribute()
+	);
+
+	float StaminaPercent = (MaxStamina > 0.0f) ? (CurrentStamina / MaxStamina) : 0.0f;
+
+	OnStaminaChanged.Broadcast(CurrentStamina, MaxStamina, StaminaPercent);
 }
