@@ -101,6 +101,7 @@ void ASGLobbyGameMode::PostLogin(APlayerController* NewPlayerController)
     
 	// 접속했는지만 확인
 	UE_LOG(LogTemp, Warning, TEXT("Player Joined! Current Players : %d " ), CurrentPlayers);
+	
 }
 	
 

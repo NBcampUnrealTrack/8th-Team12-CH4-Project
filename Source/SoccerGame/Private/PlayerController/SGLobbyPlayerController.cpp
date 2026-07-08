@@ -52,6 +52,7 @@ void ASGLobbyPlayerController::SellectReady()
 
 void ASGLobbyPlayerController::RequestChangeTeam(FGameplayTag NewTeam)
 {
+	// [로그 추가] 이 함수를 호출한 로컬 클라이언트의 이름과 요청한 팀 태그를 출력합니다.
 	// 서버 클라이언트가 서버에 요청을 보냄
 	ServerRequestChangeTeam(NewTeam);
 }

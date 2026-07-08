@@ -200,14 +200,10 @@ void ASGMainGameMode::OnGoalScored(FGameplayTag GoalTeamTag)
    //GetWorldTimerManager().ClearTimer(MatchTimerHandle);
    //GetWorldTimerManager().ClearTimer(RoundRestartTimerHandle);
 	
-   //SG_GameState->CurrentMatchState = ESGMatchState::GoalScored;
-   UE_LOG(LogTemp, Log, TEXT("Count Tag  : %s ]") , *GoalTeamTag.ToString());
    // bIsRedTeamGoal : Red팀의 득점일 때
    if (GoalTeamTag == FGameplayTag::RequestGameplayTag(FName("Team.Red")))
    {
       SG_GameState->BlueTeamScore++;
-      UE_LOG(LogTemp, Log, TEXT("RedTeam / BlueTeam Goal  : %s ]") 
-        , *GoalTeamTag.ToString());
       //SG_GameState->OnRep_UpdateScore();
       GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Red,
          FString::Printf(TEXT("Goal! RedTeamScore: %d"), SG_GameState->RedTeamScore));
@@ -216,24 +212,12 @@ void ASGMainGameMode::OnGoalScored(FGameplayTag GoalTeamTag)
    else if (GoalTeamTag == FGameplayTag::RequestGameplayTag(FName("Team.Blue")))
    {
       SG_GameState->RedTeamScore++;
-      UE_LOG(LogTemp, Log, TEXT("Blueteam / RedTeam Goal  : %s ]") 
-        , *GoalTeamTag.ToString());
       //SG_GameState->OnRep_UpdateScore();
-      GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Blue,
-         FString::Printf(TEXT("Goal! BlueTeamScore: %d"), SG_GameState->BlueTeamScore));
    }
 	
-   // 🌟 2. [방법 B 핵심] 모든 클라이언트의 PlayerController를 순회하며 Client RPC 호출
-   // OnRep_UpdateScore() 수동 호출 대신, 네트워크를 통해 각 클라이언트 화면을 직접 갱신합니다.
-   //for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
    //{
    //   if (ASGMainPlayerController* PC = Cast<ASGMainPlayerController>(It->Get()))
    //   {
-   //      UE_LOG(LogTemp, Warning,
-   //        TEXT("Send RPC Blue=%d Red=%d"),
-   //        SG_GameState->BlueTeamScore,
-   //        SG_GameState->RedTeamScore);
-   //      // 🌟 순서를 확실하게 RedScore, BlueScore 순으로 변경합니다.
    //      PC->UpdateScoreWidget( SG_GameState->BlueTeamScore,SG_GameState->RedTeamScore);
    //   }
    //}
@@ -271,9 +255,8 @@ void ASGMainGameMode::SpawnNewBall()
       return;
    }
 	
-   if (!BallClass)
+   if (BallClass == nullptr)
    {
-      UE_LOG(LogTemp, Warning, TEXT("[MainGame] SpawnNewBall failed: BallClass is not set."));
       return;
    }
 	

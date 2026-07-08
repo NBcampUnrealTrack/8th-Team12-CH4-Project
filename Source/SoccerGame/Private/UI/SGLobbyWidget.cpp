@@ -33,6 +33,8 @@ void USGLobbyWidget::NativeConstruct()
 		if (BlueSlot)
 		{
 			BlueSlot->SetSlotTeamTag(BlueTag);
+			// [안전장치] 중복 바인딩을 막기 위해 기존에 연결되어 있던 것을 먼저 제거 후 다시 연결합니다.
+			BlueSlot->OnSlotClicked.RemoveDynamic(this, &USGLobbyWidget::HandleSlotClicked);
 			BlueSlot->OnSlotClicked.AddDynamic(this, &USGLobbyWidget::HandleSlotClicked);
 		}
 	}
@@ -41,6 +43,7 @@ void USGLobbyWidget::NativeConstruct()
 		if (RedSlot)
 		{
 			RedSlot->SetSlotTeamTag(RedTag);
+			RedSlot->OnSlotClicked.RemoveDynamic(this, &USGLobbyWidget::HandleSlotClicked);
 			RedSlot->OnSlotClicked.AddDynamic(this, &USGLobbyWidget::HandleSlotClicked);
 		}
 	}
@@ -49,6 +52,8 @@ void USGLobbyWidget::NativeConstruct()
 		if (WaitingSlot)
 		{
 			WaitingSlot->SetSlotTeamTag(WaitingTag);
+			WaitingSlot->OnSlotClicked.RemoveDynamic(this, &USGLobbyWidget::HandleSlotClicked);
+			
 			WaitingSlot->OnSlotClicked.AddDynamic(this, &USGLobbyWidget::HandleSlotClicked);
 		}
 	}
@@ -200,9 +205,9 @@ void USGLobbyWidget::UpdateCountdownText(int32 NewTime)
 
 void USGLobbyWidget::HandleSlotClicked(FGameplayTag RequestedTeamTag)
 {
+	
 	// 내 정보가 유효한지 확인
 	if (!PlayerInfos.IsValidIndex(LocalPlayerIndex)) return;
-	
 	if (PlayerInfos[LocalPlayerIndex].TeamTag == RequestedTeamTag) return;
 	
 	// 위젯을 소유한 플레이어 컨트롤러 가져오기

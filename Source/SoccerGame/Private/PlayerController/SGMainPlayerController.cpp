@@ -112,15 +112,6 @@ void ASGMainPlayerController::LoadPlayerData()
 
 void ASGMainPlayerController::UpdateScoreWidget(int32 BlueTeam,int32 RedTeam)
 {
-    FString NetRole = HasAuthority() ? TEXT("SERVER") : TEXT("CLIENT");
-
-    UE_LOG(LogTemp, Warning,
-        TEXT("[%s] %s | Local=%d | Pawn=%s"),
-        *NetRole,
-        *FString(__FUNCTION__),
-        IsLocalController(),
-        *GetNameSafe(GetPawn()));
-    
     if (!IsLocalController()) return;
 
     if (UIMainGameWidgetInstance)
@@ -138,12 +129,7 @@ void ASGMainPlayerController::UpdateTimerWidget_Implementation(int32 NewTime)
 
     if (UIMainGameWidgetInstance)
     {
-        UE_LOG(LogTemp, Warning, TEXT("UpdateTimerWidget : %d"), NewTime);
         UIMainGameWidgetInstance->UpdateTimerUI(NewTime);
-    }
-    else
-    {
-        UE_LOG(LogTemp, Error, TEXT("[UI Error] UIMainGameWidgetInstance가 아직 생성되지 않았습니다!"));
     }
 }
 
