@@ -6,6 +6,7 @@
 #include "Components/SphereComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "Net/UnrealNetwork.h"
 
 ASGProjectileBase::ASGProjectileBase() :  
 	TargetDistance(0.f), 
@@ -20,9 +21,7 @@ ASGProjectileBase::ASGProjectileBase() :
  	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.SetTickFunctionEnable(false);
 	
-	// Movement 복제 활성화
 	bReplicates = true;
-	SetReplicateMovement(true);
 	
 	CollisionComponent = CreateDefaultSubobject<USphereComponent>(TEXT("CollisionComponent"));
 	SetRootComponent(CollisionComponent);
@@ -32,6 +31,7 @@ ASGProjectileBase::ASGProjectileBase() :
 	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeshComponent"));
 	MeshComponent->SetupAttachment(CollisionComponent);
 	MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	MeshComponent->SetHiddenInGame(true);
 	
 	ProjectileMovement = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileMovement"));
 	ProjectileMovement->UpdatedComponent = CollisionComponent;
@@ -47,10 +47,20 @@ void ASGProjectileBase::BeginPlay()
 	if (HasAuthority()){
 		SetLifeSpan(LifeTime);
 	}
+	else{
+		// 판정용 투사체의 충돌 무시
+		SetActorEnableCollision(false);
+	}
 }
 
 void ASGProjectileBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	// 시각용 투사체 정리
+	if (IsValid(ActiveCosmeticProjectile)){
+		ActiveCosmeticProjectile->Destroy();
+		ActiveCosmeticProjectile = nullptr;
+	}
+	
 	if (!bPreview){
 		OnProjectileFinished.Broadcast(this);
 	}
@@ -73,6 +83,35 @@ void ASGProjectileBase::Tick(float DeltaSeconds)
 	}
 }
 
+void ASGProjectileBase::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	
+	DOREPLIFETIME(ASGProjectileBase, CosmeticLaunchData);
+}
+
+void ASGProjectileBase::InitializeCosmeticProjectile(const FVector& StartLocation, const FVector& LaunchVelocity)
+{
+	bPreview = true;
+	
+	// 복제 비활성화, 충돌 비활성화
+	SetReplicates(false);
+	SetActorEnableCollision(false);
+	SetLifeSpan(LifeTime);
+	
+	// 해당 투사체가 보이도록 변경
+	if (IsValid(MeshComponent)){
+		MeshComponent->SetHiddenInGame(false);
+	}
+	
+	// 생성위치로 배치
+	SetActorLocationAndRotation(StartLocation, LaunchVelocity.Rotation());
+	
+	// Velocity 적용 및 Movement 활성화
+	ProjectileMovement->Velocity = LaunchVelocity;
+	ProjectileMovement->Activate(true);
+}
+
 void ASGProjectileBase::InitializePreview(AActor* InPlayerActor, float InTargetDistance, float InThrowSpeed,
                                           float InThrowForwardOffset, float InThrowHeightOffset)
 {
@@ -92,6 +131,7 @@ void ASGProjectileBase::InitializePreview(AActor* InPlayerActor, float InTargetD
 	
 	// 투명도 적용
 	if (IsValid(MeshComponent)){
+		MeshComponent->SetHiddenInGame(false);
 		for (int32 Index = 0; Index < MeshComponent->GetNumMaterials(); ++Index){
 			UMaterialInstanceDynamic* DynamicMaterial = MeshComponent->CreateDynamicMaterialInstance(Index);
 			if (!IsValid(DynamicMaterial)) continue;
@@ -124,6 +164,18 @@ bool ASGProjectileBase::LaunchByTrajectory(AActor* InPlayerActor, float InTarget
 	FVector StartLocation, LaunchVelocity;
 	FHitResult HitResult;
 	if (!CalculateTrajectory(StartLocation, LaunchVelocity, HitResult)) return false;
+	
+	if (HasAuthority()){
+		CosmeticLaunchData.StartLocation = StartLocation;
+		CosmeticLaunchData.LaunchVelocity = LaunchVelocity;
+		
+		if (GetNetMode() != NM_DedicatedServer){
+			SpawnCosmeticProjectile();
+		}
+		
+		// 복제 요청
+		ForceNetUpdate();
+	}
 	
 	// 발사 시작 위치와 이동 방향 적용
 	SetActorLocationAndRotation(StartLocation, LaunchVelocity.Rotation());
@@ -198,4 +250,29 @@ void ASGProjectileBase::OnProjectileHit(UPrimitiveComponent* HitComponent, AActo
 	
 	OnProjectileHitTarget.Broadcast(this, OtherActor);
 	Destroy();
+}
+
+void ASGProjectileBase::OnRep_CosmeticLaunchData()
+{
+	SpawnCosmeticProjectile();
+}
+
+void ASGProjectileBase::SpawnCosmeticProjectile()
+{
+	if (CosmeticLaunchData.LaunchVelocity.IsNearlyZero()) return;
+	if (IsValid(ActiveCosmeticProjectile)) return;
+	
+	UWorld* World = GetWorld();
+	if (!IsValid(World)) return;
+	
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	
+	// 시각용 발사체 생성
+	ActiveCosmeticProjectile = World->SpawnActor<ASGProjectileBase>(
+		GetClass(), CosmeticLaunchData.StartLocation, CosmeticLaunchData.LaunchVelocity.Rotation(), SpawnParams);
+	if (!IsValid(ActiveCosmeticProjectile)) return;
+	
+	ActiveCosmeticProjectile->InitializeCosmeticProjectile(
+		CosmeticLaunchData.StartLocation, CosmeticLaunchData.LaunchVelocity);
 }
