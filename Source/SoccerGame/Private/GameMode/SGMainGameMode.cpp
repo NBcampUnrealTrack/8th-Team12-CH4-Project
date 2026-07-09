@@ -55,7 +55,6 @@ void ASGMainGameMode::StartLoading()
    }
    */
 
-   // 2. 1초 간격으로 UpdateLoadingProgress를 호출하는 루프 타이머 가동
    GetWorldTimerManager().SetTimer(
        LoadingCheckTimerHandle,
        this,
@@ -151,12 +150,10 @@ void ASGMainGameMode::UpdateMatchTime()
     {
        SG_GameState->CurrentGameTime -= 1;
        
-       // 🌟 [방법 B 적용] 차감된 시간을 모든 컨트롤러의 래퍼 함수를 통해 전달!
        for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
        {
           if (ASGMainPlayerController* PC = Cast<ASGMainPlayerController>(It->Get()))
           {
-             // 컨트롤러 내부 위젯을 안전하게 노크하고 UI를 갱신합니다.
              PC->UpdateTimerWidget(SG_GameState->CurrentGameTime);
              //SpawnNewBall();
           }
@@ -372,7 +369,6 @@ AActor* ASGMainGameMode::ChoosePlayerStart_Implementation(AController* Player)
 }
 void ASGMainGameMode::HandleSeamlessTravelPlayer(AController*& Controller)
 {
-    // 🌟 호출 확인용 단순 디버그 로그 한 줄
     UE_LOG(LogTemp, Log, TEXT("[Debug_Call] ASGMainGameMode::HandleSeamlessTravelPlayer() 호출됨"));
 
     Super::HandleSeamlessTravelPlayer(Controller);

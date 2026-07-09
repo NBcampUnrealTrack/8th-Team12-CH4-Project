@@ -123,16 +123,10 @@ void ASGLobbyPlayerController::InitializeLocalPlayerLobbyUI()
 				MyLobbyPS->CurrentTeamTag = FGameplayTag::RequestGameplayTag(FName("Team.Waiting"));
 				// 위젯의 PlayerInfos에 집어넣을 내 정보 구조체 생성
 				FSGPlayerLobbyInfo MyInfo;
-				// --------------------------------------------------------------------------------
-				// ⭐ [수정] 각 클라이언트 창의 고유 번호를 파악해 "Client X" 형태로 이름을 할당합니다.
-				// --------------------------------------------------------------------------------
 				FString FinalClientName = TEXT("UnknownClient");
 
-				// 1. 현재 에디터 테스트(PIE) 환경에서 진짜 몇 번째 창인지 번호 가져오기
 				int32 RealClientID = 0;
-#if WITH_EDITOR
 				RealClientID = GPlayInEditorID; // 0, 1, 2, 3...
-#endif
 
 				// 2. 서버인지 클라이언트인지에 따라 이름 포맷 결정
 				if (GetWorld() && GetWorld()->GetNetMode() == NM_Client)
