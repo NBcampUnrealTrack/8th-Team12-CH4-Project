@@ -128,9 +128,10 @@ void UGA_SGSpanner::ApplyHitImpulse(ASGProjectileBase* Projectile, AActor* Targe
 	FVector ImpulseDirection = (TargetActor->GetActorLocation() - Projectile->GetActorLocation()).GetSafeNormal();
 	ImpulseDirection.Z = HitImpulseUpRatio;
 	ImpulseDirection.Normalize();
+	const FVector Impulse = ImpulseDirection * HitImpulseStrength;
 	
 	// Impulse 적용
-	MovementComponent->AddImpulse(ImpulseDirection * HitImpulseStrength, true);
+	TargetCharacter->LaunchCharacter(Impulse, true, true);
 }
 
 bool UGA_SGSpanner::IsOtherTeam(AActor* TargetActor) const
