@@ -44,7 +44,12 @@ bool USGItemSlotComponent::AddItem(USGItemDefinition* NewItem)
 	
 	ItemSlots.Add(NewItem);
 	ItemAbilityHandles.Add(AbilityHandle);
-	OnItemSlotChanged.Broadcast();
+	
+	// 직접 조종 중인 Pawn일 때만 Broadcast
+	const APawn* OwnerPawn =Cast<APawn>(Owner);
+	if (IsValid(OwnerPawn) && OwnerPawn->IsLocallyControlled()){
+		OnItemSlotChanged.Broadcast();	
+	}
 	
 	return true;
 }
@@ -162,6 +167,12 @@ void USGItemSlotComponent::ConsumeItem()
 	
 	ItemSlots.RemoveAt(0);
 	ItemAbilityHandles.RemoveAt(0);
+	
+	// 직접 조종 중인 Pawn일 때만 Broadcast
+	const APawn* OwnerPawn =Cast<APawn>(Owner);
+	if (IsValid(OwnerPawn) && OwnerPawn->IsLocallyControlled()){
+		OnItemSlotChanged.Broadcast();	
+	}
 }
 
 void USGItemSlotComponent::Server_ConsumeItem_Implementation()
