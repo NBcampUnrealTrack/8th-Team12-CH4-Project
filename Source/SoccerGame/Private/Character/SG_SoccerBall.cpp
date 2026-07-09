@@ -2,74 +2,94 @@
 
 #include "Character/SG_SoccerBall.h"
 #include "GameFramework/Character.h"
+#include "HAL/PlatformStackWalk.h"
+#include "Components/StaticMeshComponent.h"
+#include "Net/UnrealNetwork.h"
 
 ASG_SoccerBall::ASG_SoccerBall()
 {
     
     PrimaryActorTick.bCanEverTick = true;
     
-    bReplicates = true;
-    SetReplicateMovement(true);
+    // 메시 설정
+    BallMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("SoccerBallMesh"));
+    RootComponent = BallMesh;
 
-    SoccerBallMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("SoccerBallMesh"));
-    RootComponent = SoccerBallMesh;
-
+    // ------------------------------- 공의 물리, 콜리전 등 기본 설정 ------------------------------- //
     // 물리 및 콜리전 기본 세팅
-    SoccerBallMesh->SetSimulatePhysics(true);
-    SoccerBallMesh->SetCollisionProfileName(TEXT("PhysicsBody"));
-    // SoccerBallMesh->SetNotifyRigidBodyCollision(true);
-    
+    BallMesh->SetSimulatePhysics(true);
+    BallMesh->SetCollisionProfileName(TEXT("PhysicsBody"));
+    BallMesh->SetNotifyRigidBodyCollision(true);
     // 잔디밭 감속 마찰력 설정
-    SoccerBallMesh->SetLinearDamping(0.5f);   
-    SoccerBallMesh->SetAngularDamping(0.3f);  
-    
+    BallMesh->SetLinearDamping(0.5f);   
+    BallMesh->SetAngularDamping(0.3f);  
     // 공 무게 
-    SoccerBallMesh->SetMassOverrideInKg(NAME_None, 0.7f, true);
-
-    NetUpdateFrequency = 120.0f;
-    MinNetUpdateFrequency = 60.0f;
+    BallMesh->SetMassOverrideInKg(NAME_None, 50.f, true);
+    // 공이 속도를 받아 바닥이나 벽을 뚫고 맵 밑으로 추락하는 것을 방지(어제 겪은 버그 방지...)
+    BallMesh->SetUseCCD(true); 
+    
+    // ------------------------------------- 공의 네트워크 설정 ------------------------------------- //
+    // 네트워크 복제 설정
+    bReplicates = true;
+    SetReplicateMovement(false);
+    // 네트워크 업데이트 빈도 설정, 근데 SetReplicateMovement(false)면 사실 의미없을듯
+    SetNetUpdateFrequency(120.f);
+    SetMinNetUpdateFrequency(60.f);
+    
+    // -------------------------------------- 기본 변수 초기화 -------------------------------------- //
+    StateSendInterval = 1.f / 30.f;
+    StateSendTimer = 0.f;
+    OwnershipDuration = 0.35f;
 }
 
 void ASG_SoccerBall::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
     
-    // 서버권한으로 소유권 관리(공이 멈추면)
+    if (IsLocallyControlledOwner())
+    {
+        UpdateOwnedBall(DeltaTime);
+    }
+    else if (HasAuthority())
+    {
+        UpdateServerBall(DeltaTime);
+    }
+    else
+    {
+        UpdateRemoteBall(DeltaTime);
+    }
+    
     if (HasAuthority())
     {
-        // 주인이 있는 상태인데 공이 거의 멈췄다면 (속력이 5 이하)
-        if (GetOwner() != nullptr && SoccerBallMesh->GetPhysicsLinearVelocity().Size() < 5.0f)
+        if (HasBallOwner())
         {
-            // 안전하게 소유권을 반납하고 타이머를 취소합니다.
-            SetOwner(nullptr);
-            GetWorld()->GetTimerManager().ClearTimer(OwnerReleaseTimerHandle);
-            UE_LOG(LogTemp, Log, TEXT("🔴 [SERVER] 공이 정지하여 소유권을 반납"));
+            if (UWorld* World = GetWorld())
+            {
+                // Owner를 가지는 최소한의 시간 보장 (0.35초)
+                if (World->GetTimeSeconds() > LastOwnerChangeTime + OwnershipDuration)
+                {
+                    float MinKeepOwnerTime = 0.5f; 
+    
+                    // Kick을 한 후 Onwer를 가지는 최소한의 시간 보장 (0.5초)
+                    if (World->GetTimeSeconds() > LastOwnerChangeTime + MinKeepOwnerTime)
+                    {
+                        // 공의 속도가 거의 멈췄을 때만 Owner를 nullptr로 회수
+                        if (BallMesh->GetPhysicsLinearVelocity().SizeSquared() < (50.f * 50.f)) // 50cm/s 이하
+                        {
+                            SetBallOwner(nullptr);
+                        }
+                    }
+                }
+            }
         }
     }
     
-    // [추가] 슛/패스 직후
-    if (!HasAuthority())
-    {
-        if (KickPredictionTimer > 0.0f)
-        {
-            KickPredictionTimer -= DeltaTime;
-            
-            // 0.4초동안은 서버와 동기화 하지않음
-            SoccerBallMesh->bReplicatePhysicsToAutonomousProxy = false;
-        }
-        else
-        {
-            // 타이머가 끝나면 다시 서버의 물리 상태 동기화
-            SoccerBallMesh->bReplicatePhysicsToAutonomousProxy = true;
-        }
-    }
-    
-    // 화면 좌측 상단에 현재 오너 상태 실시간 디버깅 출력
+    // 현재 오너 상태 디버깅 출력
     if (GEngine)
     {
         AActor* CurrentOwner = GetOwner();
         FString OwnerName = CurrentOwner ? CurrentOwner->GetName() : TEXT("No Owner (NULL)");
-        FString NetMode = HasAuthority() ? TEXT("서버") : TEXT("클라이언트");
+        FString NetMode = HasAuthority() ? TEXT("🔴 서버") : TEXT("🟢 클라이언트");
         FColor DisplayColor = HasAuthority() ? FColor::Red : FColor::Green;
 
         GEngine->AddOnScreenDebugMessage(
@@ -79,73 +99,251 @@ void ASG_SoccerBall::Tick(float DeltaTime)
     }
 }
 
-void ASG_SoccerBall::NotifyHit(
-    UPrimitiveComponent* MyComp, 
-    AActor* Other, 
-    UPrimitiveComponent* OtherComp, 
-    bool bSelfMoved, 
-    FVector HitLocation, 
-    FVector HitNormal, 
-    FVector NormalImpulse,
-    const FHitResult& Hit
-)
+void ASG_SoccerBall::BeginPlay()
 {
-    Super::NotifyHit(MyComp, Other, OtherComp, bSelfMoved, HitLocation, HitNormal, NormalImpulse, Hit);
-
-    ACharacter* HittingCharacter = Cast<ACharacter>(Other);
+    Super::BeginPlay();
     
-    // 소유권 변경 조작은 오직 서버 권한
-    if (HittingCharacter && HasAuthority())
+    RefreshPhysicsSimulation();
+    
+    // 서버에서만 충돌 이벤트를 감지하여 Owner를 변경
+    if (HasAuthority() && BallMesh)
     {
-        // 만약 소유권 전환 락(0.1초)이 걸려있다면
-        if (GetWorld()->GetTimerManager().IsTimerActive(OwnerCooldownTimerHandle))
-        {
-            // 락이 걸려있더라도 현재 이 공의 주인인 플레이어가 계속 비비고 있는 거라면
-            if (GetOwner() == HittingCharacter)
-            {
-                // 소유권 반납 타이머를 계속 3초 뒤로 (드리블 유지)
-                float ReleaseDelay = 3.0f; 
-                GetWorld()->GetTimerManager().SetTimer(OwnerReleaseTimerHandle, this, &ASG_SoccerBall::ReleaseOwner, ReleaseDelay, false);
-            }
-            return;
-        }
-
-        // 소유권 변경
-        if (GetOwner() != HittingCharacter)
-        {
-            SetOwner(HittingCharacter);
-            
-            // 0.1초 동안은 짧게 소유권이 또 바뀌지 않도록 락
-            float OwnerLockTime = 0.1f; 
-            GetWorld()->GetTimerManager().SetTimer(OwnerCooldownTimerHandle, this, &ASG_SoccerBall::ResetOwnerCooldown, OwnerLockTime, false);
-        }
-        
-        // 공을 건드린 시점부터 1초 동안 안 건드리면 소유권을 해제하는 타이머 예약/갱신
-        float ReleaseDelay = 3.0f; 
-        GetWorld()->GetTimerManager().SetTimer(OwnerReleaseTimerHandle, this, &ASG_SoccerBall::ReleaseOwner, ReleaseDelay, false);
+        BallMesh->OnComponentHit.AddDynamic(this, &ASG_SoccerBall::OnBallHit);
     }
 }
 
-void ASG_SoccerBall::ReleaseOwner()
+void ASG_SoccerBall::OnRep_Owner()
 {
-    if (HasAuthority())
-    {
-        // 공에서 발을 떼고 0.5초가 지나면 오너를 다시 날려버려 서버 공으로 만듭니다.
-        SetOwner(nullptr);
-        UE_LOG(LogTemp, Warning, TEXT("🔴 [SERVER] 소유권 회수 (NULL)"));
-    }
+    Super::OnRep_Owner();
+    
+    // 클라이언트에서 Owner가 바뀌었을 때 실행되는지 로그 확인
+    FString NetMode = HasAuthority() ? TEXT("🔴 서버") : TEXT("🟢 클라이언트");
+    UE_LOG(LogTemp, Warning, TEXT("[%s] OnRep_Owner 호출됨! 새로운 Owner: %s"), 
+        *NetMode, GetOwner() ? *GetOwner()->GetName() : TEXT("NULL"));
+    
+    RefreshPhysicsSimulation();
 }
 
-void ASG_SoccerBall::IgnoreServerPhysicsForDuration(float Duration)
+void ASG_SoccerBall::OnRep_BallState()
 {
+    // 로컬 Owner는 제외
+    if(IsLocallyControlledOwner())
+    {
+        return;
+    }
+    
+    // Target만 저장, SetActorLocation X
+    TargetLocation = ReplicatedBallState.Location + ReplicatedBallState.LinearVelocity * PredictionTime;
+    TargetRotation = ReplicatedBallState.Rotation;
+    TargetLinearVelocity = ReplicatedBallState.LinearVelocity;
+    TargetAngularVelocity = ReplicatedBallState.AngularVelocity;
+}
+
+void ASG_SoccerBall::UpdateOwnedBall(float DeltaTime)
+{
+    StateSendTimer += DeltaTime;
+    if (StateSendTimer < StateSendInterval)
+    {
+        return;
+    }
+    
+    StateSendTimer = 0.f;
+    FBallState State;
+    FillCurrentBallState(State);
+    Server_SendBallState(State);
+}
+
+void ASG_SoccerBall::UpdateServerBall(float DeltaTime)
+{
+    if (HasBallOwner())
+    {
+        return;
+    }
+    // Owner가 없으면 Server에서 Physics를 읽기만 한다.
+    FillCurrentBallState(ReplicatedBallState);
+}
+
+void ASG_SoccerBall::UpdateRemoteBall(float DeltaTime)
+{
+    // 예측 위치(타겟 위치와 속도 등으로 계산)
+    // FVector PredictedLocation =TargetLocation + (TargetLinearVelocity * PredictionTime);
+    const FVector CurrentLocation = BallMesh->GetComponentLocation();
+    const float Error = FVector::Distance(CurrentLocation, TargetLocation);
+    
+    // 공의 오차가 너무 크면
+    if (Error > SnapDistance)
+    {
+        BallMesh->SetWorldLocationAndRotation(TargetLocation, TargetRotation);
+        return;
+    }
+    
+    FVector NewLocation = FMath::VInterpTo(
+            BallMesh->GetComponentLocation(),
+            TargetLocation,
+            DeltaTime,
+            PositionInterpSpeed
+            );
+
+    FRotator NewRotation = FMath::RInterpTo(
+            BallMesh->GetComponentRotation(),
+            TargetRotation,
+            DeltaTime,
+            RotationInterpSpeed
+            );
+
+    BallMesh->SetWorldLocationAndRotation(NewLocation, NewRotation);
+    // BallMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+    // if(bShouldSimulate)
+    // {
+    //     BallMesh->SetCollisionEnabled(
+    //         ECollisionEnabled::QueryAndPhysics);
+    // }
+    // else
+    // {
+    //     BallMesh->SetCollisionEnabled(
+    //         ECollisionEnabled::QueryOnly);
+    // }
+}
+
+void ASG_SoccerBall::FillCurrentBallState(FBallState& OutState)
+{
+    OutState.Location = BallMesh->GetComponentLocation();
+    OutState.Rotation = BallMesh->GetComponentRotation();
+    OutState.LinearVelocity = BallMesh->GetPhysicsLinearVelocity();
+    OutState.AngularVelocity = BallMesh->GetPhysicsAngularVelocityInDegrees();
+}
+
+void ASG_SoccerBall::RefreshPhysicsSimulation()
+{
+    // Server 혹은 Owner Client 일 경우에만 True!!!
+    bool bShouldSimulate = HasAuthority() || IsLocallyControlledOwner();
+    
+    // Remote Client는 Physics를 OFF 해준다.
+    BallMesh->SetSimulatePhysics(bShouldSimulate);
+    if (!bShouldSimulate)
+    {
+        BallMesh->SetPhysicsLinearVelocity(FVector::ZeroVector);
+        BallMesh->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+    }
+    
+    GEngine->AddOnScreenDebugMessage(
+                -1, 3.0f, FColor::Red,
+                FString::Printf(TEXT("PhysicsEnabled : %hhd"), bShouldSimulate)
+            );
+}
+
+
+bool ASG_SoccerBall::IsLocallyControlledOwner() const
+{
+    if (!GetOwner())
+    {
+        return false;
+    }
+    
+    const APawn* Pawn = Cast<APawn>(GetOwner());
+    if (!Pawn)
+    {
+        return false;
+    }
+    
+    return Pawn->IsLocallyControlled();
+}
+
+void ASG_SoccerBall::GetLifetimeReplicatedProps(
+    TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+    Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+    DOREPLIFETIME(ASG_SoccerBall, ReplicatedBallState);
+}
+
+void ASG_SoccerBall::Server_SendBallState_Implementation(const FBallState& State)
+{
+    // 구조체 변수 업데이트
+    ReplicatedBallState.Location = State.Location;
+    ReplicatedBallState.LinearVelocity = State.LinearVelocity;
+    ReplicatedBallState.AngularVelocity = State.AngularVelocity;
+    ReplicatedBallState.Rotation = State.Rotation;
+    
+    // 서버의 공 위치 및 속도 업데이트
+    BallMesh->SetWorldLocationAndRotation(State.Location, State.Rotation);
+    BallMesh->SetPhysicsLinearVelocity(State.LinearVelocity);
+    BallMesh->SetPhysicsAngularVelocityInDegrees(State.AngularVelocity);
+    
+    // 공이 Sleep 상태일 수 있어서 깨워준다
+    BallMesh->WakeRigidBody();
+}
+
+bool ASG_SoccerBall::HasBallOwner() const
+{
+    return GetOwner()!=nullptr;
+}
+
+void ASG_SoccerBall::SetBallOwner(APawn* NewOwner)
+{
+    // Owner는 서버에서만 실행
     if (!HasAuthority())
     {
-        KickPredictionTimer = Duration;
+        return;
+    }
+    
+    SetOwner(NewOwner);
+    RefreshPhysicsSimulation();
+    ForceNetUpdate();
+    
+    LastOwnerChangeTime =GetWorld()->TimeSeconds;
+}
+
+void ASG_SoccerBall::OnBallHit(
+    UPrimitiveComponent* HitComponent, 
+    AActor* OtherActor, 
+    UPrimitiveComponent* OtherComp, 
+    FVector NormalImpulse, 
+    const FHitResult& Hit)
+{
+    // 서버가 아니거나, 충돌한 대상이 없으면 리턴
+    if (!HasAuthority() || !OtherActor)
+    {
+        return;
+    }
+
+    // 충돌한 Actor가 캐릭터(APawn 또는 ACharacter)인지 확인
+    APawn* TouchingPawn = Cast<APawn>(OtherActor);
+    if (!TouchingPawn)
+    {
+        return;
+    }
+
+    // 이미 현재 Owner인 캐릭터가 또 친 거라면 무시
+    if (TouchingPawn == GetOwner())
+    {
+        return;
+    }
+    
+    // 충돌 시 가해진 충격량(Impact)의 크기 계산
+    float ImpactForce = NormalImpulse.Size();
+    float StrongImpactThreshold = 1000.f; 
+
+    // 쿨이 지났거나 그냥 공에 비비는 것이 아닌 Kick 이상의 타격이 오면 Owner 변경
+    if (CanChangeOwner() || ImpactForce > StrongImpactThreshold)
+    {
+        // 즉시 Owner 부여
+        SetBallOwner(TouchingPawn);
+        
+        if (GEngine)
+        {
+            GEngine->AddOnScreenDebugMessage(
+                2, 2.0f, FColor::Yellow,
+                FString::Printf(TEXT("새로운 Owner : %s, ImpactForce : %f"), *TouchingPawn->GetName(), ImpactForce)
+            );
+        }
     }
 }
 
-void ASG_SoccerBall::ResetOwnerCooldown()
+bool ASG_SoccerBall::CanChangeOwner() const
 {
-    // 타이머 구동용 빈 함수
-}
+    if (!GetWorld()) return false;
 
+    // Onwer가 바뀔 수 있는 상태인지 체크
+    return (GetWorld()->GetTimeSeconds() - LastOwnerChangeTime) >= OwnershipDuration;
+}
