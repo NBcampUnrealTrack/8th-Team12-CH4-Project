@@ -26,8 +26,9 @@ void ASGLobbyGameMode::BeginPlay()
 
 void ASGLobbyGameMode::CheckReadyState()
 {
-	int32 TotalPlayers = 0;
-	int32 ReadyPlayersCount = 0;
+	
+	int32 RedTeam =  0;
+	int32 BlueTeam =  0;
 
 	// 1. 월드에 있는 모든 PlayerState를 순회하며 레디 상태를 전수조사합니다.
 	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
@@ -35,21 +36,23 @@ void ASGLobbyGameMode::CheckReadyState()
 		APlayerController* PC = It->Get();
 		if (PC)
 		{
-			TotalPlayers++;
-			// [버그 수정] 기존에 PlayerState 자리에 GameState를 넣고 캐스팅하려던 치명적인 오류를 수정했습니다.
 			ASGLobbyPlayerState* SG_PlayerState = PC->GetPlayerState<ASGLobbyPlayerState>();
 			if (SG_PlayerState && SG_PlayerState->IsReady())
 			{
-				ReadyPlayersCount++;
+				if (SG_PlayerState->CurrentTeamTag == FGameplayTag::RequestGameplayTag(FName("Team.Red")))
+				{
+					RedTeam++;
+				}
+				else if (SG_PlayerState->CurrentTeamTag == FGameplayTag::RequestGameplayTag(FName("Team.Blue")))
+				{
+					BlueTeam++;
+				}
 			}
 		}
 	}
-
-	UE_LOG(LogTemp, Log, TEXT("로비 현황 파악 - 총 인원: %d/%d , 준비 완료: %d"), TotalPlayers, TargetPlayerCount, ReadyPlayersCount);
-
-	// 2. [Ready 확인 / 취소 분기 규칙 판단]
-	// 최소 인원(6명)이 충족되었고, 그 인원이 '전원' 레디 상태인지 확인합니다.
-	if (TotalPlayers >= TargetPlayerCount && ReadyPlayersCount == TotalPlayers)
+	// Total Player 가 아닌 BlueTeam,RedTeam 수가 같아야 하고 
+	// 둘다 레디 상태이어야 하며
+	if (RedTeam == BlueTeam && BlueTeam > 0 )
 	{
 		// 모든 조건 충족 (Ready 확인 로직 완료 -> 시작 카운트다운 가동)
 		if (!GetWorldTimerManager().IsTimerActive(CountdownTimerHandle))

@@ -26,7 +26,6 @@ public:
 	// PlayerController가 서버 RPC를 통해 호출할 레디 상태 업데이트 함수
 	void OnPlayerReadyChanged();
 	
-	// ◀ [수정] PlayerController가 위임한 팀 변경 요청을 검증하고 처리하는 핵심 함수 (FGameplayTag 형식으로 변경)
 	void ProcessChangeTeamRequest(APlayerController* TargetPC, const FGameplayTag& RequestedTeamTag);
 	
 protected:
