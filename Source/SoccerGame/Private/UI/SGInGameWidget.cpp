@@ -13,46 +13,32 @@
 void USGInGameWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
+	
 	APawn* MyPawn = GetOwningPlayerPawn();
 	if (MyPawn)
 	{
+		// 아이템 슬롯 컴포넌트 연결
 		ItemSlotComp = MyPawn->FindComponentByClass<USGItemSlotComponent>();
 		if (ItemSlotComp)
 		{
 			ItemSlotComp->OnItemSlotChanged.AddDynamic(this, &USGInGameWidget::RefreshAllItemSlots);
 			RefreshAllItemSlots();
 		}
-	}
-}
-
-void USGInGameWidget::UpdateTimerUI(int32 NewTime)
-{
-	if (!IsValid(WBP_Timer)) return;
-	UTextBlock* RealTimerTextBlock = Cast<UTextBlock>(WBP_Timer->GetWidgetFromName(TEXT("Text_Timer")));
-
-	// 초 단위 시간을 MM:SS 형식으로 변환
-	int32 Minutes = NewTime / 60;
-	int32 Seconds = NewTime % 60;
-
-	// FString::Printf를 사용하여 두 자리 숫자로 패딩 ("%02d")
-	FString TimeString = FString::Printf(TEXT("%02d:%02d"), Minutes, Seconds);
-	
-	RealTimerTextBlock->SetText(FText::FromString(TimeString));
-	//WBP_Timer->SetText(FText::FromString(TimeString));
-}
-
-void USGInGameWidget::UpdateScores(int32 RedScore, int32 BlueScore)
-{
-	// 점수 변경이 발생했을 때만 업데이트 (불필요한 호출 방지)
-	if (LastRedTeamScore != RedScore || LastBlueTeamScore != BlueScore)
-	{
-		LastRedTeamScore = RedScore;
-		LastBlueTeamScore = BlueScore;
-		if (IsValid(WBP_ScoreBoard))
+		else
 		{
-			WBP_ScoreBoard->UpdateScores( BlueScore,RedScore);
+			// 아이템 슬롯 컴포넌트가 없을 때
+			UE_LOG(LogTemp, Error, TEXT("[UI 에러] 캐릭터에서 ItemSlotComponent를 찾을 수 없습니다."));
 		}
 	}
+	else
+	{
+		// 	UI가 너무 빨리 켜져서 캐릭터를 못 찾았을 때
+		UE_LOG(LogTemp, Error, TEXT("[UI 에러] MyPawn이 Null입니다! (UI 생성 타이밍 문제)"));
+	}
+	
+	
+	
+	
 }
 
 void USGInGameWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
@@ -85,34 +71,6 @@ void USGInGameWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 	 */
 }
 
-void USGInGameWidget::RefreshAllItemSlots()
-{
-	//UpdateSingleItemSlot(0, WBP_ItemSlot);
-	//UpdateSingleItemSlot(1, WBP_ItemSlot_1);
-}
-
-void USGInGameWidget::UpdateSingleItemSlot(int32 Index, UImage* TargetImage)
-{
-	if (!ItemSlotComp || !TargetImage)
-	{
-		// 디버그 메세지
-		UE_LOG(LogTemp, Warning, TEXT("ItemSlotComp 혹은 TargetImage가 유효하지 않습니다."));
-		return;
-	}
-	
-	USGItemDefinition* ItemDef = ItemSlotComp->GetItemAt(Index);
-
-	if (ItemDef&& ItemDef->Icon)
-	{
-		TargetImage->SetBrushFromTexture(ItemDef->Icon);
-		TargetImage->SetVisibility(ESlateVisibility::Visible);
-	}
-	else
-	{
-		TargetImage->SetVisibility(ESlateVisibility::Collapsed);
-	}
-}
-
 void USGInGameWidget::NativeDestruct()
 {
 	if (ItemSlotComp)
@@ -121,4 +79,58 @@ void USGInGameWidget::NativeDestruct()
 	}
 	Super::NativeDestruct();
 }
+
+void USGInGameWidget::UpdateTimerUI(int32 NewTime)
+{
+	if (!IsValid(WBP_Timer)) return;
+	UTextBlock* RealTimerTextBlock = Cast<UTextBlock>(WBP_Timer->GetWidgetFromName(TEXT("Text_Timer")));
+
+	// 초 단위 시간을 MM:SS 형식으로 변환
+	int32 Minutes = NewTime / 60;
+	int32 Seconds = NewTime % 60;
+
+	// FString::Printf를 사용하여 두 자리 숫자로 패딩 ("%02d")
+	FString TimeString = FString::Printf(TEXT("%02d:%02d"), Minutes, Seconds);
+	
+	RealTimerTextBlock->SetText(FText::FromString(TimeString));
+	//WBP_Timer->SetText(FText::FromString(TimeString));
+}
+
+void USGInGameWidget::UpdateScores(int32 RedScore, int32 BlueScore)
+{
+	// 점수 변경이 발생했을 때만 업데이트 (불필요한 호출 방지)
+	if (LastRedTeamScore != RedScore || LastBlueTeamScore != BlueScore)
+	{
+		LastRedTeamScore = RedScore;
+		LastBlueTeamScore = BlueScore;
+		if (IsValid(WBP_ScoreBoard))
+		{
+			WBP_ScoreBoard->UpdateScores( BlueScore,RedScore);
+		}
+	}
+}
+
+void USGInGameWidget::RefreshAllItemSlots()
+{
+	if (!ItemSlotComp) return;
+	
+	// TODO: 아이템 슬롯 개수 ItemSlotComponent->MaxItemCount 가져오는걸로 바꾸기
+	// 아이템 아이콘 가져와서 업데이트
+	for (int32 i = 0; i < 2; ++i)
+	{
+		USGItemDefinition* ItemDef = ItemSlotComp->GetItemAt(i);
+		UTexture2D* Icon = (ItemDef != nullptr) ? ItemDef->Icon : nullptr;
+		
+		BP_UpdateItemSlotUI(i, Icon);
+	}
+}
+
+
+
+void USGInGameWidget::OnStaminaUpdated(float CurrentStamina, float MaxStamina, float StaminaPercent)
+{
+	// 최종 퍼센트 값을 블루프린트로 토스
+	BP_UpdateStaminaUI(StaminaPercent);
+}
+
 

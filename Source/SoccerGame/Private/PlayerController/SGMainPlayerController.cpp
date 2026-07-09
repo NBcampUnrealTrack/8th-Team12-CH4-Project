@@ -67,7 +67,7 @@ void ASGMainPlayerController::AcknowledgePossession(APawn* P)
        *GetNameSafe(this),
        *GetNameSafe(P),
        IsLocalController());
-
+    
     ApplyGameInputMode();
 }
 void ASGMainPlayerController::LoadPlayerData()
