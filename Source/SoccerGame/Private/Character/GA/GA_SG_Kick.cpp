@@ -19,10 +19,6 @@ UGA_SG_Kick::UGA_SG_Kick()
    
    bRetriggerInstancedAbility = false;
    
-   FGameplayTag KickTag = FGameplayTag::RequestGameplayTag(TEXT("Character.Ability.Kick"));
-   AbilityTags.AddTag(KickTag);
-   ActivationOwnedTags.AddTag(KickTag);
-   ActivationBlockedTags.AddTag(KickTag);
 }
 
 void UGA_SG_Kick::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
