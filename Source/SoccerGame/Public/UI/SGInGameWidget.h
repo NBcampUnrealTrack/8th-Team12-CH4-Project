@@ -11,6 +11,8 @@ class USGItemSlotComponent;
 class UImage;
 class UTextBlock;
 class USGScoreBoardWidget;
+class UTexture2D;
+class WBP_ItemSlot;
 /**
  * 
  */
@@ -29,25 +31,25 @@ public:
 protected:
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 	
+	virtual void NativeDestruct() override;
+	
+	
 	UFUNCTION()
 	void RefreshAllItemSlots();
 
-	void UpdateSingleItemSlot(int32 Index, UImage* TargetImage);
 	
-	virtual void NativeDestruct() override;
+	
 
 protected:
 	UPROPERTY()
 	TObjectPtr<USGItemSlotComponent> ItemSlotComp;
 
 	// TODO: WBP_InGame에서 바인딩할 위젯 2개
-	//UPROPERTY(meta = (BindWidget))
-	//TObjectPtr<UImage> WBP_ItemSlot;
-	//
-	//UPROPERTY(meta = (BindWidget))
-	//TObjectPtr<UImage> WBP_ItemSlot_1;
-	// 타이머 텍스트
+	UPROPERTY(BlueprintReadWrite, meta = (BindWidget))
+	TObjectPtr<UUserWidget> WBP_ItemSlot_0;
 	
+	UPROPERTY(BlueprintReadWrite, meta = (BindWidget))
+	TObjectPtr<UUserWidget> WBP_ItemSlot_1;
 	
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UUserWidget> WBP_Timer;
@@ -59,4 +61,21 @@ private:
 	// 이전 프레임의 점수 저장
 	int32 LastBlueTeamScore = -1;
 	int32 LastRedTeamScore = -1;
+	
+#pragma region Stamina
+public:
+	// 스태미나 델리게이트 수신용 콜백 함수
+	UFUNCTION()
+	void OnStaminaUpdated(float CurrentStamina, float MaxStamina, float StaminaPercent);
+	
+protected:
+	// 시각적 표현을 위해 블루프린트로 값 넘겨주는 이벤트
+	UFUNCTION(BlueprintImplementableEvent, Category = "UI|Stamina")
+	void BP_UpdateStaminaUI(float StaminaPercent);
+	
+	UFUNCTION(BlueprintImplementableEvent, Category = "UI|Item")
+	void BP_UpdateItemSlotUI(int32 SlotIndex, UTexture2D* Icon);
+	
+	
+#pragma endregion
 };
