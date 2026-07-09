@@ -18,25 +18,17 @@ ASGMainGameMode::ASGMainGameMode()
     PlayerControllerClass = ASGMainPlayerController::StaticClass();
     PlayerStateClass = ASGMainPlayerState::StaticClass();
     GameStateClass = ASGMainGameState::StaticClass();
-
-    UE_LOG(LogTemp, Log, TEXT("[Debug_Call] ASGMainGameMode 생성자 호출 완료"));
 }
 
 void ASGMainGameMode::BeginPlay()
 {
     Super::BeginPlay();
-    
-    UE_LOG(LogTemp, Warning, TEXT("[Debug_Call] ASGMainGameMode::BeginPlay() 호출됨"));
-    
     // 최초 진입 시 GameState 설정 세팅 및 대기 상태 태그 적용
     if (ASGMainGameState* SG_GameState = GetGameState<ASGMainGameState>())
     {
        SG_GameState->CurrentGameTime = TotalMatchTime;
        SG_GameState->RedTeamScore = 0;
        SG_GameState->BlueTeamScore = 0;
-       SG_GameState->CurrentMatchStateTag = FGameplayTag::RequestGameplayTag(FName("Match.State.WaitingToStart"));
-       
-       UE_LOG(LogTemp, Log, TEXT("[Debug_State] GameState 초기화 및 대기 상태 태그 설정 완료"));
     }
     
     StartLoading();
@@ -47,7 +39,8 @@ void ASGMainGameMode::StartLoading()
    UE_LOG(LogTemp, Log, TEXT("[GameMode] === 로딩 및 데이터 검증 시퀀스 시작 (5초) ==="));
    CurrentLoadingTime = 0;
 
-   // 1. 접속한 모든 플레이어의 입력을 막고 마우스 커서 숨기기
+   // 접속한 모든 플레이어의 입력을 막고 마우스 커서 숨기기
+   /*
    for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
    {
       if (ASGMainPlayerController* PC = Cast<ASGMainPlayerController>(It->Get()))
@@ -60,6 +53,7 @@ void ASGMainGameMode::StartLoading()
          //PC->ClientMessage(TEXT("로딩 및 팀 데이터 복원 중입니다... 잠시만 기다려주세요."));
       }
    }
+   */
 
    // 2. 1초 간격으로 UpdateLoadingProgress를 호출하는 루프 타이머 가동
    GetWorldTimerManager().SetTimer(
@@ -138,6 +132,7 @@ void ASGMainGameMode::StartGame()
        
       UE_LOG(LogTemp, Log, TEXT("[Debug_State] GameState 초기화 및 대기 상태 태그 설정 완료"));
    }
+   //SpawnNewBall();
    GetWorldTimerManager().SetTimer(
        MatchTimerHandle,
        this,
@@ -163,6 +158,7 @@ void ASGMainGameMode::UpdateMatchTime()
           {
              // 컨트롤러 내부 위젯을 안전하게 노크하고 UI를 갱신합니다.
              PC->UpdateTimerWidget(SG_GameState->CurrentGameTime);
+             //SpawnNewBall();
           }
        }
        
@@ -293,6 +289,11 @@ void ASGMainGameMode::SpawnNewBall()
       SpawnTransform,
       SpawnParams
    );
+   GEngine->AddOnScreenDebugMessage(
+            -1, 
+            5.0f, 
+            FColor::Green, 
+            FString::Printf(TEXT("⚽ 새로운 공이 스폰되었습니다! 위치: %s"), *SpawnedBall->GetActorLocation().ToString()));
 }
 
 AActor* ASGMainGameMode::ChoosePlayerStart_Implementation(AController* Player)
@@ -386,6 +387,8 @@ void ASGMainGameMode::HandleSeamlessTravelPlayer(AController*& Controller)
 }
 void ASGMainGameMode::EndMatch()
 {
+  
+   
 }
 
 void ASGMainGameMode::RestartRound()

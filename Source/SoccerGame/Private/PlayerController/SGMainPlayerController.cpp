@@ -8,28 +8,10 @@
 #include "SoccerGame/Public/Instance/SGPlayerGameInstanceSubsystem.h"
 #include "SoccerGame/Public/PlayerState/SGMainPlayerState.h" // PlayerState 검증을 위해 추가
 
-
-
 void ASGMainPlayerController::BeginPlay()
 {
     Super::BeginPlay();
-    if (IsLocalController())
-    {
-        if (IsValid(UIMainGameWidgetClass) == true)
-        {
-            UIMainGameWidgetInstance = CreateWidget<USGInGameWidget>(this, UIMainGameWidgetClass); 
-            if (IsValid(UIMainGameWidgetInstance) == true)
-            {
-                UIMainGameWidgetInstance->AddToViewport();
-			
-                FInputModeUIOnly Mode;
-                Mode.SetWidgetToFocus(UIMainGameWidgetInstance->GetCachedWidget());
-                SetInputMode(Mode);
-			
-                bShowMouseCursor = true;
-            }
-        }
-    }
+   
     UE_LOG(LogTemp, Warning, TEXT("[PC_Debug] BeginPlay() 호출됨 -> 로컬 소유 여부: %d / 서버 권한 여부: %d"), IsLocalController(), HasAuthority());
     if (HasAuthority())
     {
@@ -67,6 +49,24 @@ void ASGMainPlayerController::AcknowledgePossession(APawn* P)
        *GetNameSafe(this),
        *GetNameSafe(P),
        IsLocalController());
+    
+    if (IsLocalController())
+    {
+        if (IsValid(UIMainGameWidgetClass) == true)
+        {
+            UIMainGameWidgetInstance = CreateWidget<USGInGameWidget>(this, UIMainGameWidgetClass); 
+            if (IsValid(UIMainGameWidgetInstance) == true)
+            {
+                UIMainGameWidgetInstance->AddToViewport();
+			
+                FInputModeUIOnly Mode;
+                Mode.SetWidgetToFocus(UIMainGameWidgetInstance->GetCachedWidget());
+                SetInputMode(Mode);
+			
+                bShowMouseCursor = true;
+            }
+        }
+    }
 
     ApplyGameInputMode();
 }
