@@ -12,6 +12,19 @@ class USphereComponent;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnProjectileHitTarget, ASGProjectileBase*, Projectile, AActor*, TargetActor);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnProjectileFinished, ASGProjectileBase*, Projectile);
 
+// 발사체 발사 정보
+USTRUCT()
+struct FSGProjectileCosmeticLaunchData
+{
+	GENERATED_BODY()
+	
+	UPROPERTY()
+	FVector StartLocation = FVector::ZeroVector;
+	
+	UPROPERTY()
+	FVector LaunchVelocity = FVector::ZeroVector;
+};
+
 UCLASS()
 class SOCCERGAME_API ASGProjectileBase : public AActor
 {
@@ -20,12 +33,16 @@ class SOCCERGAME_API ASGProjectileBase : public AActor
 public:	
 	ASGProjectileBase();
 	virtual void Tick(float DeltaSeconds) override;
-
+	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
+	
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	
 public:
+	// local에서 생성할 시각용 발사체 설정
+	void InitializeCosmeticProjectile(const FVector& StartLocation, const FVector& LaunchVelocity);
+	
 	// Preview 초기 설정
 	void InitializePreview(AActor* InPlayerActor,
 		float InTargetDistance,
@@ -51,6 +68,12 @@ private:
 		UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
 		FVector NormalImpulse, const FHitResult& Hit);
 	
+	// 시각용 발사체 생성
+	UFUNCTION()
+	void OnRep_CosmeticLaunchData();
+	
+	void SpawnCosmeticProjectile();
+	
 public:
 	// 델리게이트
 	UPROPERTY()
@@ -72,11 +95,20 @@ private:
 	UPROPERTY()
 	TObjectPtr<AActor> PlayerActor;
 	
+	// 최대 유지 시간
 	UPROPERTY(EditAnywhere, Category = "Projectile")
 	float LifeTime;
 	
+	// Preview 투명도
 	UPROPERTY(EditAnywhere, Category = "Projectile|Preview")
 	float PreviewOpacity;
+	
+	// 시각용 발사체
+	UPROPERTY(ReplicatedUsing = OnRep_CosmeticLaunchData)
+	FSGProjectileCosmeticLaunchData CosmeticLaunchData;
+	
+	UPROPERTY()
+	TObjectPtr<ASGProjectileBase> ActiveCosmeticProjectile;
 	
 	// 발사체 설정
 	float TargetDistance;
