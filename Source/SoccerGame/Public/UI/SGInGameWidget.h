@@ -7,6 +7,7 @@
 #include "SGInGameWidget.generated.h"
 
 // 전방선언
+struct FOnAttributeChangeData;
 class USGItemSlotComponent;
 class UImage;
 class UTextBlock;
@@ -43,13 +44,13 @@ protected:
 protected:
 	UPROPERTY()
 	TObjectPtr<USGItemSlotComponent> ItemSlotComp;
-
-	// TODO: WBP_InGame에서 바인딩할 위젯 2개
-	UPROPERTY(BlueprintReadWrite, meta = (BindWidget))
-	TObjectPtr<UUserWidget> WBP_ItemSlot_0;
 	
-	UPROPERTY(BlueprintReadWrite, meta = (BindWidget))
-	TObjectPtr<UUserWidget> WBP_ItemSlot_1;
+	// // TODO: WBP_InGame에서 바인딩할 위젯 2개
+	// UPROPERTY(BlueprintReadWrite, meta = (BindWidget))
+	// TObjectPtr<UUserWidget> WBP_ItemSlot_0;
+	//
+	// UPROPERTY(BlueprintReadWrite, meta = (BindWidget))
+	// TObjectPtr<UUserWidget> WBP_ItemSlot_1;
 	
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UUserWidget> WBP_Timer;
@@ -65,8 +66,8 @@ private:
 #pragma region Stamina
 public:
 	// 스태미나 델리게이트 수신용 콜백 함수
-	UFUNCTION()
-	void OnStaminaUpdated(float CurrentStamina, float MaxStamina, float StaminaPercent);
+	void GAS_OnStaminaChanged(const FOnAttributeChangeData& Data);
+	
 	
 protected:
 	// 시각적 표현을 위해 블루프린트로 값 넘겨주는 이벤트
@@ -75,6 +76,7 @@ protected:
 	
 	UFUNCTION(BlueprintImplementableEvent, Category = "UI|Item")
 	void BP_UpdateItemSlotUI(int32 SlotIndex, UTexture2D* Icon);
+	
 	
 	
 #pragma endregion

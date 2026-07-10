@@ -46,6 +46,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability|Kick")
 	float MaxPowerMultiplier = 2.0f;
 	
+	// 킥파워 차징 타이머 핸들
+	FTimerHandle ChargeTimerHandle;
+	
 	// 차징 중이거나 킥 동작을 수행 중인지 여부
 	bool bIsKickInProgress = false;
 
@@ -57,6 +60,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ability|Damage")
 	TSubclassOf<UGameplayEffect> DamageEffectClass;
 	
+	
 	UFUNCTION()
 	void OnEnemyHitReceived(FGameplayEventData Payload);
 	
@@ -66,6 +70,10 @@ protected:
 	// WaitGameplayEvent 콜백 함수
 	UFUNCTION()
 	void OnGameplayEventReceived(FGameplayEventData Payload);
+	
+	// KickPower UI 업데이트 함수
+	void UpdateKickPowerUI();
+	
 	
 public:
 	// 어빌리티가 실행될 수 있는 조건인지 서버/클라 양쪽에서 미리 검사하는 GAS 핵심 함수
