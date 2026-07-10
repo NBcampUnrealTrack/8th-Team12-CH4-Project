@@ -28,25 +28,34 @@ void ASGMainGameState::OnRep_MatchState()
 void ASGMainGameState::OnRep_UpdateScore()
 {
 	// 레드팀이든 블루팀이든 점수가 복제되어 내려오면 이 함수가 실행됩니다.
-	APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
-	if (!PC) return;
-
-	ASGMainPlayerController* SG_PC = Cast<ASGMainPlayerController>(PC);
-	if (IsValid(SG_PC))
+	APlayerController* PC = GetWorld()->GetFirstPlayerController();
+	if (PC)
 	{
-		SG_PC->UpdateScoreWidget(BlueTeamScore,RedTeamScore);
+		ASGMainPlayerController* SG_PC = Cast<ASGMainPlayerController>(PC);
+		if (IsValid(SG_PC))
+		{
+			SG_PC->UpdateScoreWidget(BlueTeamScore,RedTeamScore);
+		}
 	}
+
+	
 }
 void ASGMainGameState::OnRep_UpdateTime()
 {
 	// 1. 이 함수는 서버에서 CurrentGameTime이 복제되어 내려올 때 '클라이언트'에서 실행됩니다.
 	// 현재 이 컴퓨터(로컬 컴퓨터)를 쓰고 있는 플레이어의 컨트롤러를 안전하게 가져옵니다.
-	APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
-	if (!PC) return;
+	APlayerController* PC = GetWorld()->GetFirstPlayerController();
+	if (PC == nullptr)
+	{
+		return;
+	}
 
 	// 2. 프로젝트에서 정의한 축구 게임 전용 플레이어 컨트롤러로 캐스팅합니다.
 	ASGMainPlayerController* SG_PC = Cast<ASGMainPlayerController>(PC);
-	if (!SG_PC) return;
+	if (SG_PC == nullptr)
+	{
+		return;
+	}
 	
 	// 3. 컨트롤러 내부 혹은 HUD에 나영님이 생성해서 들고 계실 메인 인게임 위젯을 참조합니다.
 	// (※ SGMainPlayerController 내부에 GetInGameWidget() 같은 Getter 함수가 있다고 가정합니다.)

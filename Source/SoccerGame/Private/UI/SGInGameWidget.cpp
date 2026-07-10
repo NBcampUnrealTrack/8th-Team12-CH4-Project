@@ -96,7 +96,7 @@ void USGInGameWidget::UpdateTimerUI(int32 NewTime)
 	//WBP_Timer->SetText(FText::FromString(TimeString));
 }
 
-void USGInGameWidget::UpdateScores(int32 RedScore, int32 BlueScore)
+void USGInGameWidget::UpdateScores(int32 BlueScore, int32  RedScore)
 {
 	// 점수 변경이 발생했을 때만 업데이트 (불필요한 호출 방지)
 	if (LastRedTeamScore != RedScore || LastBlueTeamScore != BlueScore)
@@ -124,9 +124,6 @@ void USGInGameWidget::RefreshAllItemSlots()
 		BP_UpdateItemSlotUI(i, Icon);
 	}
 }
-
-
-
 void USGInGameWidget::OnStaminaUpdated(float CurrentStamina, float MaxStamina, float StaminaPercent)
 {
 	// 최종 퍼센트 값을 블루프린트로 토스
