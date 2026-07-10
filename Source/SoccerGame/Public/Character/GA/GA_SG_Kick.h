@@ -45,6 +45,9 @@ protected:
 	// 최대 충전시 발차기 위력 배율
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability|Kick")
 	float MaxPowerMultiplier = 2.0f;
+	
+	// 차징 중이거나 킥 동작을 수행 중인지 여부
+	bool bIsKickInProgress = false;
 
 	// 축구공을 찾아서 힘을 가하는 함수
 	UFUNCTION(BlueprintCallable, Category = "Ability|Kick")
@@ -60,11 +63,17 @@ protected:
 	// 차징 후 마우스를 떼면 호출되는 함수
 	virtual void InputReleased(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) override;
 	
-	// 이벤트 수신 태그(현재 필요없어짐!!)
-	// UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ability|Kick")
-	// FGameplayTag GameplayEventTag;
-	
 	// WaitGameplayEvent 콜백 함수
 	UFUNCTION()
 	void OnGameplayEventReceived(FGameplayEventData Payload);
+	
+public:
+	// 어빌리티가 실행될 수 있는 조건인지 서버/클라 양쪽에서 미리 검사하는 GAS 핵심 함수
+	virtual bool CanActivateAbility(
+		const FGameplayAbilitySpecHandle Handle, 
+		const FGameplayAbilityActorInfo* ActorInfo, 
+		const FGameplayTagContainer* SourceTags = nullptr, 
+		const FGameplayTagContainer* TargetTags = nullptr, 
+		FGameplayTagContainer* OptionalRelevantTags = nullptr
+	) const override;
 };
