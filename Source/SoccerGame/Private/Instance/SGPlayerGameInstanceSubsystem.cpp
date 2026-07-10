@@ -5,32 +5,28 @@
 
 void USGPlayerGameInstanceSubsystem::SavePlayerData(const FUniqueNetIdRepl& InNetId, const FPlayerBackupData& InData)
 {
-	if (!InNetId.IsValid()) return;
-
-	// 대입 연산자를 통해 구조체 통째로 Map에 저장 또는 갱신
-	ServerBackupDataMap.Emplace(InNetId, InData);
-    
-	UE_LOG(LogTemp, Log, TEXT("Subsystem: Player Data Saved. [Name: %s | Team: %s | Score: %d]"), 
-	   *InData.PlayerName, 
-	   *InData.PlayerTeam.ToString(),
-	   InData.Score);
+	if (InNetId.IsValid())
+	{
+		ServerBackupDataMap.Emplace(InNetId, InData);
+	}
 }
 
 bool USGPlayerGameInstanceSubsystem::LoadPlayerData(const FUniqueNetIdRepl& InNetId, FPlayerBackupData& OutData)
 {
-	if (!InNetId.IsValid()) return false;
-
-	// Map에서 해당 플레이어의 NetId 검색
-	if (ServerBackupDataMap.Contains(InNetId))
+	if (InNetId.IsValid())
 	{
-		// 참조 변수를 통해 구조체 데이터를 통째로 넘겨줌
-		OutData = ServerBackupDataMap[InNetId];
+		// Map에서 해당 플레이어의 NetId 검색
+		if (ServerBackupDataMap.Contains(InNetId))
+		{
+			// 참조 변수를 통해 구조체 데이터를 통째로 넘겨줌
+			OutData = ServerBackupDataMap[InNetId];
 
-		// 불러온 데이터는 메모리 관리 및 중복 복원 방지를 위해 제거
-		ServerBackupDataMap.Remove(InNetId);
+			// 불러온 데이터는 메모리 관리 및 중복 복원 방지를 위해 제거
+			ServerBackupDataMap.Remove(InNetId);
         
-		UE_LOG(LogTemp, Log, TEXT("Subsystem: Player Data Loaded. [Name: %s]"), *OutData.PlayerName);
-		return true;
+			UE_LOG(LogTemp, Log, TEXT("Subsystem: Player Data Loaded. [Name: %s]"), *OutData.PlayerName);
+			return true;
+		}
 	}
 
 	UE_LOG(LogTemp, Warning, TEXT("Subsystem: Failed to find backup data for Player."));

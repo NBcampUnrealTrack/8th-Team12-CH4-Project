@@ -33,6 +33,8 @@ void USGLobbyWidget::NativeConstruct()
 		if (BlueSlot)
 		{
 			BlueSlot->SetSlotTeamTag(BlueTag);
+			// [안전장치] 중복 바인딩을 막기 위해 기존에 연결되어 있던 것을 먼저 제거 후 다시 연결합니다.
+			BlueSlot->OnSlotClicked.RemoveDynamic(this, &USGLobbyWidget::HandleSlotClicked);
 			BlueSlot->OnSlotClicked.AddDynamic(this, &USGLobbyWidget::HandleSlotClicked);
 		}
 	}
@@ -41,6 +43,7 @@ void USGLobbyWidget::NativeConstruct()
 		if (RedSlot)
 		{
 			RedSlot->SetSlotTeamTag(RedTag);
+			RedSlot->OnSlotClicked.RemoveDynamic(this, &USGLobbyWidget::HandleSlotClicked);
 			RedSlot->OnSlotClicked.AddDynamic(this, &USGLobbyWidget::HandleSlotClicked);
 		}
 	}
@@ -49,6 +52,7 @@ void USGLobbyWidget::NativeConstruct()
 		if (WaitingSlot)
 		{
 			WaitingSlot->SetSlotTeamTag(WaitingTag);
+			WaitingSlot->OnSlotClicked.RemoveDynamic(this, &USGLobbyWidget::HandleSlotClicked);
 			WaitingSlot->OnSlotClicked.AddDynamic(this, &USGLobbyWidget::HandleSlotClicked);
 		}
 	}
@@ -150,21 +154,31 @@ void USGLobbyWidget::OnReadyButtonClicked()
 	// LocalPlayerIndex 유효성 검사
 	if (!PlayerInfos.IsValidIndex(LocalPlayerIndex)) return;
 	
-	//  이 위젯을 소유한 로컬 PlayerController 가져오기
-	ASGLobbyPlayerController* LobbyPC = Cast<ASGLobbyPlayerController>(GetOwningPlayer());
+	// 오너와 관계없이 현재 내 화면 인스턴스의 진짜 로컬 컨트롤러 강제 참조
+	ASGLobbyPlayerController* LobbyPC = nullptr;
+	if (GEngine && GetWorld())
+	{
+		LobbyPC = Cast<ASGLobbyPlayerController>(GEngine->GetFirstLocalPlayerController(GetWorld()));
+	}
+    
 	if (LobbyPC)
 	{
-		//  내 컨트롤러를 통해 서버에 레디 상태 토글 요청전달
+		// 내 컨트롤러를 통해 서버에 레디 상태 토글 요청전달
 		LobbyPC->SellectReady();
 	}
 }
 
 void USGLobbyWidget::UpdateReadyButtonText()
 {
-
 	if (!Text_ReadyButton) return;
-	if (!PlayerInfos.IsValidIndex(LocalPlayerIndex)) return;
-	if (PlayerInfos[LocalPlayerIndex].bIsReady == false)
+	
+	APlayerController* LocalPC = GetOwningPlayer();
+	if (!LocalPC) return;
+	
+	ASGLobbyPlayerState* MyPlayerState = Cast<ASGLobbyPlayerState>(LocalPC->PlayerState);
+	if (!MyPlayerState) return;
+	
+	if (MyPlayerState->bIsReady == false)
 	{
 		Text_ReadyButton->SetText(FText::FromString("Ready"));	
 	}
@@ -200,10 +214,17 @@ void USGLobbyWidget::UpdateCountdownText(int32 NewTime)
 
 void USGLobbyWidget::HandleSlotClicked(FGameplayTag RequestedTeamTag)
 {
-	// 내 정보가 유효한지 확인
-	if (!PlayerInfos.IsValidIndex(LocalPlayerIndex)) return;
+	if (APlayerController* PC = GEngine ? GEngine->GetFirstLocalPlayerController(GetWorld()) : nullptr)
+	{
+		if (ULocalPlayer* LP = PC->GetLocalPlayer())
+		{
+			// 이 위젯이 떠 있는 화면의 진짜 로컬 플레이어 ID (보통 단일 PC 멀티플레이 테스트(PIE)에서는 0, 1, 2, 3 번으로 매핑됨)
+			LocalPlayerIndex = LP->GetControllerId();
+		}
+	}
 	
-	if (PlayerInfos[LocalPlayerIndex].TeamTag == RequestedTeamTag) return;
+	if (!PlayerInfos.IsValidIndex(LocalPlayerIndex)) return;
+	//if (PlayerInfos[LocalPlayerIndex].TeamTag == RequestedTeamTag) return;
 	
 	// 위젯을 소유한 플레이어 컨트롤러 가져오기
 	ASGLobbyPlayerController* LobbyPC = Cast<ASGLobbyPlayerController>(GetOwningPlayer());

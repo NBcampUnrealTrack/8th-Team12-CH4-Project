@@ -16,11 +16,11 @@ void USGInGameWidget::NativeConstruct()
 	Super::NativeConstruct();
 	
 	APawn* MyPawn = GetOwningPlayerPawn();
-	UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(MyPawn);
+	
 	if (MyPawn)
 	{
 		// 스태미나 Attribute 연결
-		
+		UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(MyPawn);
 		if (ASC)
 		{
 			ASC->GetGameplayAttributeValueChangeDelegate(UGAS_SG_CharacterAttributeSet::GetStaminaAttribute())
@@ -106,7 +106,7 @@ void USGInGameWidget::UpdateTimerUI(int32 NewTime)
 	//WBP_Timer->SetText(FText::FromString(TimeString));
 }
 
-void USGInGameWidget::UpdateScores(int32 RedScore, int32 BlueScore)
+void USGInGameWidget::UpdateScores(int32 BlueScore, int32 RedScore)
 {
 	// 점수 변경이 발생했을 때만 업데이트 (불필요한 호출 방지)
 	if (LastRedTeamScore != RedScore || LastBlueTeamScore != BlueScore)
