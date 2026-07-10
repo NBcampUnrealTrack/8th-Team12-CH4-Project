@@ -26,6 +26,7 @@ public:
 	void SellectReady();
 	
 	// 클라이언트가 UI 버튼 등을 눌렀을 때 호출하는 함수
+	UFUNCTION(Server, Reliable, WithValidation)
 	void RequestChangeTeam(FGameplayTag NewTeam);
 	
 	void Client_UpdateLobbyUI(const TArray<FSGPlayerLobbyInfo>& InPlayerInfos);
@@ -43,9 +44,6 @@ protected:
 	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_SetReady(bool bNewReadyState);
 	
-	// 서버에서 실행될 RPC 함수
-	UFUNCTION(Server, Reliable, WithValidation)
-	void ServerRequestChangeTeam(FGameplayTag NewTeamTag);
 	
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "ASUIPlayerController")
     TSubclassOf<UUserWidget> UIWidgetClass;

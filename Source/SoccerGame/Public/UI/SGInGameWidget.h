@@ -26,7 +26,7 @@ public:
 	
 	// 외부에 노출할 UI 갱신 함수 (전광판 조작 버튼)
 	void UpdateTimerUI(int32 NewTime);
-	void UpdateScores(int32 BlueScore , int32 RedScore);
+	void UpdateScores(int32 BlueScore, int32 RedScore);
 	
 protected:
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
