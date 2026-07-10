@@ -7,16 +7,27 @@
 #include "SoccerGame/Public/Item/SGItemSlotComponent.h"
 #include "SoccerGame/Public/Item/Data/SGItemDefinition.h"
 #include "Components/Image.h"
-#include "GameState/SGMainGameState.h"
-#include "Kismet/GameplayStatics.h"
+#include "AbilitySystemGlobals.h"
+#include "AbilitySystemComponent.h"
+#include "Character/GAS/GAS_SG_CharacterAttributeSet.h"
 
 void USGInGameWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 	
 	APawn* MyPawn = GetOwningPlayerPawn();
+	
 	if (MyPawn)
 	{
+		// 스태미나 Attribute 연결
+		UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(MyPawn);
+		if (ASC)
+		{
+			ASC->GetGameplayAttributeValueChangeDelegate(UGAS_SG_CharacterAttributeSet::GetStaminaAttribute())
+				.AddUObject(this, &USGInGameWidget::GAS_OnStaminaChanged);
+		}
+		
+		
 		// 아이템 슬롯 컴포넌트 연결
 		ItemSlotComp = MyPawn->FindComponentByClass<USGItemSlotComponent>();
 		if (ItemSlotComp)
@@ -36,8 +47,7 @@ void USGInGameWidget::NativeConstruct()
 		UE_LOG(LogTemp, Error, TEXT("[UI 에러] MyPawn이 Null입니다! (UI 생성 타이밍 문제)"));
 	}
 	
-	
-	
+	// 킥파워 변화 감지 바인딩
 	
 }
 
@@ -96,7 +106,7 @@ void USGInGameWidget::UpdateTimerUI(int32 NewTime)
 	//WBP_Timer->SetText(FText::FromString(TimeString));
 }
 
-void USGInGameWidget::UpdateScores(int32 BlueScore, int32  RedScore)
+void USGInGameWidget::UpdateScores(int32 BlueScore, int32 RedScore)
 {
 	// 점수 변경이 발생했을 때만 업데이트 (불필요한 호출 방지)
 	if (LastRedTeamScore != RedScore || LastBlueTeamScore != BlueScore)
@@ -124,9 +134,18 @@ void USGInGameWidget::RefreshAllItemSlots()
 		BP_UpdateItemSlotUI(i, Icon);
 	}
 }
-void USGInGameWidget::OnStaminaUpdated(float CurrentStamina, float MaxStamina, float StaminaPercent)
+
+void USGInGameWidget::GAS_OnStaminaChanged(const FOnAttributeChangeData& Data)
 {
-	// 최종 퍼센트 값을 블루프린트로 토스
+	float CurrentStamina = Data.NewValue;
+	
+	UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwningPlayerPawn());
+	if (!ASC) return;
+	
+	float MaxStamina = ASC->GetNumericAttribute(UGAS_SG_CharacterAttributeSet::GetMaxStaminaAttribute());
+	// 0으로 나누기 방지
+	float StaminaPercent = (MaxStamina > 0.f) ? (CurrentStamina / MaxStamina) : (0.f);
+	
 	BP_UpdateStaminaUI(StaminaPercent);
 }
 
