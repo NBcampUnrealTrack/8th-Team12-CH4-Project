@@ -11,6 +11,7 @@
 #include "AbilitySystemGlobals.h"
 #include "AbilitySystemInterface.h"
 #include "Character/SG_SoccerBall.h"
+#include "PlayerController/SGMainPlayerController.h"
 
 UGA_SG_Kick::UGA_SG_Kick()
 {
@@ -43,6 +44,8 @@ void UGA_SG_Kick::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const
     if (GetWorld())
     {
        ChargeStartTime = GetWorld()->GetTimeSeconds();
+       
+       GetWorld()->GetTimerManager().SetTimer(ChargeTimerHandle, this, &UGA_SG_Kick::UpdateKickPowerUI, 0.03f, true);
     }
     
     UAbilityTask_WaitInputRelease* WaitInputReleaseTask = UAbilityTask_WaitInputRelease::WaitInputRelease(this, false);
@@ -62,6 +65,17 @@ void UGA_SG_Kick::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGam
    UE_LOG(LogTemp, Error, TEXT("<<< Kick EndAbility 호출됨!"));
    bIsKickInProgress = false;
    
+   // 어빌리티 중단시 안전하게 타이머 정지 및 초기화
+   if (GetWorld())
+   {
+      GetWorld()->GetTimerManager().ClearTimer(ChargeTimerHandle);
+   }
+   if (ASGMainPlayerController* PC = Cast<ASGMainPlayerController>(CurrentActorInfo->PlayerController.Get()))
+   {
+      // TODO: MainPlayerController에서 OnKickPowerChanged 델리게이트 추가 후 주석 해제
+     //PC->OnKickPowerChanged.Broadcast(0.0f);
+   }
+   
    Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
@@ -74,6 +88,13 @@ void UGA_SG_Kick::InputReleased(const FGameplayAbilitySpecHandle Handle, const F
    
     Super::InputReleased(Handle, ActorInfo, ActivationInfo);
     
+   GetWorld()->GetTimerManager().ClearTimer(ChargeTimerHandle);
+   
+   if (ASGMainPlayerController* PC = Cast<ASGMainPlayerController>(CurrentActorInfo->PlayerController.Get()))
+   {
+      // TODO: MainPlayerController에서 OnKickPowerChanged 델리게이트 추가 후 주석 해제
+      //PC->OnKickPowerChanged.Broadcast(0.0f);
+   }
     float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
     float ActualChargeTime = CurrentTime - ChargeStartTime;
     
@@ -232,6 +253,20 @@ void UGA_SG_Kick::OnGameplayEventReceived(FGameplayEventData Payload)
     {
        OnEnemyHitReceived(Payload);
     }
+}
+
+void UGA_SG_Kick::UpdateKickPowerUI()
+{
+   float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+   float ElapsedTime = CurrentTime - ChargeStartTime;
+   float ChargePercent = FMath::Clamp(ElapsedTime / MaxChargeTime, 0.0f, 1.0f);
+   
+   // PlayerController를 통해 UI에 ChargePercent 전달
+   if (ASGMainPlayerController* PC = Cast<ASGMainPlayerController>(CurrentActorInfo->PlayerController.Get()))
+   {
+      // TODO: MainPlayerController에서 OnKickPowerChanged 델리게이트 추가 후 주석 해제
+      //PC->OnKickPowerChanged.Broadcast(ChargePercent);
+   }
 }
 
 void UGA_SG_Kick::OnEnemyHitReceived(FGameplayEventData Payload)
