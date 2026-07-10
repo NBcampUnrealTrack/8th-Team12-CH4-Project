@@ -16,10 +16,11 @@ void USGInGameWidget::NativeConstruct()
 	Super::NativeConstruct();
 	
 	APawn* MyPawn = GetOwningPlayerPawn();
+	UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(MyPawn);
 	if (MyPawn)
 	{
 		// 스태미나 Attribute 연결
-		UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(MyPawn);
+		
 		if (ASC)
 		{
 			ASC->GetGameplayAttributeValueChangeDelegate(UGAS_SG_CharacterAttributeSet::GetStaminaAttribute())
@@ -46,8 +47,7 @@ void USGInGameWidget::NativeConstruct()
 		UE_LOG(LogTemp, Error, TEXT("[UI 에러] MyPawn이 Null입니다! (UI 생성 타이밍 문제)"));
 	}
 	
-	
-	
+	// 킥파워 변화 감지 바인딩
 	
 }
 

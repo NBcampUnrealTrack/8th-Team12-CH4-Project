@@ -78,5 +78,6 @@ protected:
 	void BP_UpdateItemSlotUI(int32 SlotIndex, UTexture2D* Icon);
 	
 	
+	
 #pragma endregion
 };
