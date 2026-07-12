@@ -23,8 +23,8 @@ public:
 	virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
 	void OnGoalScored(FGameplayTag GoalTeamTag);
 	
-	UPROPERTY(EditDefaultsOnly, Category = "SG_Rules")
-	FString ResultLevelPath = TEXT("/Game/SoccerGame/Maps/ResultLevel");
+	//UPROPERTY(EditDefaultsOnly, Category = "SG_Rules")
+	//FString ResultLevelPath = TEXT("/Game/SoccerGame/Maps/");
 	
 	// 세레머니 타임 
 	UPROPERTY(EditDefaultsOnly, Category = "SG_Rules")

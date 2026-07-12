@@ -397,7 +397,6 @@ bool ASGMainGameMode::EndScoreMatch()
       return true;
    return false;
 }
-
 void ASGMainGameMode::WinTeamCheck()
 {
    ASGMainGameState* SG_GameState = GetGameState<ASGMainGameState>();
@@ -418,12 +417,11 @@ void ASGMainGameMode::WinTeamCheck()
       WinTeamTag = FGameplayTag::RequestGameplayTag(FName("Match.Result.Draw"));
    }
 }
-
 void ASGMainGameMode::RestartRound()
 {
 }
 
 void ASGMainGameMode::TransitionToResultLevel()
 {
-   GetWorld()->ServerTravel(ResultLevelPath);
+   //GetWorld()->ServerTravel(ResultLevelPath);
 }
