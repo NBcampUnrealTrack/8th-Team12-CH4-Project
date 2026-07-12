@@ -46,11 +46,11 @@ protected:
 	TObjectPtr<USGItemSlotComponent> ItemSlotComp;
 	
 	// // TODO: WBP_InGame에서 바인딩할 위젯 2개
-	// UPROPERTY(BlueprintReadWrite, meta = (BindWidget))
-	// TObjectPtr<UUserWidget> WBP_ItemSlot_0;
-	//
-	// UPROPERTY(BlueprintReadWrite, meta = (BindWidget))
-	// TObjectPtr<UUserWidget> WBP_ItemSlot_1;
+	 UPROPERTY(BlueprintReadWrite, meta = (BindWidget))
+	 TObjectPtr<UUserWidget> WBP_ItemSlot_0;
+	
+	 UPROPERTY(BlueprintReadWrite, meta = (BindWidget))
+	 TObjectPtr<UUserWidget> WBP_ItemSlot_1;
 	
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UUserWidget> WBP_Timer;

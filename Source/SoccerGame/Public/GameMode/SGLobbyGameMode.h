@@ -51,7 +51,7 @@ private:
 	// 모든 접속자 화면에 알림 메시지를 띄우는 편의용 함수
 	void NotifyAllPlayers(const FString& Message);
 	
-	void UpdateGameStateCountdown(int32 NewTime);
+	//void UpdateGameStateCountdown(int32 NewTime);
 	
 private:
     // 게임 시작에 필요한 목표(최대) 인원수 (예: 2명)
