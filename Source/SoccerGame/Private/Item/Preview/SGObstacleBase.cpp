@@ -4,7 +4,11 @@
 #include "Item/Preview/SGObstacleBase.h"
 
 // Sets default values
-ASGObstacleBase::ASGObstacleBase() : LifeTime(5.f), PreviewForwardDistance(500.f), bPreview(false)
+ASGObstacleBase::ASGObstacleBase() :
+	LifeTime(5.f),
+	PreviewForwardDistance(500.f),
+	PreviewYawOffset(0.f),
+	bPreview(false)
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
@@ -84,13 +88,18 @@ void ASGObstacleBase::InitializePreview(AActor* InPlayerActor, float InForwardDi
 	*/
 }
 
+void ASGObstacleBase::SetPreviewYawOffset(float InYawOffset)
+{
+	PreviewYawOffset = InYawOffset;
+}
+
 void ASGObstacleBase::UpdatePreviewTransform()
 {
 	if (!IsValid(PreviewPlayerActor)) return;
 	
 	const FVector PreviewLocation = 
 		PreviewPlayerActor->GetActorLocation() + PreviewPlayerActor->GetActorForwardVector() * PreviewForwardDistance;
-	const FRotator PreviewRotation = PreviewPlayerActor->GetActorRotation();
+	const FRotator PreviewRotation = PreviewPlayerActor->GetActorRotation() + FRotator(0.f, PreviewYawOffset, 0.f);
 	
 	SetActorLocationAndRotation(PreviewLocation, PreviewRotation);
 }
