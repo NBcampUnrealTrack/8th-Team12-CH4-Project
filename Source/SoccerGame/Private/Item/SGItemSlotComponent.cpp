@@ -68,7 +68,7 @@ void USGItemSlotComponent::UseItemPressed()
 	if (!IsValid(AbilitySystemComponent)) return;
 	
 	const FGameplayAbilitySpecHandle AbilityHandle = ItemAbilityHandles[0];
-	if (!AbilityHandle.IsValid()) return;
+	if (!AbilityHandle.IsValid() || PendingConsumeAbilityHandle == AbilityHandle) return;
 	
 	FGameplayAbilitySpec* AbilitySpec = AbilitySystemComponent->FindAbilitySpecFromHandle(AbilityHandle);
 	if (AbilitySpec == nullptr) return;
@@ -100,15 +100,12 @@ void USGItemSlotComponent::UseItemReleased()
 	if (AbilitySpec == nullptr) return;
 
 	const bool bWasActive = AbilitySpec->IsActive();
+	if (!bWasActive) return;
 	
-	UGameplayAbility* AbilityInstance = nullptr;
+	UGameplayAbility* AbilityInstance = AbilitySpec->GetPrimaryInstance();
 	FPredictionKey ActivationPredictionKey;
-	
-	if (bWasActive){
-		AbilityInstance = AbilitySpec->GetPrimaryInstance();
-		if (IsValid(AbilityInstance)){
-			ActivationPredictionKey = AbilityInstance->GetCurrentActivationInfoRef().GetActivationPredictionKey();
-		}
+	if (IsValid(AbilityInstance)){
+		ActivationPredictionKey = AbilityInstance->GetCurrentActivationInfoRef().GetActivationPredictionKey();
 	}
 	
 	AbilitySystemComponent->AbilitySpecInputReleased(*AbilitySpec);
@@ -118,7 +115,9 @@ void USGItemSlotComponent::UseItemReleased()
 			AbilityHandle,
 			ActivationPredictionKey); 
 	
-	// 아이템 사용 성공 여부와는 관계없이 서버에서 소모처리
+	PendingConsumeAbilityHandle = AbilityHandle;
+	
+	// 아이템은 서버에서 소모처리
 	if (Owner->HasAuthority()){
 		ConsumeItem();
 	}
