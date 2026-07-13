@@ -4,13 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "SG_NameInputPopup.generated.h"
+#include "SGChangeUsernameWidget.generated.h"
 
 /**
  * 
  */
 UCLASS()
-class SOCCERGAME_API USG_NameInputPopup : public UUserWidget
+class SOCCERGAME_API USGChangeUsernameWidget : public UUserWidget
 {
 	GENERATED_BODY()
 	
