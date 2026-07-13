@@ -92,6 +92,9 @@ private:
 	void UseItemPressed();
 	void UseItemReleased();
 	
+	// Item Rotation 입력
+	void ItemRotation(const FInputActionValue& Value);
+	
 protected:
 	//-------------------------------- Kick --------------------------------//
 	// ASC 세팅
@@ -160,6 +163,10 @@ protected:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
 	UInputAction* UseItemAction;
+	
+	// Item Rotation 입력
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
+	UInputAction* ItemRotationAction;
 	
 private:
 	UPROPERTY()

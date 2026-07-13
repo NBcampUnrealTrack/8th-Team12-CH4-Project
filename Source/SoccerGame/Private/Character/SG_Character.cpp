@@ -138,6 +138,8 @@ void ASG_Character::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 		EnhancedInputComponent->BindAction(UseItemAction, ETriggerEvent::Started, this, &ASG_Character::UseItemPressed);
 		EnhancedInputComponent->BindAction(UseItemAction, ETriggerEvent::Completed, this, &ASG_Character::UseItemReleased);
 
+		EnhancedInputComponent->BindAction(ItemRotationAction, ETriggerEvent::Triggered, this, &ASG_Character::ItemRotation);
+		
 		// GAS + EnhancedInputComponent
 		if (AbilitySystemComponent)
 		{
@@ -278,6 +280,14 @@ void ASG_Character::UseItemReleased()
 		return;
 	}
 	ItemSlotComponent->UseItemReleased();
+}
+
+void ASG_Character::ItemRotation(const FInputActionValue& Value)
+{
+	if (ItemSlotComponent) return;
+	
+	const float InputValue = Value.Get<float>();
+	//ItemSlotComponent->UseItemRotate(InputValue);
 }
 
 void ASG_Character::OnRep_PlayerState()
