@@ -5,13 +5,17 @@
 
 #include "OnlineSessionSettings.h"
 #include "OnlineSubsystem.h"
+#include "Online/OnlineSessionNames.h"
 
 
 USGMultiplayGameInstance::USGMultiplayGameInstance()
 {
-	// 콜백 델리게이트와 OnCreateSessionComplete 연결
+	// 델리게이트 바인딩
 	CreateSessionCompleteDelegate = FOnCreateSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnCreateSessionComplete);
+	FindSessionsCompleteDelegate = FOnFindSessionsCompleteDelegate::CreateUObject(this, &ThisClass::OnFindSessionsComplete);
+	JoinSessionCompleteDelegate = FOnJoinSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnJoinSessionComplete);
 }
+
 
 void USGMultiplayGameInstance::Init()
 {
@@ -24,7 +28,9 @@ void USGMultiplayGameInstance::Init()
 		SessionInterface = Subsystem->GetSessionInterface();
 		UE_LOG(LogTemp, Warning, TEXT("찾아낸 서브시스템: %s"), *Subsystem->GetSubsystemName().ToString())
 	}
+	
 }
+
 
 void USGMultiplayGameInstance::CreateServer()
 {
@@ -49,6 +55,39 @@ void USGMultiplayGameInstance::CreateServer()
 	
 }
 
+void USGMultiplayGameInstance::FindServers()
+{
+	if (SessionInterface.IsValid())
+	{
+		FindSessionsCompleteDelegateHandle = SessionInterface->AddOnFindSessionsCompleteDelegate_Handle(FindSessionsCompleteDelegate);
+		
+		// 검색 바구니 세팅
+		SessionSearch = MakeShareable(new FOnlineSessionSearch());
+		SessionSearch->MaxSearchResults = 10000;
+		SessionSearch->bIsLanQuery = false;
+		SessionSearch->QuerySettings.Set(SEARCH_PRESENCE, true, EOnlineComparisonOp::Equals);
+		
+		// 검색 시작!
+		const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
+		SessionInterface->FindSessions(*LocalPlayer->GetPreferredUniqueNetId(), SessionSearch.ToSharedRef());
+	}
+}
+
+void USGMultiplayGameInstance::JoinServer(int32 SessionIndex)
+{
+	if (SessionInterface.IsValid() && SessionSearch.IsValid())
+	{
+		if (SessionSearch->SearchResults.IsValidIndex(SessionIndex))
+		{
+			JoinSessionCompleteDelegateHandle = SessionInterface->AddOnJoinSessionCompleteDelegate_Handle(JoinSessionCompleteDelegate);
+			
+			// 접속 시도
+			const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
+			SessionInterface->JoinSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, SessionSearch->SearchResults[SessionIndex]);
+		}
+	}
+}
+
 void USGMultiplayGameInstance::OnCreateSessionComplete(FName Sessionname, bool bWasSuccessful)
 {
 	if (SessionInterface.IsValid())
@@ -67,6 +106,55 @@ void USGMultiplayGameInstance::OnCreateSessionComplete(FName Sessionname, bool b
 		{
 			// 레벨 열기
 			World->ServerTravel("/Game/SoccerGame/Maps/SG_LobbyLevel?listen");
+		}
+	}
+}
+
+void USGMultiplayGameInstance::OnFindSessionsComplete(bool bWasSuccessful)
+{
+	if (SessionInterface.IsValid())
+	{
+		SessionInterface->ClearOnFindSessionsCompleteDelegate_Handle(FindSessionsCompleteDelegateHandle);
+	}
+	
+	if (bWasSuccessful && SessionSearch.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Multiplay] 검색 완료! 찾은 방 갯수: %d"), SessionSearch->SearchResults.Num());
+		
+		if (SessionSearch->SearchResults.Num() > 0)
+		{
+			// 0번 서버에 바로 접속 (자동 접속 시스템)
+			JoinServer(0);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[Multiplay] 빈 방이 없습니다. 직접 서버를 생성합니다."));
+			CreateServer();
+		}
+	}
+	
+}
+
+void USGMultiplayGameInstance::OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result)
+{
+	if (SessionInterface.IsValid())
+	{
+		SessionInterface->ClearOnJoinSessionCompleteDelegate_Handle(JoinSessionCompleteDelegateHandle);
+	}
+	
+	if (Result == EOnJoinSessionCompleteResult::Success)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Multiplay] 방 접속 성공! 로딩을 시작합니다."));
+		
+		// 스팀 서버로부터 들어갈 방의 실제 네트워크 주소를 받기
+		FString ConnectInfo;
+		if (SessionInterface->GetResolvedConnectString(NAME_GameSession, ConnectInfo))
+		{
+			APlayerController* PlayerController = GetFirstLocalPlayerController(0);
+			if (PlayerController)
+			{
+				PlayerController->ClientTravel(ConnectInfo, ETravelType::TRAVEL_Absolute);
+			}
 		}
 	}
 }
