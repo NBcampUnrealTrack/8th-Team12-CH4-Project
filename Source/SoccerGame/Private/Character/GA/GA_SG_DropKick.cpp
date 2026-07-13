@@ -9,6 +9,7 @@
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "AbilitySystemGlobals.h"
 #include "AbilitySystemInterface.h"
+#include "Character/SG_Character.h"
 
 UGA_SG_DropKick::UGA_SG_DropKick()
 {
@@ -159,6 +160,27 @@ void UGA_SG_DropKick::ApplyDamageToTarget(AActor* HitEnemy, const FGameplayEvent
     if (!MyASC || !TargetASC)
     {
         return;
+    }
+    
+    HitEnemy = const_cast<AActor*>(Payload.Target.Get());
+    ACharacter* Attacker = Cast<ACharacter>(GetAvatarActorFromActorInfo());
+
+    if (ASG_Character* VictimCharacter = Cast<ASG_Character>(HitEnemy))
+    {
+        // 공격 방향 계산 (공격자 -> 피격자 방향)
+        FVector LaunchDirection = (VictimCharacter->GetActorLocation() - Attacker->GetActorLocation()).GetSafeNormal();
+        
+        // 드롭킥 각도 보정
+        LaunchDirection.Z += RagdollUpwardForceRatio; 
+        LaunchDirection = LaunchDirection.GetSafeNormal();
+
+        // 충격량
+        float DropKickPower = 2500.0f * RagdollKickPowerMultiplier;
+        FVector HitImpulse = LaunchDirection * DropKickPower;
+        FVector HitLocation = VictimCharacter->GetActorLocation();
+
+        // 멀티캐스트로 피격자 래그돌 실행
+        VictimCharacter->MulticastEnableRagdoll(HitImpulse, HitLocation);
     }
 
     UE_LOG(LogTemp, Warning, TEXT("%s에게 드롭킥 날리기 성공"), *HitEnemy->GetName());

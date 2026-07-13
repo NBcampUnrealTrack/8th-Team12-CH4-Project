@@ -319,3 +319,140 @@ void ASG_Character::OnStaminaAttributeChanged(const FOnAttributeChangeData& Data
 
 	OnStaminaChanged.Broadcast(CurrentStamina, MaxStamina, StaminaPercent);
 }
+
+void ASG_Character::MulticastEnableRagdoll_Implementation(FVector HitImpulse, FVector HitLocation)
+{
+	EnableRagdoll(HitImpulse, HitLocation);
+}
+
+void ASG_Character::EnableRagdoll(FVector HitImpulse, FVector HitLocation)
+{
+	USkeletalMeshComponent* MeshComp = GetMesh();
+	UCapsuleComponent* CapsuleComp = GetCapsuleComponent();
+	UCharacterMovementComponent* MovementComp = GetCharacterMovement();
+
+	if (!MeshComp || !CapsuleComp || !MovementComp) return;
+
+	// 캡슐 콜리전 비활성화
+	CapsuleComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	// 캐릭터 이동 및 입력 멈춤
+	MovementComp->DisableMovement();
+	MovementComp->StopMovementImmediately();
+
+	// 메쉬의 피직스 시뮬레이션 켜기
+	MeshComp->SetCollisionProfileName(TEXT("Ragdoll"));
+	MeshComp->SetAllBodiesSimulatePhysics(true);
+	MeshComp->SetSimulatePhysics(true);
+	MeshComp->WakeAllRigidBodies();
+	
+	// 저항(Damping) 및 최대 속도 제한 해제
+	MeshComp->SetLinearDamping(0.1f);
+	// 속도로 강제 변환
+	MeshComp->SetPhysicsLinearVelocity(HitImpulse);
+
+	// 드롭킥 Impulse 전달
+	MeshComp->AddImpulseAtLocation(HitImpulse, HitLocation, TEXT("Hips"));
+	
+	if (HasAuthority())
+	{
+		FTimerHandle GetUpTimerHandle;
+		GetWorldTimerManager().SetTimer(GetUpTimerHandle, this, &ASG_Character::MulticastDisableRagdoll, 5.0f, false);
+	}
+}
+
+void ASG_Character::MulticastDisableRagdoll_Implementation()
+{
+    DisableRagdoll();
+}
+
+void ASG_Character::DisableRagdoll()
+{
+    USkeletalMeshComponent* MeshComp = GetMesh();
+    UCapsuleComponent* CapsuleComp = GetCapsuleComponent();
+    UCharacterMovementComponent* MovementComp = GetCharacterMovement();
+
+    if (!MeshComp || !CapsuleComp || !MovementComp)
+    {
+	    return;
+    }
+
+    // 현재 래그돌의 골반(Hips) 위치 및 회전값 구하기
+    FVector HipsLocation = MeshComp->GetSocketLocation(TEXT("Hips"));
+    FRotator HipsRotation = MeshComp->GetSocketRotation(TEXT("Hips"));
+
+    // 엎드려 있는지 / 뒤로 자빠져 있는지 방향 판정
+    bool bIsFaceDown = IsRagdollFaceDown();
+
+    // 메쉬 피직스 시뮬레이션 끄기
+    MeshComp->SetSimulatePhysics(false);
+    MeshComp->SetCollisionProfileName(TEXT("CharacterMesh")); // 기본 메쉬 콜리전 복원
+
+    // 캡슐 콜리전을 래그돌 골반 위치로 이동시키고 발바닥 높이 보정
+    // (캡슐 절반 높이만큼 Z축을 올려줘야 바닥에 묻히지 않음)
+    FVector NewCapsuleLocation = HipsLocation;
+    NewCapsuleLocation.Z += CapsuleComp->GetScaledCapsuleHalfHeight();
+    
+    CapsuleComp->SetWorldLocation(NewCapsuleLocation);
+    CapsuleComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+
+    // 캐릭터 바라보는 방향(Yaw) 회전 보정
+    FRotator NewCapsuleRotation = FRotator(0.0f, HipsRotation.Yaw, 0.0f);
+    // 엎드린 상태라면 바라보는 방향을 180도 뒤집어줘야 일어나는 애니메이션과 맞아떨어짐
+    if (bIsFaceDown)
+    {
+        NewCapsuleRotation.Yaw += 180.0f;
+    }
+    CapsuleComp->SetWorldRotation(NewCapsuleRotation);
+
+    // 메쉬 상대 위치를 캡슐 내부 기본 오프셋(보통 Z: -90 근처)으로 원복
+    MeshComp->AttachToComponent(CapsuleComp, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+    MeshComp->SetRelativeLocation(FVector(0.0f, 0.0f, -CapsuleComp->GetScaledCapsuleHalfHeight()));
+    MeshComp->SetRelativeRotation(FRotator(0.0f, -90.0f, 0.0f)); // 기본 메쉬 바라보는 방향
+
+    // 방향에 맞는 일어나기 몽타주 재생
+    UAnimMontage* TargetMontage = bIsFaceDown ? GetUpFrontMontage : GetUpBackMontage;
+    if (TargetMontage && GetMesh()->GetAnimInstance())
+    {
+        UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
+        float Duration = AnimInst->Montage_Play(TargetMontage);
+
+        if (Duration > 0.0f)
+        {
+            FOnMontageEnded EndedDelegate;
+            EndedDelegate.BindUObject(this, &ASG_Character::OnGetUpMontageEnded);
+            AnimInst->Montage_SetEndDelegate(EndedDelegate, TargetMontage);
+        }
+        else
+        {
+            // 몽타주 재생 실패 시 바로 이동 켜기
+            MovementComp->SetMovementMode(EMovementMode::MOVE_Walking);
+        }
+    }
+    else
+    {
+        MovementComp->SetMovementMode(EMovementMode::MOVE_Walking);
+    }
+}
+
+// 엎드려 있는지 판단 (골반/가슴 뼈의 Up/Forward 벡터 기반)
+bool ASG_Character::IsRagdollFaceDown() const
+{
+    USkeletalMeshComponent* MeshComp = GetMesh();
+    if (!MeshComp) return true;
+
+    // 골반(Hips) 뼈의 회전 축을 이용해 바닥(Z축)을 바라보고 있는지 체크
+    FVector HipsUpVector = MeshComp->GetSocketQuaternion(TEXT("mixamorig:Hips")).GetUpVector();
+    
+    // Z축 내적 결과가 음수이면 바닥을 바라보고 엎드린 상태 (Face Down)
+    return FVector::DotProduct(HipsUpVector, FVector::UpVector) < 0.0f;
+}
+
+// 일어나기 애니메이션이 끝나면 조작 및 이동 가능 상태로 전환
+void ASG_Character::OnGetUpMontageEnded(UAnimMontage* Montage, bool bInterrupted)
+{
+    if (UCharacterMovementComponent* MovementComp = GetCharacterMovement())
+    {
+        MovementComp->SetMovementMode(EMovementMode::MOVE_Walking);
+    }
+}

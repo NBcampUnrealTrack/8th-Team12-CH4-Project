@@ -121,6 +121,38 @@ protected:
 	// 클라이언트에서 폰이 플레이어 스테이트를 리플리케이션 받았을 때 호출되는 함수
 	virtual void OnRep_PlayerState() override;
 	
+public:
+	//-------------------------------- Ragdoll --------------------------------//
+	// 래그돌 실행
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastEnableRagdoll(FVector HitImpulse, FVector HitLocation);
+
+	void EnableRagdoll(FVector HitImpulse, FVector HitLocation);
+	
+	// 래그돌 해제
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastDisableRagdoll();
+
+	void DisableRagdoll();
+
+protected:
+	// --- 래그돌 해제 후 일어나는 애니메이션 몽타주 ---
+	// 엎드려서 일어나는 몽타주 (Face Down)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ragdoll|Animation")
+	TObjectPtr<UAnimMontage> GetUpFrontMontage;
+
+	// 뒤로 자빠져서 일어나는 몽타주 (Face Up)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ragdoll|Animation")
+	TObjectPtr<UAnimMontage> GetUpBackMontage;
+
+private:
+	// 엎드려 있는지 확인하는 함수
+	bool IsRagdollFaceDown() const;
+
+	// 래그돌 해제 후 애니메이션 종료 시 이동 복구용 콜백
+	UFUNCTION()
+	void OnGetUpMontageEnded(UAnimMontage* Montage, bool bInterrupted);
+	
 protected:
 	// SlotComponent
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ItemSlot")
