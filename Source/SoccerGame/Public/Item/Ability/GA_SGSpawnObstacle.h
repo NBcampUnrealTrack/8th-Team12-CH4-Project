@@ -28,7 +28,6 @@ protected:
 	
 private:
 	void SpawnPreviewActor(const FGameplayAbilityActorInfo* ActorInfo);
-	void DestroyPreviewActor();
 	
 protected:
 	UPROPERTY(EditAnywhere, Category = "Item|Obstacle")
