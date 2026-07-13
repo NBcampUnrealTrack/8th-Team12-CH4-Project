@@ -22,6 +22,8 @@ protected:
 public:
 	void InitializePreview(AActor* InPlayerActor, float InForwardDistance, float InPreviewOpacity);
 	
+	void SetPreviewYawOffset(float InYawOffset);
+
 private:
 	void UpdatePreviewTransform();
 
@@ -41,5 +43,7 @@ private:
 	
 	float PreviewForwardDistance;
 	
+	float PreviewYawOffset;
+
 	bool bPreview;
 };
