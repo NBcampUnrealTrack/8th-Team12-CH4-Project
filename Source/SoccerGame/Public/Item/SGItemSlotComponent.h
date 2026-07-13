@@ -65,4 +65,7 @@ private:
 	
 	UPROPERTY(Replicated)
 	TArray<FGameplayAbilitySpecHandle> ItemAbilityHandles;
+	
+	UPROPERTY()
+	FGameplayAbilitySpecHandle PendingConsumeAbilityHandle;
 };

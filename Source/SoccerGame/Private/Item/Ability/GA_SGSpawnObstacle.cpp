@@ -15,9 +15,7 @@ void UGA_SGSpawnObstacle::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 	
-	if (ActorInfo == nullptr || !ActorInfo->AvatarActor.IsValid()){
-		return;
-	}
+	if (ActorInfo == nullptr || !ActorInfo->AvatarActor.IsValid()) return;
 	
 	// 직접 조작하는 경우
 	if (ActorInfo->IsLocallyControlled()){
@@ -27,7 +25,11 @@ void UGA_SGSpawnObstacle::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 
 void UGA_SGSpawnObstacle::HandleLocalInputReleased(float TimeHeld)
 {
-	DestroyPreviewActor();
+	if (IsValid(PreviewActor)){
+		PreviewActor->Destroy();
+	}
+	
+	PreviewActor = nullptr;
 }
 
 void UGA_SGSpawnObstacle::ExecuteItemAbility(float TimeHeld)
@@ -84,13 +86,4 @@ void UGA_SGSpawnObstacle::SpawnPreviewActor(const FGameplayAbilityActorInfo* Act
 	if (!IsValid(PreviewActor)) return;
 	
 	PreviewActor->InitializePreview(PlayerActor, SpawnForwardDistance, PreviewOpacity);
-}
-
-void UGA_SGSpawnObstacle::DestroyPreviewActor()
-{
-	if (IsValid(PreviewActor)){
-		PreviewActor->Destroy();
-	}
-	
-	PreviewActor = nullptr;
 }
