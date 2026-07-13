@@ -155,11 +155,8 @@ void ASG_Character::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 			
 			if (IA_Kick)
 			{
-				// 누르는순간 GAS에 Press 신호 전달
+				// 누르는 순간 즉시 GAS에 Press 신호를 전달하여 어빌리티 실행
 				EnhancedInputComponent->BindAction(IA_Kick, ETriggerEvent::Started, this, &ASG_Character::AbilityInputPressed, static_cast<int32>(ESGAbilityInputID::Kick));
-            
-				// 떼는 순간 GAS에 Release 신호 전달 (WaitInputRelease Task가 이 신호를 감지)
-				EnhancedInputComponent->BindAction(IA_Kick, ETriggerEvent::Completed, this, &ASG_Character::AbilityInputReleased, static_cast<int32>(ESGAbilityInputID::Kick));
 			}
 			
 			if (IA_DropKick)
@@ -231,14 +228,6 @@ void ASG_Character::AbilityInputPressed(int32 InputID)
 	if (AbilitySystemComponent)
 	{
 		AbilitySystemComponent->AbilityLocalInputPressed(InputID);
-	}
-}
-
-void ASG_Character::AbilityInputReleased(int32 InputID)
-{
-	if (AbilitySystemComponent)
-	{
-		AbilitySystemComponent->AbilityLocalInputReleased(InputID);
 	}
 }
 

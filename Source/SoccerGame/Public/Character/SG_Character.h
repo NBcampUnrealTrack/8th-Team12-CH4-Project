@@ -84,7 +84,6 @@ private:
 	
 	//-------------------------------- Ability Input  --------------------------------//
 	void AbilityInputPressed(int32 InputID);
-	void AbilityInputReleased(int32 InputID);
 	
 	// 기본 Ability를 부여하는 함수
 	void GiveDefaultAbilities();

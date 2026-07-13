@@ -116,20 +116,20 @@ void UGA_SG_DropKick::PushBall(AActor* BallActor)
     UStaticMeshComponent* BallMesh = Cast<UStaticMeshComponent>(BallActor->GetRootComponent());
     if (BallMesh && BallMesh->IsSimulatingPhysics())
     {
-        float DropKickPower = 2500.f;
+        float DropKickPower = 0.f;
         UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
         if (ASC)
         {
             const UGAS_SG_CharacterAttributeSet* AttributeSet = ASC->GetSet<UGAS_SG_CharacterAttributeSet>();
             if (AttributeSet)
             {
-                DropKickPower = AttributeSet->GetKickPower() * 2.f;
+                DropKickPower = AttributeSet->GetKickPower() * KickPowerMultiplier;
             }
         }
 
         // 캐릭터가 날아가는 방향 기반으로 강하게 밀어내기
         FVector PushDirection = (BallActor->GetActorLocation() - Character->GetActorLocation()).GetSafeNormal();
-        PushDirection.Z += 1.0f;
+        PushDirection.Z += UpwardForceRatio;
         PushDirection = PushDirection.GetSafeNormal();
 
         BallMesh->AddImpulse(PushDirection * DropKickPower, NAME_None, true);
