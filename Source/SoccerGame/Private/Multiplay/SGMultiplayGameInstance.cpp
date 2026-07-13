@@ -36,20 +36,44 @@ void USGMultiplayGameInstance::CreateServer()
 {
 	if (SessionInterface.IsValid())
 	{
+		// 기존에 남아있는 세션 제거
+		auto ExistingSession = SessionInterface->GetNamedSession(NAME_GameSession);
+		if (ExistingSession != nullptr)
+		{
+			SessionInterface->DestroySession(NAME_GameSession);
+		}
+		
 		// 방 생성 끝나면 알려주는 델리게이트 등록
 		CreateSessionCompleteDelegateHandle = SessionInterface->AddOnCreateSessionCompleteDelegate_Handle(CreateSessionCompleteDelegate);
 		
 		FOnlineSessionSettings SessionSettings;
-		SessionSettings.bIsLANMatch = false; // 스팀(인터넷) 통신 사용
+		
+		// 현재 활성화된 네트워크가 NULL이면 LAN모드(true)로, 스팀이면 인터넷 모드(false)로 자동 설정 
+		//SessionSettings.bIsLANMatch = IOnlineSubsystem::Get()->GetSubsystemName() == "NULL" ? true : false;
+		
+		SessionSettings.bIsLANMatch = false;
 		SessionSettings.NumPublicConnections = 6; // 최대 인원수 TODO: 나중에 변수 가져오기
-		SessionSettings.bAllowJoinInProgress = false; // 게임 중 난입 허용 여부
+		SessionSettings.bAllowJoinInProgress = true; // 게임 중 난입 허용 여부
 		SessionSettings.bAllowJoinViaPresence = true; // 스팀 친구창 등으로 접속 허용
 		SessionSettings.bShouldAdvertise = true; // 방이 검색되도록 허용
 		SessionSettings.bUsesPresence = true; // 스팀의 Presence(현재 상태) 기능 사용
+		SessionSettings.bUseLobbiesIfAvailable = true; 
 		
 		// 엔진에 세션 생성 명령
 		const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
-		SessionInterface->CreateSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, SessionSettings);
+		if (LocalPlayer != nullptr)
+		{
+			SessionInterface->CreateSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, SessionSettings);	
+		}
+		else
+		{
+			// error log: 플레이어 정보를 불러오지 못함
+			if (GEngine)
+			{
+				GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Red, TEXT("[Multiplay] 에러: LocalPlayer를 찾을 수 없습니다!"));
+			}
+		}
+		
 	}
 	
 	
@@ -99,13 +123,24 @@ void USGMultiplayGameInstance::OnCreateSessionComplete(FName Sessionname, bool b
 	
 	if (bWasSuccessful)
 	{
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Green, TEXT("[Multiplay] 세션 생성 완료! ServerTravel을 시도합니다."));
+		}
 		UE_LOG(LogTemp, Warning, TEXT("[Multiplay] 방 생성 성공! 로비로 이동합니다."))
 		
 		UWorld* World = GetWorld();
 		if (World)
 		{
 			// 레벨 열기
-			World->ServerTravel("/Game/SoccerGame/Maps/SG_LobbyLevel?listen");
+			World->ServerTravel("SG_LobbyLevel?listen");
+		}
+	}
+	else
+	{
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Red, TEXT("[Multiplay] 세션 생성 실패!"));
 		}
 	}
 }

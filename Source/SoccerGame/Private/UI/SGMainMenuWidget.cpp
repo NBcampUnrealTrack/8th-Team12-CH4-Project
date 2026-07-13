@@ -28,5 +28,6 @@ void USGMainMenuWidget::OnGameStartButtonClicked()
 	if (SGGameInstance)
 	{
 		SGGameInstance->CreateServer();
+		
 	}
 }
