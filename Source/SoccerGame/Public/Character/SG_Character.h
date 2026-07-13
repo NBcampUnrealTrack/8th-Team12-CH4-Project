@@ -133,12 +133,20 @@ public:
 	void EnableRagdoll(FVector HitImpulse, FVector HitLocation);
 	
 	// 래그돌 해제
-	UFUNCTION(NetMulticast, Reliable)
-	void MulticastDisableRagdoll();
+	// 서버에서 래그돌 해제 타이머 종료 시 호출
+	void ServerDisableRagdoll();
 
-	void DisableRagdoll();
+	// 서버가 계산한 위치/회전/방향을 모든 클라이언트에 멀티캐스트
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastDisableRagdoll(FVector TargetLocation, FRotator TargetRotation, bool bIsFaceDown);
 
 protected:
+	// 실제 래그돌 해제 및 복구 로직
+	void DisableRagdollInternal(FVector TargetLocation, FRotator TargetRotation, bool bIsFaceDown);
+
+	// 물리 끄기 직전 포즈 캡처
+	void CacheRagdollPoseSnapshot();
+	
 	// --- 래그돌 해제 후 일어나는 애니메이션 몽타주 ---
 	// 엎드려서 일어나는 몽타주 (Face Down)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ragdoll|Animation")
