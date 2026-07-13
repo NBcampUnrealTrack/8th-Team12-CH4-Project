@@ -5,8 +5,22 @@
 
 #include "Item/Preview/SGObstacleBase.h"
 
-UGA_SGSpawnObstacle::UGA_SGSpawnObstacle() : SpawnForwardDistance(500.f), PreviewOpacity(0.35f)
+UGA_SGSpawnObstacle::UGA_SGSpawnObstacle() :
+	SpawnForwardDistance(500.f),
+	PreviewOpacity(0.35f),
+	RotationStep(15.f),
+	ObstacleYawOffset(0.f)
 {
+}
+
+void UGA_SGSpawnObstacle::HandleRotateInput(float InputValue)
+{
+	// 입력값 적용
+	ObstacleYawOffset += RotationStep * InputValue;
+
+	if (IsValid(PreviewActor)){
+		PreviewActor->SetPreviewYawOffset(ObstacleYawOffset);
+	}
 }
 
 void UGA_SGSpawnObstacle::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
@@ -15,9 +29,7 @@ void UGA_SGSpawnObstacle::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 	
-	if (ActorInfo == nullptr || !ActorInfo->AvatarActor.IsValid()){
-		return;
-	}
+	if (ActorInfo == nullptr || !ActorInfo->AvatarActor.IsValid()) return;
 	
 	// 직접 조작하는 경우
 	if (ActorInfo->IsLocallyControlled()){
@@ -27,7 +39,11 @@ void UGA_SGSpawnObstacle::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 
 void UGA_SGSpawnObstacle::HandleLocalInputReleased(float TimeHeld)
 {
-	DestroyPreviewActor();
+	if (IsValid(PreviewActor)){
+		PreviewActor->Destroy();
+	}
+	
+	PreviewActor = nullptr;
 }
 
 void UGA_SGSpawnObstacle::ExecuteItemAbility(float TimeHeld)
@@ -49,7 +65,7 @@ void UGA_SGSpawnObstacle::ExecuteItemAbility(float TimeHeld)
 	
 	// 플레이어 전방에 장애물 생성
 	const FVector SpawnLocation = PlayerActor->GetActorLocation() + PlayerActor->GetActorForwardVector() * SpawnForwardDistance;
-	const FRotator SpawnRotation = PlayerActor->GetActorRotation();
+	const FRotator SpawnRotation = PlayerActor->GetActorRotation() + FRotator(0.f, ObstacleYawOffset, 0.f);
 	
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.Owner = PlayerActor;
@@ -84,13 +100,4 @@ void UGA_SGSpawnObstacle::SpawnPreviewActor(const FGameplayAbilityActorInfo* Act
 	if (!IsValid(PreviewActor)) return;
 	
 	PreviewActor->InitializePreview(PlayerActor, SpawnForwardDistance, PreviewOpacity);
-}
-
-void UGA_SGSpawnObstacle::DestroyPreviewActor()
-{
-	if (IsValid(PreviewActor)){
-		PreviewActor->Destroy();
-	}
-	
-	PreviewActor = nullptr;
 }

@@ -18,6 +18,9 @@ class SOCCERGAME_API UGA_SGSpawnObstacle : public UGA_SGItemBase
 public:
 	UGA_SGSpawnObstacle();
 	
+public:
+	virtual void HandleRotateInput(float InputValue) override;
+
 protected:
 	virtual void ActivateAbility(
 		const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, 
@@ -28,7 +31,6 @@ protected:
 	
 private:
 	void SpawnPreviewActor(const FGameplayAbilityActorInfo* ActorInfo);
-	void DestroyPreviewActor();
 	
 protected:
 	UPROPERTY(EditAnywhere, Category = "Item|Obstacle")
@@ -43,4 +45,9 @@ private:
 	
 	UPROPERTY()
 	TObjectPtr<ASGObstacleBase> PreviewActor;
+
+	UPROPERTY(EditAnywhere, Category = "Item|Obstacle")
+	float RotationStep;
+
+	float ObstacleYawOffset;
 };
