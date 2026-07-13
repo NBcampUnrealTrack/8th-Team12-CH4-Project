@@ -172,9 +172,6 @@ bool ASGProjectileBase::LaunchByTrajectory(AActor* InPlayerActor, float InTarget
 		if (GetNetMode() != NM_DedicatedServer){
 			SpawnCosmeticProjectile();
 		}
-		
-		// 복제 요청
-		ForceNetUpdate();
 	}
 	
 	// 발사 시작 위치와 이동 방향 적용
