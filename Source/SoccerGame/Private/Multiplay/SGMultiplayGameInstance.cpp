@@ -59,6 +59,44 @@ void USGMultiplayGameInstance::Init()
 
 void USGMultiplayGameInstance::CreateServer()
 {
+	if (!SessionInterface.IsValid()) return;
+	// 기존에 존재하던 세션이 있다면 먼저 제거하는 안전장치
+	FNamedOnlineSession* ExistingSession = SessionInterface->GetNamedSession(NAME_GameSession);
+	if (ExistingSession != nullptr)
+	{
+		SessionInterface->DestroySession(NAME_GameSession);
+		return;
+	}
+	FOnlineSessionSettings SessionSettings;
+    
+	// 현재 작동 중인 서브시스템이 NULL인지 Steam인지 판별
+	bool bIsLAN = (IOnlineSubsystem::Get()->GetSubsystemName() == "NULL");
+	SessionSettings.bIsLANMatch = bIsLAN;
+    
+	SessionSettings.NumPublicConnections = 5; // 최대 인원수
+	SessionSettings.bAllowJoinInProgress = true;
+	SessionSettings.bShouldAdvertise = true;
+	SessionSettings.bUsesPresence = true; // ◀ 스팀에서는 Presence(상태 정보) 기반 매칭이 필수입니다.
+
+	// =========================================================================
+	// ★ [스팀 전용 필수 추가] 스팀 로비 설정 활성화
+	// LAN 환경이 아닐 때(즉, 스팀일 때) 로비 기능을 활성화해야 스팀 서버가 방을 중개해 줍니다.
+	// =========================================================================
+	if (!bIsLAN)
+	{
+		SessionSettings.bUseLobbiesIfAvailable = true;
+		SessionSettings.bUseLobbiesVoiceChatIfAvailable = false; // 보이스챗 안 쓰면 false
+	}
+
+	// 검색 시 필터링할 커스텀 데이터 설정 (예: 맵 이름)
+	SessionSettings.Set(SETTING_MAPNAME, FString("SG_LobbyLevel"), EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
+
+	ULocalPlayer* LocalPlayer = GetFirstGamePlayer();
+	if (LocalPlayer)
+	{
+		SessionInterface->CreateSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, SessionSettings);
+	}
+	/*
 	if (SessionInterface.IsValid())
 	{
 		// 기존에 남아있는 세션 제거
@@ -111,11 +149,43 @@ void USGMultiplayGameInstance::CreateServer()
 				GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Red, TEXT("[Multiplay] 에러: LocalPlayer를 찾을 수 없습니다!"));
 			}
 		}
-	}
+	 */
 }
 
 void USGMultiplayGameInstance::FindServers()
 {
+	if (!SessionInterface.IsValid()) return;
+	ULocalPlayer* LocalPlayer = GetFirstGamePlayer();
+	if (!LocalPlayer) return;
+
+	SessionSearch = MakeShareable(new FOnlineSessionSearch());
+    
+	bool bIsLAN = (IOnlineSubsystem::Get()->GetSubsystemName() == "NULL");
+	SessionSearch->bIsLanQuery = bIsLAN;
+    
+	// =========================================================================
+	// ★ [스팀 전용 필수 추가] 검색 범위 제한 및 Presence 필터
+	// =========================================================================
+	if (!bIsLAN)
+	{
+		// 스팀 마스터 서버에서 검색할 최대 방 개수 제한 (AppID 480 과부하 방지)
+		SessionSearch->MaxSearchResults = 100; 
+        
+		// 스팀 로비/Presence 세션만 쿼리하도록 설정
+		SessionSearch->QuerySettings.Set(SEARCH_PRESENCE, true, EOnlineComparisonOp::Equals);
+		SessionSearch->QuerySettings.Set(SEARCH_LOBBIES, true, EOnlineComparisonOp::Equals);
+	}
+	else
+	{
+		SessionSearch->MaxSearchResults = 10000; // LAN 환경은 제한 해제
+	}
+    
+	// 우리가 지정한 맵 이름("SG_LobbyLevel")인 방만 필터링해서 수집
+	SessionSearch->QuerySettings.Set(SETTING_MAPNAME, FString("SG_LobbyLevel"), EOnlineComparisonOp::Equals);
+    
+	SessionInterface->FindSessions(*LocalPlayer->GetPreferredUniqueNetId(), SessionSearch.ToSharedRef());
+
+	/*
 	if (SessionInterface.IsValid())
 	{
 		FindSessionsCompleteDelegateHandle = SessionInterface->AddOnFindSessionsCompleteDelegate_Handle(FindSessionsCompleteDelegate);
@@ -152,6 +222,7 @@ void USGMultiplayGameInstance::FindServers()
 		const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
 		SessionInterface->FindSessions(*LocalPlayer->GetPreferredUniqueNetId(), SessionSearch.ToSharedRef());
 	}
+	 */
 }
 
 void USGMultiplayGameInstance::JoinServer(int32 SessionIndex)
@@ -265,12 +336,27 @@ void USGMultiplayGameInstance::OnFindSessionsComplete(bool bWasSuccessful)
 
 void USGMultiplayGameInstance::OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result)
 {
+	if (!SessionInterface.IsValid()) return;
+
+	if (Result == EOnJoinSessionCompleteResult::Success)
+	{
+		APlayerController* PC = GetFirstLocalPlayerController();
+		if (PC)
+		{
+			FString ConnectString;
+			// 스팀용 암호화된 연결 주소(또는 LAN IP주소)를 알아서 추출해 줍니다.
+			if (SessionInterface->GetResolvedConnectString(SessionName, ConnectString))
+			{
+				// 클라이언트를 방장의 맵으로 안전하게 이동시킵니다.
+				PC->ClientTravel(ConnectString, ETravelType::TRAVEL_Absolute);
+			}
+		}
+	}
+	/*
 	if (SessionInterface.IsValid())
 	{
 		SessionInterface->ClearOnJoinSessionCompleteDelegate_Handle(JoinSessionCompleteDelegateHandle);
 	}
-	
-	
 	
 	if (Result == EOnJoinSessionCompleteResult::Success)
 	{
@@ -310,9 +396,6 @@ void USGMultiplayGameInstance::OnJoinSessionComplete(FName SessionName, EOnJoinS
 	}
 	else
 	{
-		// =========================================================================
-		// ★ [로그 추가] 세션 진입 자체가 실패했을 때 구체적인 실패 사유 매핑 및 출력
-		// =========================================================================
 		FString FailReason = TEXT("알 수 없음");
 		switch (Result)
 		{
@@ -342,5 +425,6 @@ void USGMultiplayGameInstance::OnJoinSessionComplete(FName SessionName, EOnJoinS
 		}
 		// =========================================================================
 	}
+	 */
 	
 }
