@@ -347,6 +347,14 @@ void ASG_Character::EnableRagdoll(FVector HitImpulse, FVector HitLocation)
 	{
 		return;
 	}
+	
+	if (AbilitySystemComponent)
+	{
+		FGameplayTag ImmunityTag = FGameplayTag::RequestGameplayTag(FName("State.Immunity"));
+		
+		AbilitySystemComponent->AddLooseGameplayTag(ImmunityTag);
+		UE_LOG(LogTemp, Warning, TEXT("[%s] EnableRagdoll: State.Immunity 태그 부여 완료"), *GetName());
+	}
 
 	// 캡슐 콜리전 비활성화
 	CapsuleComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -441,6 +449,18 @@ void ASG_Character::DisableRagdollInternal(FVector TargetLocation, FRotator Targ
     // 시뮬레이션 끄기 직전 포즈 스냅샷 저장 (AnimBP 연결용)
     CacheRagdollPoseSnapshot();
 	
+	// 방향에 맞는 GetUp 몽타주 재생
+	UAnimMontage* TargetMontage = bIsFaceDown ? GetUpFrontMontage : GetUpBackMontage;
+	UAnimInstance* AnimInst = MeshComp ? MeshComp->GetAnimInstance() : nullptr;
+	if (TargetMontage && AnimInst)
+	{
+		AnimInst->Montage_Play(TargetMontage, 1.0f, EMontagePlayReturnType::MontageLength, 0.0f, true);
+        
+		FOnMontageEnded EndedDelegate;
+		EndedDelegate.BindUObject(this, &ASG_Character::OnGetUpMontageEnded);
+		AnimInst->Montage_SetEndDelegate(EndedDelegate, TargetMontage);
+	}
+	
 	// 물리 및 속도 초기화
 	MeshComp->SetAllPhysicsLinearVelocity(FVector::ZeroVector);
 	MeshComp->SetAllPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
@@ -463,29 +483,6 @@ void ASG_Character::DisableRagdollInternal(FVector TargetLocation, FRotator Targ
 		CameraBoom->AttachToComponent(CapsuleComp, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 		CameraBoom->SetRelativeLocation(FVector(0.0f, 0.0f, 0.0f));
 	}
-	
-    // 방향에 맞는 GetUp 몽타주 재생 (0.3초 BlendIn 적용)
-    UAnimMontage* TargetMontage = bIsFaceDown ? GetUpFrontMontage : GetUpBackMontage;
-    if (TargetMontage && MeshComp->GetAnimInstance())
-    {
-        UAnimInstance* AnimInst = MeshComp->GetAnimInstance();
-        float Duration = AnimInst->Montage_Play(TargetMontage, 1.0f, EMontagePlayReturnType::MontageLength, 0.0f, true);
-
-        if (Duration > 0.0f)
-        {
-            FOnMontageEnded EndedDelegate;
-            EndedDelegate.BindUObject(this, &ASG_Character::OnGetUpMontageEnded);
-            AnimInst->Montage_SetEndDelegate(EndedDelegate, TargetMontage);
-        }
-        else
-        {
-            MovementComp->SetMovementMode(EMovementMode::MOVE_Walking);
-        }
-    }
-    else
-    {
-        MovementComp->SetMovementMode(EMovementMode::MOVE_Walking);
-    }
 }
 
 // 엎드려 있는지 판단 (골반 Up 벡터 기반)
@@ -511,4 +508,11 @@ void ASG_Character::OnGetUpMontageEnded(UAnimMontage* Montage, bool bInterrupted
     {
         MovementComp->SetMovementMode(EMovementMode::MOVE_Walking);
     }
+	
+	if (AbilitySystemComponent)
+	{
+		FGameplayTag ImmunityTag = FGameplayTag::RequestGameplayTag(FName("State.Immunity"));
+		AbilitySystemComponent->RemoveLooseGameplayTag(ImmunityTag);
+		UE_LOG(LogTemp, Warning, TEXT("[%s] OnGetUpMontageEnded: State.Immunity 태그 제거 완료"), *GetName());
+	}
 }
