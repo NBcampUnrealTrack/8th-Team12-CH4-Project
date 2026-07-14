@@ -17,6 +17,9 @@ class SOCCERGAME_API UGA_SGItemBase : public UGameplayAbility
 public:
 	UGA_SGItemBase();
 	
+public:
+	virtual void HandleRotateInput(float InputValue);
+
 protected:
 	virtual void ActivateAbility(
 		const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, 

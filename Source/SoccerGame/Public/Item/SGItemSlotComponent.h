@@ -32,6 +32,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Item")
 	void UseItemReleased();
 
+	UFUNCTION(BlueprintCallable, Category = "Item")
+	void UseItemRotate(float InputValue);
+
+	UFUNCTION(Server, Reliable)
+	void Server_UseItemRotate(float InputValue);
+
 	
 public:
 	// Getter
