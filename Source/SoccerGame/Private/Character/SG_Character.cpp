@@ -49,7 +49,9 @@ ASG_Character::ASG_Character()
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false;
 	
+	ItemSlotComponent = CreateDefaultSubobject<USGItemSlotComponent>(TEXT("ItemSlotComponent"));
 	AbilitySystemComponent = CreateDefaultSubobject<UAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
+	AttributeSet = CreateDefaultSubobject<UGAS_SG_CharacterAttributeSet>(TEXT("GASAttributeSetBase"));
 	// 네트워크 설정
 	AbilitySystemComponent->SetIsReplicated(true); 
 	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
@@ -57,10 +59,6 @@ ASG_Character::ASG_Character()
 	SetReplicateMovement(true);
 	GetMesh()->SetIsReplicated(true);
 	
-	AttributeSet = CreateDefaultSubobject<UGAS_SG_CharacterAttributeSet>(TEXT("GASAttributeSetBase"));
-	// CreateDefaultSubobject<UGAS_SG_CharacterAttributeSet>(TEXT("AttributeSet"));
-	
-	ItemSlotComponent = CreateDefaultSubobject<USGItemSlotComponent>(TEXT("ItemSlotComponent"));
 }
 
 void ASG_Character::BeginPlay()
@@ -138,6 +136,8 @@ void ASG_Character::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 		EnhancedInputComponent->BindAction(UseItemAction, ETriggerEvent::Started, this, &ASG_Character::UseItemPressed);
 		EnhancedInputComponent->BindAction(UseItemAction, ETriggerEvent::Completed, this, &ASG_Character::UseItemReleased);
 
+		EnhancedInputComponent->BindAction(ItemRotationAction, ETriggerEvent::Triggered, this, &ASG_Character::ItemRotation);
+		
 		// GAS + EnhancedInputComponent
 		if (AbilitySystemComponent)
 		{
@@ -155,11 +155,8 @@ void ASG_Character::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 			
 			if (IA_Kick)
 			{
-				// 누르는순간 GAS에 Press 신호 전달
+				// 누르는 순간 즉시 GAS에 Press 신호를 전달하여 어빌리티 실행
 				EnhancedInputComponent->BindAction(IA_Kick, ETriggerEvent::Started, this, &ASG_Character::AbilityInputPressed, static_cast<int32>(ESGAbilityInputID::Kick));
-            
-				// 떼는 순간 GAS에 Release 신호 전달 (WaitInputRelease Task가 이 신호를 감지)
-				EnhancedInputComponent->BindAction(IA_Kick, ETriggerEvent::Completed, this, &ASG_Character::AbilityInputReleased, static_cast<int32>(ESGAbilityInputID::Kick));
 			}
 			
 			if (IA_DropKick)
@@ -234,14 +231,6 @@ void ASG_Character::AbilityInputPressed(int32 InputID)
 	}
 }
 
-void ASG_Character::AbilityInputReleased(int32 InputID)
-{
-	if (AbilitySystemComponent)
-	{
-		AbilitySystemComponent->AbilityLocalInputReleased(InputID);
-	}
-}
-
 void ASG_Character::GiveDefaultAbilities()
 {
 	// GiveAbility는 멀티플레이 보안 상 반드시 서버(Authority)의 권한이여야 한다.
@@ -291,6 +280,16 @@ void ASG_Character::UseItemReleased()
 	ItemSlotComponent->UseItemReleased();
 }
 
+void ASG_Character::ItemRotation(const FInputActionValue& Value)
+{
+	if (!ItemSlotComponent)
+	{
+		return;
+	}
+	const float InputValue = Value.Get<float>();
+	ItemSlotComponent->UseItemRotate(InputValue);
+}
+
 void ASG_Character::OnRep_PlayerState()
 {
 	Super::OnRep_PlayerState();
@@ -329,4 +328,187 @@ void ASG_Character::OnStaminaAttributeChanged(const FOnAttributeChangeData& Data
 	float StaminaPercent = (MaxStamina > 0.0f) ? (CurrentStamina / MaxStamina) : 0.0f;
 
 	OnStaminaChanged.Broadcast(CurrentStamina, MaxStamina, StaminaPercent);
+}
+
+// --------------------------------------- Ragdoll System --------------------------------------- //
+
+void ASG_Character::MulticastEnableRagdoll_Implementation(FVector HitImpulse, FVector HitLocation)
+{
+	EnableRagdoll(HitImpulse, HitLocation);
+}
+
+void ASG_Character::EnableRagdoll(FVector HitImpulse, FVector HitLocation)
+{
+	USkeletalMeshComponent* MeshComp = GetMesh();
+	UCapsuleComponent* CapsuleComp = GetCapsuleComponent();
+	UCharacterMovementComponent* MovementComp = GetCharacterMovement();
+
+	if (!MeshComp || !CapsuleComp || !MovementComp)
+	{
+		return;
+	}
+
+	// 캡슐 콜리전 비활성화
+	CapsuleComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	// 캐릭터 이동 및 입력 멈춤
+	MovementComp->DisableMovement();
+	MovementComp->StopMovementImmediately();
+
+	// 메쉬의 피직스 시뮬레이션 켜기
+	MeshComp->SetCollisionProfileName(TEXT("Ragdoll"));
+	MeshComp->SetAllBodiesSimulatePhysics(true);
+	MeshComp->SetSimulatePhysics(true);
+	MeshComp->WakeAllRigidBodies();
+	
+	// 감쇄 및 속도 부여
+	MeshComp->SetLinearDamping(0.1f);
+	MeshComp->SetPhysicsLinearVelocity(HitImpulse);
+	
+	// SpringArm을 Mesh의 골반(Hips) 소켓에 부착
+	if (CameraBoom) 
+	{
+		CameraBoom->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("Hips"));
+	}
+
+	// 드롭킥 Impulse 전달(Hips(골반)을 중심으로)
+	MeshComp->AddImpulseAtLocation(HitImpulse, HitLocation, TEXT("Hips"));
+	
+	if (HasAuthority())
+	{
+		FTimerHandle GetUpTimerHandle;
+		GetWorldTimerManager().SetTimer(GetUpTimerHandle, this, &ASG_Character::ServerDisableRagdoll, 5.0f, false);
+	}
+}
+
+void ASG_Character::CacheRagdollPoseSnapshot()
+{
+	if (UAnimInstance* AnimInst = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr)
+	{
+		AnimInst->SavePoseSnapshot(FName("RagdollFinalPose"));
+	}
+}
+
+void ASG_Character::ServerDisableRagdoll()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	USkeletalMeshComponent* MeshComp = GetMesh();
+	UCapsuleComponent* CapsuleComp = GetCapsuleComponent();
+	if (!MeshComp || !CapsuleComp)
+	{
+		return;
+	}
+
+	// 서버 기준 래그돌 Hips 위치 및 회전 수집
+	FVector HipsLocation = MeshComp->GetSocketLocation(TEXT("Hips"));
+	FRotator HipsRotation = MeshComp->GetSocketRotation(TEXT("Hips"));
+	bool bIsFaceDown = IsRagdollFaceDown();
+
+	// 동기화할 캡슐 위치 및 회전값 연산
+	FVector NewCapsuleLocation = HipsLocation;
+	NewCapsuleLocation.Z += CapsuleComp->GetScaledCapsuleHalfHeight();
+
+	FRotator NewCapsuleRotation = FRotator(0.0f, HipsRotation.Yaw, 0.0f);
+	if (bIsFaceDown)
+	{
+		NewCapsuleRotation.Yaw += 180.0f;
+	}
+
+	// 계산된 완벽한 좌표 정보를 모든 클라이언트에 동기화
+	MulticastDisableRagdoll(NewCapsuleLocation, NewCapsuleRotation, bIsFaceDown);
+}
+
+void ASG_Character::MulticastDisableRagdoll_Implementation(FVector TargetLocation, FRotator TargetRotation, bool bIsFaceDown)
+{
+	DisableRagdollInternal(TargetLocation, TargetRotation, bIsFaceDown);
+}
+
+void ASG_Character::DisableRagdollInternal(FVector TargetLocation, FRotator TargetRotation, bool bIsFaceDown)
+{
+    USkeletalMeshComponent* MeshComp = GetMesh();
+    UCapsuleComponent* CapsuleComp = GetCapsuleComponent();
+    UCharacterMovementComponent* MovementComp = GetCharacterMovement();
+
+    if (!MeshComp || !CapsuleComp || !MovementComp)
+    {
+	    return;
+    }
+
+    // 시뮬레이션 끄기 직전 포즈 스냅샷 저장 (AnimBP 연결용)
+    CacheRagdollPoseSnapshot();
+	
+	// 물리 및 속도 초기화
+	MeshComp->SetAllPhysicsLinearVelocity(FVector::ZeroVector);
+	MeshComp->SetAllPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+	MeshComp->SetSimulatePhysics(false);
+	MeshComp->SetCollisionProfileName(TEXT("CharacterMesh"));
+
+	// 서버에서 결정된 동기화 위치로 캡슐 이동
+	CapsuleComp->SetWorldLocation(TargetLocation);
+	CapsuleComp->SetWorldRotation(TargetRotation);
+	CapsuleComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	
+	// 메쉬 상대 위치 오프셋 원복
+	MeshComp->AttachToComponent(CapsuleComp, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+	MeshComp->SetRelativeLocation(FVector(0.0f, 0.0f, -93.0f));
+	MeshComp->SetRelativeRotation(FRotator(0.0f, -90.0f, 0.0f));
+	
+	// 카메라 SpringArm 원복
+	if (CameraBoom)
+	{
+		CameraBoom->AttachToComponent(CapsuleComp, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+		CameraBoom->SetRelativeLocation(FVector(0.0f, 0.0f, 0.0f));
+	}
+	
+    // 방향에 맞는 GetUp 몽타주 재생 (0.3초 BlendIn 적용)
+    UAnimMontage* TargetMontage = bIsFaceDown ? GetUpFrontMontage : GetUpBackMontage;
+    if (TargetMontage && MeshComp->GetAnimInstance())
+    {
+        UAnimInstance* AnimInst = MeshComp->GetAnimInstance();
+        float Duration = AnimInst->Montage_Play(TargetMontage, 1.0f, EMontagePlayReturnType::MontageLength, 0.0f, true);
+
+        if (Duration > 0.0f)
+        {
+            FOnMontageEnded EndedDelegate;
+            EndedDelegate.BindUObject(this, &ASG_Character::OnGetUpMontageEnded);
+            AnimInst->Montage_SetEndDelegate(EndedDelegate, TargetMontage);
+        }
+        else
+        {
+            MovementComp->SetMovementMode(EMovementMode::MOVE_Walking);
+        }
+    }
+    else
+    {
+        MovementComp->SetMovementMode(EMovementMode::MOVE_Walking);
+    }
+}
+
+// 엎드려 있는지 판단 (골반 Up 벡터 기반)
+bool ASG_Character::IsRagdollFaceDown() const
+{
+    USkeletalMeshComponent* MeshComp = GetMesh();
+    if (!MeshComp)
+    {
+	    return true;
+    }
+
+    // 골반(Hips) 뼈의 회전 축을 이용해 바닥(Z축)을 바라보고 있는지 체크
+    FVector HipsUpVector = MeshComp->GetSocketQuaternion(TEXT("Hips")).GetUpVector();
+    
+    // Z축 내적 결과가 음수이면 바닥을 바라보고 엎드린 상태 (Face Down)
+    return FVector::DotProduct(HipsUpVector, FVector::UpVector) < 0.0f;
+}
+
+// 일어나기 애니메이션이 끝나면 조작 및 이동 가능 상태로 전환
+void ASG_Character::OnGetUpMontageEnded(UAnimMontage* Montage, bool bInterrupted)
+{
+    if (UCharacterMovementComponent* MovementComp = GetCharacterMovement())
+    {
+        MovementComp->SetMovementMode(EMovementMode::MOVE_Walking);
+    }
 }
