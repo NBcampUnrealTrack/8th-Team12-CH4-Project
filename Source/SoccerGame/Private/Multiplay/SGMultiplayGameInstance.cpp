@@ -59,44 +59,6 @@ void USGMultiplayGameInstance::Init()
 
 void USGMultiplayGameInstance::CreateServer()
 {
-	if (!SessionInterface.IsValid()) return;
-	// 기존에 존재하던 세션이 있다면 먼저 제거하는 안전장치
-	FNamedOnlineSession* ExistingSession = SessionInterface->GetNamedSession(NAME_GameSession);
-	if (ExistingSession != nullptr)
-	{
-		SessionInterface->DestroySession(NAME_GameSession);
-		return;
-	}
-	FOnlineSessionSettings SessionSettings;
-    
-	// 현재 작동 중인 서브시스템이 NULL인지 Steam인지 판별
-	bool bIsLAN = (IOnlineSubsystem::Get()->GetSubsystemName() == "NULL");
-	SessionSettings.bIsLANMatch = bIsLAN;
-    
-	SessionSettings.NumPublicConnections = 5; // 최대 인원수
-	SessionSettings.bAllowJoinInProgress = true;
-	SessionSettings.bShouldAdvertise = true;
-	SessionSettings.bUsesPresence = true; // ◀ 스팀에서는 Presence(상태 정보) 기반 매칭이 필수입니다.
-
-	// =========================================================================
-	// ★ [스팀 전용 필수 추가] 스팀 로비 설정 활성화
-	// LAN 환경이 아닐 때(즉, 스팀일 때) 로비 기능을 활성화해야 스팀 서버가 방을 중개해 줍니다.
-	// =========================================================================
-	if (!bIsLAN)
-	{
-		SessionSettings.bUseLobbiesIfAvailable = true;
-		SessionSettings.bUseLobbiesVoiceChatIfAvailable = false; // 보이스챗 안 쓰면 false
-	}
-
-	// 검색 시 필터링할 커스텀 데이터 설정 (예: 맵 이름)
-	SessionSettings.Set(SETTING_MAPNAME, FString("SG_LobbyLevel"), EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
-
-	ULocalPlayer* LocalPlayer = GetFirstGamePlayer();
-	if (LocalPlayer)
-	{
-		SessionInterface->CreateSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, SessionSettings);
-	}
-	/*
 	if (SessionInterface.IsValid())
 	{
 		// 기존에 남아있는 세션 제거
@@ -124,7 +86,19 @@ void USGMultiplayGameInstance::CreateServer()
 			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Cyan, 
 			   FString::Printf(TEXT("[Multiplay] 서버 생성 시작... (모드: %s)"), bIsLAN ? TEXT("LAN") : TEXT("스팀 인터넷")));
 		}
-		
+		// -------------------------------------------------------------------------
+		// ★ [스팀 수정 1] bIsLANMatch 하드코딩 제거 및 스팀 로비 활성화
+		// 기존 코드에 'SessionSettings.bIsLANMatch = false;'가 하드코딩되어 있어 
+		// LAN 모드 테스트 시 작동하지 않는 버그가 있었습니다. bIsLAN 값으로 대입하고,
+		// 스팀(인터넷) 환경일 때만 'bUseLobbiesIfAvailable'을 켜주도록 수정했습니다.
+		// -------------------------------------------------------------------------
+		SessionSettings.bIsLANMatch = bIsLAN; 
+		SessionSettings.NumPublicConnections = 6; 
+		SessionSettings.bAllowJoinInProgress = true; 
+		SessionSettings.bAllowJoinViaPresence = true; 
+		SessionSettings.bShouldAdvertise = true; 
+		SessionSettings.bUsesPresence = true;
+		/*
 		SessionSettings.bIsLANMatch = false;
 		SessionSettings.NumPublicConnections = 6; // 최대 인원수 TODO: 나중에 변수 가져오기
 		SessionSettings.bAllowJoinInProgress = true; // 게임 중 난입 허용 여부
@@ -132,11 +106,13 @@ void USGMultiplayGameInstance::CreateServer()
 		SessionSettings.bShouldAdvertise = true; // 방이 검색되도록 허용
 		SessionSettings.bUsesPresence = true; // 스팀의 Presence(현재 상태) 기능 사용
 		SessionSettings.bUseLobbiesIfAvailable = true; 
+		 */
 		
 		// ◀ 스팀 검색 정확도를 높이기 위한 커스텀 세팅 (나의 프로젝트 전용 방 식별용)
 		SessionSettings.Settings.Add(SETTING_MAPNAME, FOnlineSessionSetting(FString("SG_LobbyLevel"), EOnlineDataAdvertisementType::ViaOnlineService));
 		// 엔진에 세션 생성 명령
-		const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
+		ULocalPlayer* LocalPlayer = GetFirstGamePlayer();
+		//const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
 		if (LocalPlayer != nullptr)
 		{
 			SessionInterface->CreateSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, SessionSettings);	
@@ -149,45 +125,23 @@ void USGMultiplayGameInstance::CreateServer()
 				GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Red, TEXT("[Multiplay] 에러: LocalPlayer를 찾을 수 없습니다!"));
 			}
 		}
-	 */
+	}
 }
 
 void USGMultiplayGameInstance::FindServers()
 {
-	if (!SessionInterface.IsValid()) return;
-	ULocalPlayer* LocalPlayer = GetFirstGamePlayer();
-	if (!LocalPlayer) return;
-
-	SessionSearch = MakeShareable(new FOnlineSessionSearch());
-    
-	bool bIsLAN = (IOnlineSubsystem::Get()->GetSubsystemName() == "NULL");
-	SessionSearch->bIsLanQuery = bIsLAN;
-    
-	// =========================================================================
-	// ★ [스팀 전용 필수 추가] 검색 범위 제한 및 Presence 필터
-	// =========================================================================
-	if (!bIsLAN)
-	{
-		// 스팀 마스터 서버에서 검색할 최대 방 개수 제한 (AppID 480 과부하 방지)
-		SessionSearch->MaxSearchResults = 100; 
-        
-		// 스팀 로비/Presence 세션만 쿼리하도록 설정
-		SessionSearch->QuerySettings.Set(SEARCH_PRESENCE, true, EOnlineComparisonOp::Equals);
-		SessionSearch->QuerySettings.Set(SEARCH_LOBBIES, true, EOnlineComparisonOp::Equals);
-	}
-	else
-	{
-		SessionSearch->MaxSearchResults = 10000; // LAN 환경은 제한 해제
-	}
-    
-	// 우리가 지정한 맵 이름("SG_LobbyLevel")인 방만 필터링해서 수집
-	SessionSearch->QuerySettings.Set(SETTING_MAPNAME, FString("SG_LobbyLevel"), EOnlineComparisonOp::Equals);
-    
-	SessionInterface->FindSessions(*LocalPlayer->GetPreferredUniqueNetId(), SessionSearch.ToSharedRef());
-
-	/*
 	if (SessionInterface.IsValid())
 	{
+		ULocalPlayer* LocalPlayer = GetFirstGamePlayer();
+		if (LocalPlayer == nullptr)
+		{
+			if (GEngine)
+			{
+				GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Red, TEXT("[Multiplay] 에러: LocalPlayer를 찾을 수 없어 검색을 중단합니다."));
+			}
+			return;
+		}
+		
 		FindSessionsCompleteDelegateHandle = SessionInterface->AddOnFindSessionsCompleteDelegate_Handle(FindSessionsCompleteDelegate);
 		
 		// 검색 바구니 세팅
@@ -206,23 +160,26 @@ void USGMultiplayGameInstance::FindServers()
 			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Cyan, 
 			   FString::Printf(TEXT("[Multiplay] 활성화된 서버 방 탐색 중... (%s)"), bIsLAN ? TEXT("LAN 주소") : TEXT("스팀 서비스")));
 		}
+		if (!bIsLAN)
+		{
+			SessionSearch->MaxSearchResults = 100; // 스팀 검색 개수 제한
+			SessionSearch->QuerySettings.Set(SEARCH_PRESENCE, true, EOnlineComparisonOp::Equals);
+			SessionSearch->QuerySettings.Set(SEARCH_LOBBIES, true, EOnlineComparisonOp::Equals); // 로비 검색 필터 추가
+		}
+		else
+		{
+			SessionSearch->MaxSearchResults = 10000; // LAN 환경은 그대로 높게 유지
+			SessionSearch->QuerySettings.Set(SEARCH_PRESENCE, true, EOnlineComparisonOp::Equals);
+		}
        
-		SessionSearch->QuerySettings.Set(SEARCH_PRESENCE, true, EOnlineComparisonOp::Equals);
-       
-		// =========================================================================
-		// ★ [추가] 중요! 방을 찾을 때 우리가 등록한 고유 맵 이름 필터 조건 추가
-		// 이 조건이 있어야 스팀의 수많은 가짜 방(AppID 480) 중에서 우리 방만 골라냅니다.
-		// =========================================================================
-		SessionSearch->QuerySettings.Set(SETTING_MAPNAME, FString("SG_LobbyLevel"), EOnlineComparisonOp::Equals);
-		// =========================================================================
-		//SessionSearch->bIsLanQuery = false;
 		//SessionSearch->QuerySettings.Set(SEARCH_PRESENCE, true, EOnlineComparisonOp::Equals);
+       
+		SessionSearch->QuerySettings.Set(SETTING_MAPNAME, FString("SG_LobbyLevel"), EOnlineComparisonOp::Equals);
 		
 		// 검색 시작!
-		const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
+		//const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
 		SessionInterface->FindSessions(*LocalPlayer->GetPreferredUniqueNetId(), SessionSearch.ToSharedRef());
 	}
-	 */
 }
 
 void USGMultiplayGameInstance::JoinServer(int32 SessionIndex)
@@ -231,10 +188,14 @@ void USGMultiplayGameInstance::JoinServer(int32 SessionIndex)
 	{
 		if (SessionSearch->SearchResults.IsValidIndex(SessionIndex))
 		{
+			ULocalPlayer* LocalPlayer = GetFirstGamePlayer();
+			if (LocalPlayer == nullptr) return;
+			
 			JoinSessionCompleteDelegateHandle = SessionInterface->AddOnJoinSessionCompleteDelegate_Handle(JoinSessionCompleteDelegate);
 			
 			FString OwningUserName = SessionSearch->SearchResults[SessionIndex].Session.OwningUserName;
 			int32 PingInMs = SessionSearch->SearchResults[SessionIndex].PingInMs;
+			
 			UE_LOG(LogTemp, Warning, TEXT("[Multiplay] %s 님이 개설한 방에 접속을 시도합니다. (핑: %d ms)"), *OwningUserName, PingInMs);
 			if (GEngine)
 			{
@@ -242,7 +203,7 @@ void USGMultiplayGameInstance::JoinServer(int32 SessionIndex)
 				   FString::Printf(TEXT("[Multiplay] 접속 시도 중: Host=%s, Ping=%dms"), *OwningUserName, PingInMs));
 			}
 			// 접속 시도
-			const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
+			//const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
 			SessionInterface->JoinSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, SessionSearch->SearchResults[SessionIndex]);
 		}
 	}
@@ -336,23 +297,6 @@ void USGMultiplayGameInstance::OnFindSessionsComplete(bool bWasSuccessful)
 
 void USGMultiplayGameInstance::OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result)
 {
-	if (!SessionInterface.IsValid()) return;
-
-	if (Result == EOnJoinSessionCompleteResult::Success)
-	{
-		APlayerController* PC = GetFirstLocalPlayerController();
-		if (PC)
-		{
-			FString ConnectString;
-			// 스팀용 암호화된 연결 주소(또는 LAN IP주소)를 알아서 추출해 줍니다.
-			if (SessionInterface->GetResolvedConnectString(SessionName, ConnectString))
-			{
-				// 클라이언트를 방장의 맵으로 안전하게 이동시킵니다.
-				PC->ClientTravel(ConnectString, ETravelType::TRAVEL_Absolute);
-			}
-		}
-	}
-	/*
 	if (SessionInterface.IsValid())
 	{
 		SessionInterface->ClearOnJoinSessionCompleteDelegate_Handle(JoinSessionCompleteDelegateHandle);
@@ -425,6 +369,5 @@ void USGMultiplayGameInstance::OnJoinSessionComplete(FName SessionName, EOnJoinS
 		}
 		// =========================================================================
 	}
-	 */
 	
 }
