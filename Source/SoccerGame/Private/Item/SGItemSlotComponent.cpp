@@ -6,6 +6,7 @@
 #include "AbilitySystemComponent.h"
 #include "Abilities/GameplayAbility.h"
 #include "GameFramework/Pawn.h"
+#include "Item/Ability/GA_SGItemBase.h"
 #include "Item/Data/SGItemDefinition.h"
 #include "Net/UnrealNetwork.h"
 
@@ -68,7 +69,7 @@ void USGItemSlotComponent::UseItemPressed()
 	if (!IsValid(AbilitySystemComponent)) return;
 	
 	const FGameplayAbilitySpecHandle AbilityHandle = ItemAbilityHandles[0];
-	if (!AbilityHandle.IsValid()) return;
+	if (!AbilityHandle.IsValid() || PendingConsumeAbilityHandle == AbilityHandle) return;
 	
 	FGameplayAbilitySpec* AbilitySpec = AbilitySystemComponent->FindAbilitySpecFromHandle(AbilityHandle);
 	if (AbilitySpec == nullptr) return;
@@ -100,15 +101,12 @@ void USGItemSlotComponent::UseItemReleased()
 	if (AbilitySpec == nullptr) return;
 
 	const bool bWasActive = AbilitySpec->IsActive();
+	if (!bWasActive) return;
 	
-	UGameplayAbility* AbilityInstance = nullptr;
+	UGameplayAbility* AbilityInstance = AbilitySpec->GetPrimaryInstance();
 	FPredictionKey ActivationPredictionKey;
-	
-	if (bWasActive){
-		AbilityInstance = AbilitySpec->GetPrimaryInstance();
-		if (IsValid(AbilityInstance)){
-			ActivationPredictionKey = AbilityInstance->GetCurrentActivationInfoRef().GetActivationPredictionKey();
-		}
+	if (IsValid(AbilityInstance)){
+		ActivationPredictionKey = AbilityInstance->GetCurrentActivationInfoRef().GetActivationPredictionKey();
 	}
 	
 	AbilitySystemComponent->AbilitySpecInputReleased(*AbilitySpec);
@@ -118,13 +116,46 @@ void USGItemSlotComponent::UseItemReleased()
 			AbilityHandle,
 			ActivationPredictionKey); 
 	
-	// 아이템 사용 성공 여부와는 관계없이 서버에서 소모처리
+	PendingConsumeAbilityHandle = AbilityHandle;
+	
+	// 아이템은 서버에서 소모처리
 	if (Owner->HasAuthority()){
 		ConsumeItem();
 	}
 	else{
 		Server_ConsumeItem();
 	}
+}
+
+void USGItemSlotComponent::UseItemRotate(float InputValue)
+{
+	if (ItemSlots.IsEmpty() || !ItemAbilityHandles.IsValidIndex(0)) return;
+
+	AActor* Owner = GetOwner();
+	if (!IsValid(Owner)) return;
+
+	UAbilitySystemComponent* AbilitySystemComponent = Owner->FindComponentByClass<UAbilitySystemComponent>();
+	if (!IsValid(AbilitySystemComponent)) return;
+
+	FGameplayAbilitySpecHandle AbilityHandle = ItemAbilityHandles[0];
+	if (!AbilityHandle.IsValid()) return;
+
+	FGameplayAbilitySpec* AbilitySpec = AbilitySystemComponent->FindAbilitySpecFromHandle(AbilityHandle);
+	if (AbilitySpec == nullptr || !AbilitySpec->IsActive()) return;
+
+	UGA_SGItemBase* ItemAbility = Cast<UGA_SGItemBase>(AbilitySpec->GetPrimaryInstance());
+	if (!IsValid(ItemAbility)) return;
+
+	ItemAbility->HandleRotateInput(InputValue);
+
+	if (!Owner->HasAuthority()){
+		Server_UseItemRotate(InputValue);
+	}
+}
+
+void USGItemSlotComponent::Server_UseItemRotate_Implementation(float InputValue)
+{
+	UseItemRotate(InputValue);
 }
 
 int32 USGItemSlotComponent::GetItemCount() const

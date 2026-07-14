@@ -15,7 +15,7 @@ ASGProjectileBase::ASGProjectileBase() :
 	ThrowHeightOffset(0.f), 
 	bPreview(false),
 	LifeTime(5.f),
-	PreviewOpacity(0.35f)
+	PreviewOpacity(0.6f)
 {
 	// Tick 사용, 초깃값 비활성화
  	PrimaryActorTick.bCanEverTick = true;
@@ -172,9 +172,6 @@ bool ASGProjectileBase::LaunchByTrajectory(AActor* InPlayerActor, float InTarget
 		if (GetNetMode() != NM_DedicatedServer){
 			SpawnCosmeticProjectile();
 		}
-		
-		// 복제 요청
-		ForceNetUpdate();
 	}
 	
 	// 발사 시작 위치와 이동 방향 적용
