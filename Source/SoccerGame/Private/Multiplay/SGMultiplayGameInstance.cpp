@@ -302,6 +302,8 @@ void USGMultiplayGameInstance::OnFindSessionsComplete(bool bWasSuccessful)
 					TargetSessionIndex = i;
 					break; // 조건을 모두 만족하는 진짜 '우리 팀원 방'을 찾았으므로 루프 탈출!
 				}
+				
+				
 				/*
 				// [예외처리] 만약 방장의 스팀 닉네임이 내 닉네임과 같다면, 내가 과거에 켰던 유령 세션이므로 패스합니다.
 				auto IdentityInterface = IOnlineSubsystem::Get()->GetIdentityInterface();
