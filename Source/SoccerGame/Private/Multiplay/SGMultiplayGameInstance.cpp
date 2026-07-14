@@ -8,12 +8,25 @@
 #include "Online/OnlineSessionNames.h"
 
 
+void USGMultiplayGameInstance::OnDestroySessionComplete(FName SessionName, bool bWasSuccessful)
+{
+	if (SessionInterface.IsValid())
+	{
+		SessionInterface->ClearOnDestroySessionCompleteDelegate_Handle(DestroySessionCompleteDelegateHandle);
+	}
+
+	// 파괴가 끝났으니 안전하게 다시 CreateServer를 호출 (이번엔 ExistingSession이 없으므로 통과됨)
+	CreateServer();
+}
+
 USGMultiplayGameInstance::USGMultiplayGameInstance()
 {
 	// 델리게이트 바인딩
 	CreateSessionCompleteDelegate = FOnCreateSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnCreateSessionComplete);
 	FindSessionsCompleteDelegate = FOnFindSessionsCompleteDelegate::CreateUObject(this, &ThisClass::OnFindSessionsComplete);
 	JoinSessionCompleteDelegate = FOnJoinSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnJoinSessionComplete);
+	
+	DestroySessionCompleteDelegate = FOnDestroySessionCompleteDelegate::CreateUObject(this, &ThisClass::OnDestroySessionComplete);
 }
 
 
@@ -40,7 +53,10 @@ void USGMultiplayGameInstance::CreateServer()
 		auto ExistingSession = SessionInterface->GetNamedSession(NAME_GameSession);
 		if (ExistingSession != nullptr)
 		{
+			// ◀ 기존 세션이 있다면 파괴 델리게이트를 먼저 걸고 파괴 시작!
+			DestroySessionCompleteDelegateHandle = SessionInterface->AddOnDestroySessionCompleteDelegate_Handle(DestroySessionCompleteDelegate);
 			SessionInterface->DestroySession(NAME_GameSession);
+			return;
 		}
 		
 		// 방 생성 끝나면 알려주는 델리게이트 등록
@@ -59,6 +75,9 @@ void USGMultiplayGameInstance::CreateServer()
 		SessionSettings.bUsesPresence = true; // 스팀의 Presence(현재 상태) 기능 사용
 		SessionSettings.bUseLobbiesIfAvailable = true; 
 		
+		// ◀ 스팀 검색 정확도를 높이기 위한 커스텀 세팅 (나의 프로젝트 전용 방 식별용)
+		SessionSettings.Settings.Add(SETTING_MAPNAME, FOnlineSessionSetting(FString("SG_LobbyLevel"), EOnlineDataAdvertisementType::ViaOnlineService));
+		
 		// 엔진에 세션 생성 명령
 		const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
 		if (LocalPlayer != nullptr)
@@ -73,10 +92,7 @@ void USGMultiplayGameInstance::CreateServer()
 				GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Red, TEXT("[Multiplay] 에러: LocalPlayer를 찾을 수 없습니다!"));
 			}
 		}
-		
 	}
-	
-	
 }
 
 void USGMultiplayGameInstance::FindServers()

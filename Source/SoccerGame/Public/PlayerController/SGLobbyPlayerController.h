@@ -21,6 +21,7 @@ class SOCCERGAME_API ASGLobbyPlayerController : public APlayerController
 public:
 	
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	
 	UFUNCTION(BlueprintCallable, Category = "Lobby")
 	void SellectReady();
@@ -43,10 +44,6 @@ protected:
 	// [Server RPC] 준비 상태 변경 요청
 	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_SetReady(bool bNewReadyState);
-	
-	
-    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "ASUIPlayerController")
-    TSubclassOf<UUserWidget> UIWidgetClass;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "ASUIPlayerController")
 	TSubclassOf<UUserWidget> UILobbyWidgetClass;

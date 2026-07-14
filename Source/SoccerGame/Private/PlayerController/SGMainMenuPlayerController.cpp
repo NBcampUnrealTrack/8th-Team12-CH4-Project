@@ -8,7 +8,7 @@ void ASGMainMenuPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	if (MainMenuWidgetClass != nullptr)
+	if (IsLocalController() && MainMenuWidgetClass != nullptr)
 	{
 		MainMenuWidgetInstance = CreateWidget<UUserWidget>(this, MainMenuWidgetClass);
 		
@@ -20,6 +20,7 @@ void ASGMainMenuPlayerController::BeginPlay()
 			
 			FInputModeUIOnly InputModeData;
 			InputModeData.SetWidgetToFocus(MainMenuWidgetInstance->TakeWidget());
+			//InputModeData.SetWidgetToFocus(MainMenuWidgetInstance->GetCachedWidget());
 			InputModeData.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 			SetInputMode(InputModeData);
 		}

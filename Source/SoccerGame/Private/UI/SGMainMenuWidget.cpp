@@ -22,12 +22,12 @@ void USGMainMenuWidget::NativeConstruct()
 void USGMainMenuWidget::OnGameStartButtonClicked()
 {
 	UGameInstance* GameInstance = GetGameInstance();
-	
 	USGMultiplayGameInstance* SGGameInstance = Cast<USGMultiplayGameInstance>(GameInstance);
 	
 	if (SGGameInstance)
 	{
-		SGGameInstance->CreateServer();
+		//SGGameInstance->CreateServer();
+		SGGameInstance->FindServers();
 		
 	}
 }

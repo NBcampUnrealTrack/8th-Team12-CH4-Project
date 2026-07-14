@@ -18,6 +18,13 @@ class SOCCERGAME_API USGMultiplayGameInstance : public UGameInstance
 	GENERATED_BODY()
 	
 public:
+	
+	// 델리게이트 및 핸들 선언 추가
+	FOnDestroySessionCompleteDelegate DestroySessionCompleteDelegate;
+	FDelegateHandle DestroySessionCompleteDelegateHandle;
+
+	// 콜백 함수 선언 추가
+	void OnDestroySessionComplete(FName SessionName, bool bWasSuccessful);
 	USGMultiplayGameInstance();
 
 	UFUNCTION(BlueprintCallable, Category = "MultiPlayer")

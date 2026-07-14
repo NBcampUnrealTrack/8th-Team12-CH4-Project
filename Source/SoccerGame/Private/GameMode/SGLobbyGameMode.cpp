@@ -37,10 +37,10 @@ void ASGLobbyGameMode::CheckReadyState()
 		APlayerController* PC = It->Get();
 		if (PC)
 		{
-			CurrentPlayers++;
 			ASGLobbyPlayerState* SG_PlayerState = PC->GetPlayerState<ASGLobbyPlayerState>();
 			if (SG_PlayerState && SG_PlayerState->IsReady())
 			{
+				CurrentPlayers++;
 				if (SG_PlayerState->CurrentTeamTag == FGameplayTag::RequestGameplayTag(FName("Team.Red")))
 				{
 					RedTeam++;
@@ -55,7 +55,7 @@ void ASGLobbyGameMode::CheckReadyState()
 	
 	// Total Player 가 아닌 BlueTeam,RedTeam 수가 같아야 하고 
 	// 둘다 레디 상태이어야 하며
-	if (RedTeam == BlueTeam && BlueTeam > 0  && GetNumPlayers() == CurrentPlayers)
+	if (RedTeam == BlueTeam && BlueTeam > 0  && CurrentPlayers == (RedTeam + BlueTeam))
 	{
 		// 모든 조건 충족 (Ready 확인 로직 완료 -> 시작 카운트다운 가동)
 		if (!GetWorldTimerManager().IsTimerActive(CountdownTimerHandle))
