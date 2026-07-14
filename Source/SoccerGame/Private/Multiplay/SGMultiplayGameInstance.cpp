@@ -189,29 +189,145 @@ void USGMultiplayGameInstance::FindServers()
 
 void USGMultiplayGameInstance::JoinServer(int32 SessionIndex)
 {
-	if (SessionInterface.IsValid() && SessionSearch.IsValid())
+	UE_LOG(LogTemp, Warning, TEXT("=========================================="));
+	UE_LOG(LogTemp, Warning, TEXT("JoinServer()"));
+
+	if (!SessionInterface.IsValid())
 	{
-		if (SessionSearch->SearchResults.IsValidIndex(SessionIndex))
+		UE_LOG(LogTemp, Error, TEXT("SessionInterface Invalid"));
+		return;
+	}
+
+	if (!SessionSearch.IsValid())
+	{
+		return;
+	}
+
+	if (!SessionSearch->SearchResults.IsValidIndex(SessionIndex))
+	{
+		UE_LOG(LogTemp, Error,
+			TEXT("Invalid Session Index : %d"),
+			SessionIndex);
+		return;
+	}
+
+	ULocalPlayer* LocalPlayer = GetFirstGamePlayer();
+
+	if (LocalPlayer == nullptr)
+	{
+		UE_LOG(LogTemp, Error, TEXT("LocalPlayer == nullptr"));
+		return;
+	}
+
+	const FOnlineSessionSearchResult& SearchResult =
+		SessionSearch->SearchResults[SessionIndex];
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Host : %s"),
+		*SearchResult.Session.OwningUserName);
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Ping : %d"),
+		SearchResult.PingInMs);
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Open Connections : %d"),
+		SearchResult.Session.NumOpenPublicConnections);
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Max Connections : %d"),
+		SearchResult.Session.SessionSettings.NumPublicConnections);
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("SessionInfo Valid : %s"),
+		SearchResult.Session.SessionInfo.IsValid()
+			? TEXT("YES")
+			: TEXT("NO"));
+
+	FString MapName;
+	SearchResult.Session.SessionSettings.Get(
+		SETTING_MAPNAME,
+		MapName);
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Map : %s"),
+		*MapName);
+
+	//--------------------------------------------------------
+	// Join Delegate 등록
+	//--------------------------------------------------------
+
+	JoinSessionCompleteDelegateHandle =
+		SessionInterface->AddOnJoinSessionCompleteDelegate_Handle(
+			JoinSessionCompleteDelegate);
+
+	//--------------------------------------------------------
+	// Join 전 ConnectString 확인
+	//--------------------------------------------------------
+
+	FString PreviewConnectString;
+
+	bool bHasConnectString =
+		SessionInterface->GetResolvedConnectString(
+			NAME_GameSession,
+			PreviewConnectString);
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Pre Join ConnectString : %s"),
+		bHasConnectString ? TEXT("YES") : TEXT("NO"));
+
+	if (bHasConnectString)
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("ConnectString : %s"),
+			*PreviewConnectString);
+	}
+
+	//--------------------------------------------------------
+	// 화면 출력
+	//--------------------------------------------------------
+
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(
+			-1,
+			5.f,
+			FColor::Cyan,
+			FString::Printf(
+				TEXT("[Multiplay] Join Try : %s"),
+				*SearchResult.Session.OwningUserName));
+	}
+
+	//--------------------------------------------------------
+	// Join Session
+	//--------------------------------------------------------
+
+	bool bJoinResult =
+		SessionInterface->JoinSession(
+			*LocalPlayer->GetPreferredUniqueNetId(),
+			NAME_GameSession,
+			SearchResult);
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("JoinSession() Return : %s"),
+		bJoinResult ? TEXT("TRUE") : TEXT("FALSE"));
+
+	if (!bJoinResult)
+	{
+		UE_LOG(LogTemp, Error,
+			TEXT("JoinSession() returned FALSE"));
+
+		if (GEngine)
 		{
-			ULocalPlayer* LocalPlayer = GetFirstGamePlayer();
-			if (LocalPlayer == nullptr) return;
-			
-			JoinSessionCompleteDelegateHandle = SessionInterface->AddOnJoinSessionCompleteDelegate_Handle(JoinSessionCompleteDelegate);
-			
-			FString OwningUserName = SessionSearch->SearchResults[SessionIndex].Session.OwningUserName;
-			int32 PingInMs = SessionSearch->SearchResults[SessionIndex].PingInMs;
-			
-			UE_LOG(LogTemp, Warning, TEXT("[Multiplay] %s 님이 개설한 방에 접속을 시도합니다. (핑: %d ms)"), *OwningUserName, PingInMs);
-			if (GEngine)
-			{
-				GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Cyan, 
-				   FString::Printf(TEXT("[Multiplay] 접속 시도 중: Host=%s, Ping=%dms"), *OwningUserName, PingInMs));
-			}
-			// 접속 시도
-			//const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
-			SessionInterface->JoinSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, SessionSearch->SearchResults[SessionIndex]);
+			GEngine->AddOnScreenDebugMessage(
+				-1,
+				10.f,
+				FColor::Red,
+				TEXT("[Multiplay] JoinSession() Failed"));
 		}
 	}
+
+	UE_LOG(LogTemp, Warning, TEXT("=========================================="));
 }
 
 void USGMultiplayGameInstance::OnCreateSessionComplete(FName Sessionname, bool bWasSuccessful)
@@ -251,222 +367,386 @@ void USGMultiplayGameInstance::OnFindSessionsComplete(bool bWasSuccessful)
 {
 	if (SessionInterface.IsValid())
 	{
-		SessionInterface->ClearOnFindSessionsCompleteDelegate_Handle(FindSessionsCompleteDelegateHandle);
+		SessionInterface->ClearOnFindSessionsCompleteDelegate_Handle(
+			FindSessionsCompleteDelegateHandle);
 	}
-	
-	if (bWasSuccessful && SessionSearch.IsValid())
+
+	UE_LOG(LogTemp, Warning, TEXT("=========================================="));
+	UE_LOG(LogTemp, Warning, TEXT("OnFindSessionsComplete"));
+	UE_LOG(LogTemp, Warning, TEXT("Search Success : %s"),
+		bWasSuccessful ? TEXT("TRUE") : TEXT("FALSE"));
+
+	if (!bWasSuccessful)
 	{
-		int32 FoundCount = SessionSearch->SearchResults.Num();
-		UE_LOG(LogTemp, Warning, TEXT("[Multiplay] 검색 완료! 찾은 방 갯수: %d"), FoundCount);
-       
+		UE_LOG(LogTemp, Error, TEXT("FindSessions Failed"));
+
 		if (GEngine)
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Green, 
-			   FString::Printf(TEXT("🔍 [Multiplay] 세션 검색 완료! 발견된 매치: %d개"), FoundCount));
+			GEngine->AddOnScreenDebugMessage(
+				-1,
+				10.f,
+				FColor::Red,
+				TEXT("[Multiplay] FindSessions Failed"));
 		}
-		
-		bool bFoundValidSession = false;
-		int32 TargetSessionIndex = -1;
-		
-		FString MySteamName = TEXT("");
-		ULocalPlayer* LocalPlayer = GetFirstGamePlayer();
-		if (LocalPlayer != nullptr)
-		{
-			MySteamName = LocalPlayer->GetNickname();
-		}
-		
-		for (int32 i = 0; i < SessionSearch->SearchResults.Num(); ++i)
-		{
-			auto& Result = SessionSearch->SearchResults[i];
-			if (Result.IsValid())
-			{
-				if (!MySteamName.IsEmpty() && Result.Session.OwningUserName == MySteamName)
-				{
-					UE_LOG(LogTemp, Log, TEXT("[Multiplay] 내가 만든 유령 세션을 발견하여 제외합니다: %s"), *MySteamName);
-					continue; 
-				}
-				FString FoundMapName;
-				Result.Session.SessionSettings.Get(SETTING_MAPNAME, FoundMapName);
-				if (FoundMapName != FString("SG_LobbyLevel"))
-				{
-					// 타인이 만든 다른 게임/다른 맵의 방이므로 패스
-					continue;
-				}
+		return;
+	}
 
-				// -------------------------------------------------------------------------
-				// 3. [인원 체크 필터] 공개된 빈 자리가 1개 이상 남아있는 방인지 확인
-				// -------------------------------------------------------------------------
-				if (Result.Session.NumOpenPublicConnections > 0)
-				{
-					bFoundValidSession = true;
-					TargetSessionIndex = i;
-					break; // 조건을 모두 만족하는 진짜 '우리 팀원 방'을 찾았으므로 루프 탈출!
-				}
-				
-				
-				/*
-				// [예외처리] 만약 방장의 스팀 닉네임이 내 닉네임과 같다면, 내가 과거에 켰던 유령 세션이므로 패스합니다.
-				auto IdentityInterface = IOnlineSubsystem::Get()->GetIdentityInterface();
-				if (IdentityInterface.IsValid())
-				{
-					FString MySteamName = IdentityInterface->GetPlayerNickname(0);
-					if (Result.Session.OwningUserName == MySteamName)
-					{
-						continue; 
-					}
-				}
+	if (!SessionSearch.IsValid())
+	{
+		UE_LOG(LogTemp, Error, TEXT("SessionSearch Invalid"));
+		return;
+	}
 
-				// [조건 검사] 공개된 빈 자리가 1개 이상 남아있는 방인지 확인합니다.
-				if (Result.Session.NumOpenPublicConnections > 0)
-				{
-					bFoundValidSession = true;
-					TargetSessionIndex = i;
-					break; // 조건에 맞는 가장 첫 번째 진짜 방을 타겟으로 잡고 루프를 탈출합니다.
-				}
-				 */
-			}
-		}
-		// ★ [수정 조건문] 인덱스 0 하드코딩 검사에서 필터링된 타겟 검사로 변경
-		if (bFoundValidSession && TargetSessionIndex != -1)
+	int32 FoundCount = SessionSearch->SearchResults.Num();
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Search Result Count : %d"),
+		FoundCount);
+
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(
+			-1,
+			5.f,
+			FColor::Green,
+			FString::Printf(TEXT("[Multiplay] Found %d Sessions"), FoundCount));
+	}
+
+	FString MySteamName;
+
+	if (ULocalPlayer* LocalPlayer = GetFirstGamePlayer())
+	{
+		MySteamName = LocalPlayer->GetNickname();
+
+		UE_LOG(LogTemp, Warning,
+			TEXT("My Steam Name : %s"),
+			*MySteamName);
+	}
+
+	bool bFoundValidSession = false;
+	int32 TargetSessionIndex = INDEX_NONE;
+
+	//---------------------------------------------------------
+	// 모든 검색 결과 출력
+	//---------------------------------------------------------
+
+	for (int32 i = 0; i < SessionSearch->SearchResults.Num(); ++i)
+	{
+		const FOnlineSessionSearchResult& Result =
+			SessionSearch->SearchResults[i];
+
+		UE_LOG(LogTemp, Warning, TEXT("--------------------------------"));
+
+		if (!Result.IsValid())
 		{
-			if (GEngine)
-			{
-				GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Orange, TEXT("⏳ 진입 가능한 다른 유저의 서버가 있습니다. 0.2초간 대기합니다..."));
-			}
-       
-			FTimerHandle JoinDelayTimer;
-			// ★ [수정] 무조건 0번 인덱스가 아니라, 위에서 찾아낸 안전한 TargetSessionIndex로 접속합니다.
-			GetWorld()->GetTimerManager().SetTimer(JoinDelayTimer, FTimerDelegate::CreateUObject(this, &USGMultiplayGameInstance::JoinServer, TargetSessionIndex), 0.2f, false);
+			UE_LOG(LogTemp, Warning,
+				TEXT("[%d] Invalid Search Result"),
+				i);
+			continue;
 		}
-		else
+
+		FString MapName;
+		Result.Session.SessionSettings.Get(
+			SETTING_MAPNAME,
+			MapName);
+
+		UE_LOG(LogTemp, Warning,
+			TEXT("[%d] Host : %s"),
+			i,
+			*Result.Session.OwningUserName);
+
+		UE_LOG(LogTemp, Warning,
+			TEXT("[%d] Ping : %d"),
+			i,
+			Result.PingInMs);
+
+		UE_LOG(LogTemp, Warning,
+			TEXT("[%d] Map : %s"),
+			i,
+			*MapName);
+
+		UE_LOG(LogTemp, Warning,
+			TEXT("[%d] Open Connection : %d"),
+			i,
+			Result.Session.NumOpenPublicConnections);
+
+		UE_LOG(LogTemp, Warning,
+			TEXT("[%d] Max Connection : %d"),
+			i,
+			Result.Session.SessionSettings.NumPublicConnections);
+
+		UE_LOG(LogTemp, Warning,
+			TEXT("[%d] SessionInfo Valid : %s"),
+			i,
+			Result.Session.SessionInfo.IsValid()
+			? TEXT("YES")
+			: TEXT("NO"));
+
+		//-----------------------------------------------------
+		// 내 세션 제외
+		//-----------------------------------------------------
+
+		if (!MySteamName.IsEmpty() &&
+			Result.Session.OwningUserName == MySteamName)
 		{
-			// 타인이 만든 정상적인 방이 없거나 내 유령 방만 잡힌 경우, 안전하게 내가 방장이 됩니다.
-			UE_LOG(LogTemp, Warning, TEXT("[Multiplay] 진입 가능한 다른 방이 없습니다. 직접 서버를 생성합니다."));
-			if (GEngine)
-			{
-				GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Orange, TEXT("⚠ 진입 가능한 타인의 방이 없습니다. 직접 방장이 되어 방을 개설합니다!"));
-			}
-			CreateServer();
+			UE_LOG(LogTemp, Warning,
+				TEXT("[%d] Skip My Session"),
+				i);
+			continue;
 		}
+
+		//-----------------------------------------------------
+		// 맵 체크
+		//-----------------------------------------------------
+
+		if (MapName != TEXT("SG_LobbyLevel"))
+		{
+			UE_LOG(LogTemp, Warning,
+				TEXT("[%d] Skip (Different Map)"),
+				i);
+			continue;
+		}
+
+		//-----------------------------------------------------
+		// 빈 자리 체크
+		//-----------------------------------------------------
+
+		if (Result.Session.NumOpenPublicConnections <= 0)
+		{
+			UE_LOG(LogTemp, Warning,
+				TEXT("[%d] Skip (No Empty Slot)"),
+				i);
+			continue;
+		}
+
+		//-----------------------------------------------------
+		// SessionInfo 체크
+		//-----------------------------------------------------
+
+		if (!Result.Session.SessionInfo.IsValid())
+		{
+			UE_LOG(LogTemp, Warning,
+				TEXT("[%d] Skip (SessionInfo Invalid)"),
+				i);
+			continue;
+		}
+
+		//-----------------------------------------------------
+		// 조건 만족
+		//-----------------------------------------------------
+
+		UE_LOG(LogTemp, Warning,
+			TEXT("[%d] Selected Session"),
+			i);
+
+		bFoundValidSession = true;
+		TargetSessionIndex = i;
+		break;
+	}
+
+	//---------------------------------------------------------
+	// Join
+	//---------------------------------------------------------
+
+	if (bFoundValidSession)
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("Join Target Index : %d"),
+			TargetSessionIndex);
+
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(
+				-1,
+				5.f,
+				FColor::Yellow,
+				TEXT("[Multiplay] Valid Session Found"));
+		}
+
+		FTimerHandle TimerHandle;
+
+		GetWorld()->GetTimerManager().SetTimer(
+			TimerHandle,
+			FTimerDelegate::CreateUObject(
+				this,
+				&USGMultiplayGameInstance::JoinServer,
+				TargetSessionIndex),
+			2.0f,      // 기존 0.2 -> 2초
+			false);
 	}
 	else
 	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("No Valid Session -> CreateServer"));
+
 		if (GEngine)
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Red, TEXT("❌ [Multiplay] 세션 네트워크 검색 쿼리 실패!"));
+			GEngine->AddOnScreenDebugMessage(
+				-1,
+				5.f,
+				FColor::Orange,
+				TEXT("[Multiplay] No Valid Session. Create Server."));
 		}
+
+		CreateServer();
 	}
-	/*
-		
-		// 검색된 방이 있고, 그 방의 핑과 정보가 유효한지 꼼꼼하게 교차 검증
-		if (SessionSearch->SearchResults.Num() > 0 && SessionSearch->SearchResults[0].IsValid())
-		{
-			// ◀ [안정성 추가] 발견 즉시 접속하기보다, 서버가 완전히 열리도록 0.2초 정도만 살짝 대기 후 접속합니다.
-			if (GEngine)
-			{
-				GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Orange, TEXT("⏳ 기존 서버가 있습니다. 안전한 진입을 위해 0.2초간 대기합니다..."));
-			}
-			
-			FTimerHandle JoinDelayTimer;
-			GetWorld()->GetTimerManager().SetTimer(JoinDelayTimer, FTimerDelegate::CreateUObject(this, &USGMultiplayGameInstance::JoinServer, 0), 0.2f, false);
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[Multiplay] 빈 방이 없습니다. 직접 서버를 생성합니다."));
-			if (GEngine)
-			{
-				GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Orange, TEXT("⚠ 진입 가능한 방이 없습니다. 직접 방장이 되어 방을 개설합니다!"));
-			}
-			CreateServer();
-		}
-	}
-	else
-	{
-		// =========================================================================
-		// ★ [화면 로그 추가] 검색 실패 시 예외 처리 화면 출력 (빨간색, 10초)
-		// =========================================================================
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Red, TEXT("❌ [Multiplay] 세션 네트워크 검색 쿼리 실패!"));
-		}
-	}
-	
-	 */
+
+	UE_LOG(LogTemp, Warning, TEXT("=========================================="));
 }
+
 
 void USGMultiplayGameInstance::OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result)
 {
 	if (SessionInterface.IsValid())
 	{
-		SessionInterface->ClearOnJoinSessionCompleteDelegate_Handle(JoinSessionCompleteDelegateHandle);
+		SessionInterface->ClearOnJoinSessionCompleteDelegate_Handle(
+			JoinSessionCompleteDelegateHandle);
 	}
-	
+
+	UE_LOG(LogTemp, Warning, TEXT("=========================================="));
+	UE_LOG(LogTemp, Warning, TEXT("OnJoinSessionComplete()"));
+
+	FString ResultString;
+
+	switch (Result)
+	{
+	case EOnJoinSessionCompleteResult::Success:
+		ResultString = TEXT("Success");
+		break;
+
+	case EOnJoinSessionCompleteResult::SessionIsFull:
+		ResultString = TEXT("SessionIsFull");
+		break;
+
+	case EOnJoinSessionCompleteResult::SessionDoesNotExist:
+		ResultString = TEXT("SessionDoesNotExist");
+		break;
+
+	case EOnJoinSessionCompleteResult::CouldNotRetrieveAddress:
+		ResultString = TEXT("CouldNotRetrieveAddress");
+		break;
+
+	case EOnJoinSessionCompleteResult::AlreadyInSession:
+		ResultString = TEXT("AlreadyInSession");
+		break;
+
+	case EOnJoinSessionCompleteResult::UnknownError:
+		ResultString = TEXT("UnknownError");
+		break;
+
+	default:
+		ResultString = TEXT("Unknown");
+		break;
+	}
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Join Result : %s"),
+		*ResultString);
+
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(
+			-1,
+			5.f,
+			Result == EOnJoinSessionCompleteResult::Success
+				? FColor::Green
+				: FColor::Red,
+			FString::Printf(
+				TEXT("[Multiplay] Join Result : %s"),
+				*ResultString));
+	}
+
+	//------------------------------------------------------------
+	// Join 성공
+	//------------------------------------------------------------
+
 	if (Result == EOnJoinSessionCompleteResult::Success)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Multiplay] 방 접속 성공! 로딩을 시작합니다."));
-		
-		// 스팀 서버로부터 들어갈 방의 실제 네트워크 주소를 받기
 		FString ConnectInfo;
-		if (SessionInterface->GetResolvedConnectString(NAME_GameSession, ConnectInfo))
+
+		bool bResolved =
+			SessionInterface->GetResolvedConnectString(
+				NAME_GameSession,
+				ConnectInfo);
+
+		UE_LOG(LogTemp, Warning,
+			TEXT("GetResolvedConnectString : %s"),
+			bResolved ? TEXT("SUCCESS") : TEXT("FAIL"));
+
+		if (!bResolved)
 		{
-			
-			UE_LOG(LogTemp, Warning, TEXT("[Multiplay] 방 접속에 성공했습니다!"));
-			UE_LOG(LogTemp, Warning, TEXT("[Multiplay] 대상 서버 연결 정보(Resolved Address): %s"), *ConnectInfo);
-          
+			UE_LOG(LogTemp, Error,
+				TEXT("ConnectString 획득 실패"));
+
 			if (GEngine)
 			{
-				// 인게임 화면에 녹색 글씨로 연결 주소를 15초간 띄워줍니다.
-				GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Green, 
-				   FString::Printf(TEXT("[Multiplay] 접속 완료! 주소: %s"), *ConnectInfo));
+				GEngine->AddOnScreenDebugMessage(
+					-1,
+					10.f,
+					FColor::Red,
+					TEXT("[Multiplay] ConnectString 획득 실패"));
 			}
-			
-			
-			APlayerController* PlayerController = GetFirstLocalPlayerController(0);
-			if (PlayerController)
-			{
-				PlayerController->ClientTravel(ConnectInfo, ETravelType::TRAVEL_Absolute);
-			}
+
+			return;
 		}
-		else
+
+		UE_LOG(LogTemp, Warning,
+			TEXT("ConnectString : %s"),
+			*ConnectInfo);
+
+		if (GEngine)
 		{
-			UE_LOG(LogTemp, Error, TEXT("[Multiplay] 세션 접속은 성공했으나, 연결 주소(ConnectString)를 가져오는데 실패했습니다."));
-			if (GEngine)
-			{
-				GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Red, TEXT("[Multiplay] 에러: 연결 주소 획득 실패!"));
-			}
+			GEngine->AddOnScreenDebugMessage(
+				-1,
+				10.f,
+				FColor::Green,
+				FString::Printf(
+					TEXT("[Multiplay] ClientTravel -> %s"),
+					*ConnectInfo));
 		}
-		
+
+		APlayerController* PlayerController =
+			GetFirstLocalPlayerController();
+
+		if (PlayerController == nullptr)
+		{
+			UE_LOG(LogTemp, Error,
+				TEXT("PlayerController == nullptr"));
+
+			return;
+		}
+
+		UE_LOG(LogTemp, Warning,
+			TEXT("ClientTravel Start"));
+
+		PlayerController->ClientTravel(
+			ConnectInfo,
+			ETravelType::TRAVEL_Absolute);
+
+		UE_LOG(LogTemp, Warning,
+			TEXT("ClientTravel End"));
 	}
 	else
 	{
-		FString FailReason = TEXT("알 수 없음");
-		switch (Result)
-		{
-		case EOnJoinSessionCompleteResult::SessionIsFull: 
-			FailReason = TEXT("방이 가득 찼습니다 (Full)"); 
-			break;
-		case EOnJoinSessionCompleteResult::SessionDoesNotExist: 
-			FailReason = TEXT("존재하지 않는 방입니다"); 
-			break;
-		case EOnJoinSessionCompleteResult::CouldNotRetrieveAddress: 
-			FailReason = TEXT("주소를 불러올 수 없습니다"); 
-			break;
-		case EOnJoinSessionCompleteResult::AlreadyInSession: 
-			FailReason = TEXT("이미 세션에 참가 중입니다"); 
-			break;
-		case EOnJoinSessionCompleteResult::UnknownError: 
-			FailReason = TEXT("알 수 없는 에러"); 
-			break;
-		}
+		//--------------------------------------------------------
+		// Join 실패
+		//--------------------------------------------------------
 
-		
-		UE_LOG(LogTemp, Error, TEXT("[Multiplay] 방 접속에 실패했습니다. 사유: %s"), *FailReason);
+		UE_LOG(LogTemp, Error,
+			TEXT("Join Failed : %s"),
+			*ResultString);
+
 		if (GEngine)
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Red, 
-			   FString::Printf(TEXT("[Multiplay] 접속 실패: %s"), *FailReason));
+			GEngine->AddOnScreenDebugMessage(
+				-1,
+				10.f,
+				FColor::Red,
+				FString::Printf(
+					TEXT("[Multiplay] Join Failed : %s"),
+					*ResultString));
 		}
-		// =========================================================================
 	}
-	
+
+	UE_LOG(LogTemp, Warning, TEXT("=========================================="));
 }
