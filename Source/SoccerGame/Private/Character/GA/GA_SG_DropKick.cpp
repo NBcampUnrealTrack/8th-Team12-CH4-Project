@@ -9,6 +9,7 @@
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "AbilitySystemGlobals.h"
 #include "AbilitySystemInterface.h"
+#include "Character/SG_Character.h"
 
 UGA_SG_DropKick::UGA_SG_DropKick()
 {
@@ -116,20 +117,20 @@ void UGA_SG_DropKick::PushBall(AActor* BallActor)
     UStaticMeshComponent* BallMesh = Cast<UStaticMeshComponent>(BallActor->GetRootComponent());
     if (BallMesh && BallMesh->IsSimulatingPhysics())
     {
-        float DropKickPower = 2500.f;
+        float DropKickPower = 0.f;
         UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
         if (ASC)
         {
             const UGAS_SG_CharacterAttributeSet* AttributeSet = ASC->GetSet<UGAS_SG_CharacterAttributeSet>();
             if (AttributeSet)
             {
-                DropKickPower = AttributeSet->GetKickPower() * 2.f;
+                DropKickPower = AttributeSet->GetKickPower() * KickPowerMultiplier;
             }
         }
 
         // 캐릭터가 날아가는 방향 기반으로 강하게 밀어내기
         FVector PushDirection = (BallActor->GetActorLocation() - Character->GetActorLocation()).GetSafeNormal();
-        PushDirection.Z += 1.0f;
+        PushDirection.Z += UpwardForceRatio;
         PushDirection = PushDirection.GetSafeNormal();
 
         BallMesh->AddImpulse(PushDirection * DropKickPower, NAME_None, true);
@@ -159,6 +160,27 @@ void UGA_SG_DropKick::ApplyDamageToTarget(AActor* HitEnemy, const FGameplayEvent
     if (!MyASC || !TargetASC)
     {
         return;
+    }
+    
+    HitEnemy = const_cast<AActor*>(Payload.Target.Get());
+    ACharacter* Attacker = Cast<ACharacter>(GetAvatarActorFromActorInfo());
+
+    if (ASG_Character* VictimCharacter = Cast<ASG_Character>(HitEnemy))
+    {
+        // 공격 방향 계산 (공격자 -> 피격자 방향)
+        FVector LaunchDirection = (VictimCharacter->GetActorLocation() - Attacker->GetActorLocation()).GetSafeNormal();
+        
+        // 드롭킥 각도 보정
+        LaunchDirection.Z += RagdollUpwardForceRatio; 
+        LaunchDirection = LaunchDirection.GetSafeNormal();
+
+        // 충격량
+        float DropKickPower = 2500.0f * RagdollKickPowerMultiplier;
+        FVector HitImpulse = LaunchDirection * DropKickPower;
+        FVector HitLocation = VictimCharacter->GetActorLocation();
+
+        // 멀티캐스트로 피격자 래그돌 실행
+        VictimCharacter->MulticastEnableRagdoll(HitImpulse, HitLocation);
     }
 
     UE_LOG(LogTemp, Warning, TEXT("%s에게 드롭킥 날리기 성공"), *HitEnemy->GetName());
