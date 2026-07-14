@@ -407,11 +407,29 @@ void ASG_Character::ServerDisableRagdoll()
 	FVector HipsLocation = MeshComp->GetSocketLocation(TEXT("Hips"));
 	FRotator HipsRotation = MeshComp->GetSocketRotation(TEXT("Hips"));
 	bool bIsFaceDown = IsRagdollFaceDown();
+	
+	// LineTrace로 정확한 지형 바닥점 찾기
+	FVector Start = HipsLocation + FVector(0.0f, 0.0f, 50.0f);
+	FVector End = HipsLocation - FVector(0.0f, 0.0f, 150.0f);
+	
+	FHitResult HitResult;
+	FCollisionQueryParams QueryParams;
+	QueryParams.AddIgnoredActor(this);
 
 	// 동기화할 캡슐 위치 및 회전값 연산
-	FVector NewCapsuleLocation = HipsLocation;
-	NewCapsuleLocation.Z += CapsuleComp->GetScaledCapsuleHalfHeight();
+	// FVector NewCapsuleLocation = HipsLocation;
+	// NewCapsuleLocation.Z += CapsuleComp->GetScaledCapsuleHalfHeight();
 
+	FVector NewCapsuleLocation = HipsLocation;
+	if (GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility, QueryParams))
+	{
+		NewCapsuleLocation.Z = HitResult.ImpactPoint.Z + CapsuleComp->GetScaledCapsuleHalfHeight();
+	}
+	else
+	{
+		NewCapsuleLocation.Z += CapsuleComp->GetScaledCapsuleHalfHeight();
+	}
+	
 	FRotator NewCapsuleRotation = FRotator(0.0f, HipsRotation.Yaw, 0.0f);
 	if (bIsFaceDown)
 	{
@@ -450,8 +468,8 @@ void ASG_Character::DisableRagdollInternal(FVector TargetLocation, FRotator Targ
 	MeshComp->SetCollisionProfileName(TEXT("CharacterMesh"));
 	
 	// 서버에서 결정된 동기화 위치로 캡슐 이동
-	CapsuleComp->SetWorldLocation(TargetLocation);
-	CapsuleComp->SetWorldRotation(TargetRotation);
+	CapsuleComp->SetWorldLocation(TargetLocation, false, nullptr, ETeleportType::TeleportPhysics);
+	CapsuleComp->SetWorldRotation(TargetRotation, false, nullptr, ETeleportType::TeleportPhysics);
 	CapsuleComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	
 	// 메쉬 상대 위치 오프셋 원복
