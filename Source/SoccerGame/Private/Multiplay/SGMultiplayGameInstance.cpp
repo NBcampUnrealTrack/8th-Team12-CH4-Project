@@ -107,8 +107,9 @@ void USGMultiplayGameInstance::CreateServer()
 		SessionSettings.bUsesPresence = true; // 스팀의 Presence(현재 상태) 기능 사용
 		SessionSettings.bUseLobbiesIfAvailable = true; 
 		 */
+		SessionSettings.bUsesPresence = true;
 		SessionSettings.bUseLobbiesIfAvailable = true;
-		SessionSettings.bUseLobbiesVoiceChatIfAvailable = false; // 보이스챗은 일단 안전하게 끔
+		SessionSettings.bUseLobbiesVoiceChatIfAvailable = true; // 보이스챗은 일단 안전하게 끔
 		
 		// ◀ 스팀 검색 정확도를 높이기 위한 커스텀 세팅 (나의 프로젝트 전용 방 식별용)
 		SessionSettings.Settings.Add(SETTING_MAPNAME, FOnlineSessionSetting(FString("SG_LobbyLevel"), EOnlineDataAdvertisementType::ViaOnlineService));
@@ -165,6 +166,8 @@ void USGMultiplayGameInstance::FindServers()
 		if (!bIsLAN)
 		{
 			SessionSearch->MaxSearchResults = 100; // 스팀 검색 개수 제한
+			
+			// ★ 이 두 쿼리 값이 호스트 세팅과 일치해야 조인할 때 에러가 나지 않습니다.
 			SessionSearch->QuerySettings.Set(SEARCH_PRESENCE, true, EOnlineComparisonOp::Equals);
 			SessionSearch->QuerySettings.Set(SEARCH_LOBBIES, true, EOnlineComparisonOp::Equals); // 로비 검색 필터 추가
 		}
@@ -282,10 +285,6 @@ void USGMultiplayGameInstance::OnFindSessionsComplete(bool bWasSuccessful)
 					UE_LOG(LogTemp, Log, TEXT("[Multiplay] 내가 만든 유령 세션을 발견하여 제외합니다: %s"), *MySteamName);
 					continue; 
 				}
-				// -------------------------------------------------------------------------
-				// 2. [프로젝트 검증 필터] 진짜 우리 프로젝트의 맵 이름("SG_LobbyLevel")이 맞는지 체크
-				// Spacewar(480)의 다른 개발자 방과 섞이지 않도록 세션 내부 세팅값을 한 번 더 대조합니다.
-				// -------------------------------------------------------------------------
 				FString FoundMapName;
 				Result.Session.SessionSettings.Get(SETTING_MAPNAME, FoundMapName);
 				if (FoundMapName != FString("SG_LobbyLevel"))
