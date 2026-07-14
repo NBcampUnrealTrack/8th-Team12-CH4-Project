@@ -389,14 +389,6 @@ void ASG_Character::EnableRagdoll(FVector HitImpulse, FVector HitLocation)
 	}
 }
 
-void ASG_Character::CacheRagdollPoseSnapshot()
-{
-	if (UAnimInstance* AnimInst = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr)
-	{
-		AnimInst->SavePoseSnapshot(FName("RagdollFinalPose"));
-	}
-}
-
 void ASG_Character::ServerDisableRagdoll()
 {
 	if (!HasAuthority())
@@ -445,28 +437,18 @@ void ASG_Character::DisableRagdollInternal(FVector TargetLocation, FRotator Targ
     {
 	    return;
     }
-
+	
     // 시뮬레이션 끄기 직전 포즈 스냅샷 저장 (AnimBP 연결용)
     CacheRagdollPoseSnapshot();
 	
-	// 방향에 맞는 GetUp 몽타주 재생
-	UAnimMontage* TargetMontage = bIsFaceDown ? GetUpFrontMontage : GetUpBackMontage;
-	UAnimInstance* AnimInst = MeshComp ? MeshComp->GetAnimInstance() : nullptr;
-	if (TargetMontage && AnimInst)
-	{
-		AnimInst->Montage_Play(TargetMontage, 1.0f, EMontagePlayReturnType::MontageLength, 0.0f, true);
-        
-		FOnMontageEnded EndedDelegate;
-		EndedDelegate.BindUObject(this, &ASG_Character::OnGetUpMontageEnded);
-		AnimInst->Montage_SetEndDelegate(EndedDelegate, TargetMontage);
-	}
+	bIsRecoveringFromRagdoll = true;
 	
 	// 물리 및 속도 초기화
 	MeshComp->SetAllPhysicsLinearVelocity(FVector::ZeroVector);
 	MeshComp->SetAllPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
 	MeshComp->SetSimulatePhysics(false);
 	MeshComp->SetCollisionProfileName(TEXT("CharacterMesh"));
-
+	
 	// 서버에서 결정된 동기화 위치로 캡슐 이동
 	CapsuleComp->SetWorldLocation(TargetLocation);
 	CapsuleComp->SetWorldRotation(TargetRotation);
@@ -482,6 +464,32 @@ void ASG_Character::DisableRagdollInternal(FVector TargetLocation, FRotator Targ
 	{
 		CameraBoom->AttachToComponent(CapsuleComp, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 		CameraBoom->SetRelativeLocation(FVector(0.0f, 0.0f, 0.0f));
+	}
+	
+	// 방향에 맞는 GetUp 몽타주 재생
+	UAnimMontage* TargetMontage = bIsFaceDown ? GetUpFrontMontage : GetUpBackMontage;
+	UAnimInstance* AnimInst = MeshComp ? MeshComp->GetAnimInstance() : nullptr;
+	if (TargetMontage && AnimInst)
+	{
+		AnimInst->Montage_Play(TargetMontage, 1.0f, EMontagePlayReturnType::MontageLength, 0.0f, true);
+        
+		FOnMontageEnded EndedDelegate;
+		EndedDelegate.BindUObject(this, &ASG_Character::OnGetUpMontageEnded);
+		AnimInst->Montage_SetEndDelegate(EndedDelegate, TargetMontage);
+	}
+	else
+	{
+		// 몽타주가 없는 예외 경우 복구
+		bIsRecoveringFromRagdoll = false;
+		MovementComp->SetMovementMode(EMovementMode::MOVE_Walking);
+	}
+}
+
+void ASG_Character::CacheRagdollPoseSnapshot()
+{
+	if (UAnimInstance* AnimInst = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr)
+	{
+		AnimInst->SavePoseSnapshot(FName("RagdollFinalPose"));
 	}
 }
 
@@ -504,6 +512,8 @@ bool ASG_Character::IsRagdollFaceDown() const
 // 일어나기 애니메이션이 끝나면 조작 및 이동 가능 상태로 전환
 void ASG_Character::OnGetUpMontageEnded(UAnimMontage* Montage, bool bInterrupted)
 {
+	bIsRecoveringFromRagdoll = false;
+	
     if (UCharacterMovementComponent* MovementComp = GetCharacterMovement())
     {
         MovementComp->SetMovementMode(EMovementMode::MOVE_Walking);
