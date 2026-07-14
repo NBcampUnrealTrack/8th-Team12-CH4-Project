@@ -3,9 +3,12 @@
 
 #include "Item/Ability/GA_SGBomb.h"
 
+#include "AbilitySystemComponent.h"
+#include "AbilitySystemGlobals.h"
 #include "Engine/OverlapResult.h"
 #include "GameFramework/Character.h"
 #include "Item/Preview/SGProjectileBase.h"
+#include "PlayerState/SGMainPlayerState.h"
 
 UGA_SGBomb::UGA_SGBomb() :
 	TargetDistance(600.f),
@@ -139,5 +142,46 @@ void UGA_SGBomb::ApplyAreaImpulse(const FVector& Origin)
 		
 		// Impulse 적용
 		TargetCharacter->LaunchCharacter(Direction * AreaImpulseStrength, true, true);
+		
+		if (IsOtherTeam(TargetCharacter)){
+			ApplyDamageEffect(TargetCharacter);
+		}
 	}
+}
+
+bool UGA_SGBomb::IsOtherTeam(AActor* TargetActor) const
+{
+	if (CurrentActorInfo == nullptr || !CurrentActorInfo->AvatarActor.IsValid() || !IsValid(TargetActor)) return false;
+	
+	APawn* OwnerPawn = Cast<APawn>(CurrentActorInfo->AvatarActor.Get());
+	APawn* TargetPawn = Cast<APawn>(TargetActor);
+	if (OwnerPawn == nullptr || TargetPawn == nullptr) return false;
+	
+	AController* OwnerController = OwnerPawn->GetController();
+	AController* TargetController = TargetPawn->GetController();
+	if (OwnerController == nullptr || TargetController == nullptr) return false;
+	
+	ASGMainPlayerState* OwnerPlayerState = OwnerController->GetPlayerState<ASGMainPlayerState>();
+	ASGMainPlayerState* TargetPlayerState = TargetController->GetPlayerState<ASGMainPlayerState>();
+	if (OwnerPlayerState == nullptr || TargetPlayerState == nullptr) return false;
+	
+	return OwnerPlayerState->CurrentTeamTag != TargetPlayerState->CurrentTeamTag;
+}
+
+void UGA_SGBomb::ApplyDamageEffect(AActor* TargetActor)
+{
+	if (DamageEffectClass == nullptr || CurrentActorInfo == nullptr) return;
+	
+	UAbilitySystemComponent* OwnerASC = GetAbilitySystemComponentFromActorInfo();
+	UAbilitySystemComponent* TargetASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(TargetActor);
+	
+	if (OwnerASC == nullptr || TargetASC == nullptr) return;
+	
+	FGameplayEffectContextHandle EffectContext = OwnerASC->MakeEffectContext();
+	EffectContext.AddSourceObject(this);
+	
+	FGameplayEffectSpecHandle EffectSpecHandle = OwnerASC->MakeOutgoingSpec(DamageEffectClass, 1.f, EffectContext);
+	if (!EffectSpecHandle.IsValid()) return;
+	
+	OwnerASC->ApplyGameplayEffectSpecToTarget(*EffectSpecHandle.Data.Get(), TargetASC);
 }

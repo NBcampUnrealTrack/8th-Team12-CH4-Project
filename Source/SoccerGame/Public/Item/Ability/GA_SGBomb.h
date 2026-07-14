@@ -28,11 +28,19 @@ protected:
 private:
 	UFUNCTION()
 	void HandleProjectileFinished(ASGProjectileBase* Projectile);
+	
 	void ApplyAreaImpulse(const FVector& Origin);
+	
+	bool IsOtherTeam(AActor* TargetActor) const;
+	
+	void ApplyDamageEffect(AActor* TargetActor);
 	
 private:
 	UPROPERTY(EditDefaultsOnly, Category = "Item")
 	TSubclassOf<ASGProjectileBase> BombProjectileClass;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "Item")
+	TSubclassOf<UGameplayEffect> DamageEffectClass;
 	
 	UPROPERTY()
 	TObjectPtr<ASGProjectileBase> PreviewProjectileActor;
