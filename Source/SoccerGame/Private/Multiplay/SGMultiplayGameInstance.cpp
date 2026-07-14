@@ -200,6 +200,7 @@ void USGMultiplayGameInstance::JoinServer(int32 SessionIndex)
 
 	if (!SessionSearch.IsValid())
 	{
+		UE_LOG(LogTemp, Error, TEXT("SessionSearch Invalid"));
 		return;
 	}
 
