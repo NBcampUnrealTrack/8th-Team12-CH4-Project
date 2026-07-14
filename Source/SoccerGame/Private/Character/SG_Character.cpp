@@ -489,11 +489,21 @@ void ASG_Character::DisableRagdollInternal(FVector TargetLocation, FRotator Targ
 	UAnimInstance* AnimInst = MeshComp ? MeshComp->GetAnimInstance() : nullptr;
 	if (TargetMontage && AnimInst)
 	{
-		AnimInst->Montage_Play(TargetMontage, 1.0f, EMontagePlayReturnType::MontageLength, 0.0f, true);
-        
-		FOnMontageEnded EndedDelegate;
-		EndedDelegate.BindUObject(this, &ASG_Character::OnGetUpMontageEnded);
-		AnimInst->Montage_SetEndDelegate(EndedDelegate, TargetMontage);
+		const float PlayedDuration = AnimInst->Montage_Play(TargetMontage, 1.0f, EMontagePlayReturnType::MontageLength, 0.0f, true);
+		
+		if (PlayedDuration > 0.0f)
+		{
+			FOnMontageEnded EndedDelegate;
+			EndedDelegate.BindUObject(this, &ASG_Character::OnGetUpMontageEnded);
+			AnimInst->Montage_SetEndDelegate(EndedDelegate, TargetMontage);
+		}
+		else
+		{
+			// 몽타주 재생 실패시 예외 처리 (캐릭터 굳음 방지)
+			UE_LOG(Log_SG_Character, Warning, TEXT("[%s] DisableRagdollInternal: Montage_Play Failed (Duration is 0.0)"), *GetName());
+			bIsRecoveringFromRagdoll = false;
+			MovementComp->SetMovementMode(EMovementMode::MOVE_Walking);
+		}
 	}
 	else
 	{

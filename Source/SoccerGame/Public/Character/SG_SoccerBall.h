@@ -9,9 +9,7 @@
 // -------------------------------------- 공 물리 설계 -------------------------------------- //
 // 기본적으로 서버에서 공을 관리, 공을 터치하면 서버가 Owner를 부여하고 해당 클라의 공의 상태를 서버로 복제
 // 기본 Physics는 Tick으로 매번 복제하지만 위치, 속도는 복제 횟수를 줄여서 서버의 부하를 줄인다.
-// 
 // Owner를 제외한 다른 클라에서는 위 복제값을 이용하여 (Prediction + Interpolation)을 실행해서 자연스러운 움직임을 보여주게 설정
-// 며칠동안 공만 보니까 토나온다.
 
 
 // 복제될 축구공 상태를 담은 구조체
@@ -21,13 +19,16 @@ struct FBallState
 	GENERATED_BODY()
 
 	UPROPERTY()
-	FVector Location;
+	FVector Location = FVector::ZeroVector;
+
 	UPROPERTY()
-	FVector LinearVelocity;
+	FVector LinearVelocity = FVector::ZeroVector;
+
 	UPROPERTY()
-	FVector AngularVelocity;
+	FVector AngularVelocity = FVector::ZeroVector;
+
 	UPROPERTY()
-	FRotator Rotation;
+	FRotator Rotation = FRotator::ZeroRotator;
 };
 
 UCLASS()
