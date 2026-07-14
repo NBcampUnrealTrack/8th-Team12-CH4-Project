@@ -8,7 +8,7 @@
 #include "OnlineSessionSettings.h"
 #include "SGMultiplayGameInstance.generated.h"
 
-//class FOnlineSessionSearch;
+class FOnlineSessionSearch;
 /**
  * 
  */

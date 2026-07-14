@@ -255,6 +255,8 @@ void ASGLobbyGameMode::TransitionToGameLevel()
 
 void ASGLobbyGameMode::NotifyAllPlayers(const FString& Message)
 {
+	// [방어 코드 1] GameMode(this) 자체가 아직 월드에 유효하게 살아있는지 먼저 확인
+	if (!IsValid(this) || !GetWorld()) return;
 	// 월드 내의 모든 플레이어 컨트롤러를 순회하며 메시지를 전달합니다.
 	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
 	{
