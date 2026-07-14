@@ -120,4 +120,12 @@ private:
 	
 	// Preview 여부
 	bool bPreview;
+	
+	// 바닥, 벽 충돌 처리 여부
+	UPROPERTY(EditAnywhere, Category = "Projectile")
+	bool bDestroyOnSurface;
+	
+	// 튕기는 정도
+	UPROPERTY(EditAnywhere, Category = "Projectile|Bounce")
+	float Bounciness;
 };
