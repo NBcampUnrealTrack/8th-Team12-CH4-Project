@@ -7,6 +7,8 @@
 #include "OnlineSubsystem.h"
 #include "Online/OnlineSessionNames.h"
 #include "Interfaces/OnlineIdentityInterface.h"
+#include "Kismet/GameplayStatics.h"
+
 
 void USGMultiplayGameInstance::OnDestroySessionComplete(FName SessionName, bool bWasSuccessful)
 {
@@ -96,110 +98,160 @@ void USGMultiplayGameInstance::Init()
 
 void USGMultiplayGameInstance::CreateServer()
 {
-	if (SessionInterface.IsValid())
+	if (!SessionInterface.IsValid())
 	{
-		// 기존에 남아있는 세션 제거
-		auto ExistingSession = SessionInterface->GetNamedSession(NAME_GameSession);
-		if (ExistingSession != nullptr)
-		{
-			// ◀ 기존 세션이 있다면 파괴 델리게이트를 먼저 걸고 파괴 시작!
-			DestroySessionCompleteDelegateHandle = SessionInterface->AddOnDestroySessionCompleteDelegate_Handle(DestroySessionCompleteDelegate);
+		UE_LOG(LogTemp, Error,
+			TEXT("[Multiplay] SessionInterface Invalid"));
+		return;
+	}
+
+	//------------------------------------------------------------
+	// 기존 세션이 있으면 제거 후 다시 생성
+	//------------------------------------------------------------
+
+	if (FNamedOnlineSession* ExistingSession =
+		SessionInterface->GetNamedSession(NAME_GameSession))
+	{
+		DestroySessionCompleteDelegateHandle =
+			SessionInterface->AddOnDestroySessionCompleteDelegate_Handle(
+				DestroySessionCompleteDelegate);
+
+		const bool bDestroyStarted =
 			SessionInterface->DestroySession(NAME_GameSession);
-			return;
-		}
-		
-		// 방 생성 끝나면 알려주는 델리게이트 등록
-		CreateSessionCompleteDelegateHandle = SessionInterface->AddOnCreateSessionCompleteDelegate_Handle(CreateSessionCompleteDelegate);
-		
-		FOnlineSessionSettings SessionSettings;
-		
-		// 현재 활성화된 네트워크가 NULL이면 LAN모드(true)로, 스팀이면 인터넷 모드(false)로 자동 설정 
-		//SessionSettings.bIsLANMatch = IOnlineSubsystem::Get()->GetSubsystemName() == "NULL" ? true : false;
-		IOnlineSubsystem* OSS = IOnlineSubsystem::Get();
 
-		bool bIsLAN = true;
+		UE_LOG(LogTemp, Warning,
+			TEXT("[Multiplay] Existing session destroy started: %s"),
+			bDestroyStarted ? TEXT("TRUE") : TEXT("FALSE"));
 
-		if (OSS)
+		if (!bDestroyStarted)
 		{
-			bIsLAN = (OSS->GetSubsystemName() == "NULL");
+			SessionInterface
+				->ClearOnDestroySessionCompleteDelegate_Handle(
+					DestroySessionCompleteDelegateHandle);
+		}
 
-			UE_LOG(LogTemp, Warning,
-				TEXT("Subsystem : %s"),
-				*OSS->GetSubsystemName().ToString());
-		}
-		else
-		{
-			UE_LOG(LogTemp, Error,
-				TEXT("OnlineSubsystem == nullptr"));
-		}
-		SessionSettings.bIsLANMatch = bIsLAN;
-		
+		return;
+	}
+
+	//------------------------------------------------------------
+	// 활성화된 Online Subsystem 확인
+	//------------------------------------------------------------
+
+	IOnlineSubsystem* OSS = IOnlineSubsystem::Get();
+
+	if (!OSS)
+	{
+		UE_LOG(LogTemp, Error,
+			TEXT("[Multiplay] OnlineSubsystem == nullptr"));
+		return;
+	}
+
+	const bool bIsLAN =
+		OSS->GetSubsystemName() == FName(TEXT("NULL"));
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("[Multiplay] Subsystem=%s / Mode=%s"),
+		*OSS->GetSubsystemName().ToString(),
+		bIsLAN ? TEXT("LAN") : TEXT("STEAM"));
+
+	//------------------------------------------------------------
+	// LocalPlayer 확인
+	//------------------------------------------------------------
+
+	ULocalPlayer* LocalPlayer = GetFirstGamePlayer();
+
+	if (!LocalPlayer)
+	{
+		UE_LOG(LogTemp, Error,
+			TEXT("[Multiplay] LocalPlayer == nullptr"));
+
 		if (GEngine)
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Cyan, 
-			   FString::Printf(TEXT("[Multiplay] 서버 생성 시작... (모드: %s)"), bIsLAN ? TEXT("LAN") : TEXT("스팀 인터넷")));
-		}
-		UWorld* World = GetWorld();
-
-		if (!World)
-		{
-			UE_LOG(LogTemp, Error, TEXT("[Multiplay] GetWorld() == nullptr"));
-			return;
+			GEngine->AddOnScreenDebugMessage(
+				-1,
+				10.0f,
+				FColor::Red,
+				TEXT("[Multiplay] LocalPlayer를 찾을 수 없습니다."));
 		}
 
-		const FString LobbyMapPath =
-			TEXT("/Game/SoccerGame/Maps/System/SG_LobbyLevel?listen");
+		return;
+	}
 
-		UE_LOG(LogTemp, Warning,
-			TEXT("[Multiplay] ServerTravel Start : %s"),
-			*LobbyMapPath);
+	const FUniqueNetIdRepl PreferredNetId =
+		LocalPlayer->GetPreferredUniqueNetId();
 
-		bool bTravelResult = World->ServerTravel(LobbyMapPath);
+	if (!PreferredNetId.IsValid())
+	{
+		UE_LOG(LogTemp, Error,
+			TEXT("[Multiplay] PreferredUniqueNetId Invalid"));
+		return;
+	}
 
-		UE_LOG(LogTemp, Warning,
-			TEXT("[Multiplay] ServerTravel Return : %s"),
-			bTravelResult ? TEXT("TRUE") : TEXT("FALSE"));
-		// -------------------------------------------------------------------------
-		// ★ [스팀 수정 1] bIsLANMatch 하드코딩 제거 및 스팀 로비 활성화
-		// 기존 코드에 'SessionSettings.bIsLANMatch = false;'가 하드코딩되어 있어 
-		// LAN 모드 테스트 시 작동하지 않는 버그가 있었습니다. bIsLAN 값으로 대입하고,
-		// 스팀(인터넷) 환경일 때만 'bUseLobbiesIfAvailable'을 켜주도록 수정했습니다.
-		// -------------------------------------------------------------------------
-		SessionSettings.bIsLANMatch = bIsLAN; 
-		SessionSettings.NumPublicConnections = 6; 
-		SessionSettings.bAllowJoinInProgress = true; 
-		SessionSettings.bAllowJoinViaPresence = true; 
-		SessionSettings.bShouldAdvertise = true; 
-		/*
-		SessionSettings.bIsLANMatch = false;
-		SessionSettings.NumPublicConnections = 6; // 최대 인원수 TODO: 나중에 변수 가져오기
-		SessionSettings.bAllowJoinInProgress = true; // 게임 중 난입 허용 여부
-		SessionSettings.bAllowJoinViaPresence = true; // 스팀 친구창 등으로 접속 허용
-		SessionSettings.bShouldAdvertise = true; // 방이 검색되도록 허용
-		SessionSettings.bUsesPresence = true; // 스팀의 Presence(현재 상태) 기능 사용
-		SessionSettings.bUseLobbiesIfAvailable = true; 
-		 */
-		SessionSettings.bUsesPresence = true;
-		SessionSettings.bUseLobbiesIfAvailable = true;
-		SessionSettings.bUseLobbiesVoiceChatIfAvailable = true; // 보이스챗은 일단 안전하게 끔
-		
-		
-		// ◀ 스팀 검색 정확도를 높이기 위한 커스텀 세팅 (나의 프로젝트 전용 방 식별용)
-		SessionSettings.Settings.Add(SETTING_MAPNAME, FOnlineSessionSetting(FString("SG_LobbyLevel"), EOnlineDataAdvertisementType::ViaOnlineService));
-		// 엔진에 세션 생성 명령
-		ULocalPlayer* LocalPlayer = GetFirstGamePlayer();
-		//const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
-		if (LocalPlayer != nullptr)
+	//------------------------------------------------------------
+	// 세션 설정
+	//------------------------------------------------------------
+
+	FOnlineSessionSettings SessionSettings;
+
+	SessionSettings.bIsLANMatch = bIsLAN;
+	SessionSettings.NumPublicConnections = 6;
+	SessionSettings.NumPrivateConnections = 0;
+
+	SessionSettings.bShouldAdvertise = true;
+	SessionSettings.bAllowJoinInProgress = true;
+	SessionSettings.bAllowInvites = true;
+	SessionSettings.bAllowJoinViaPresence = true;
+	SessionSettings.bAllowJoinViaPresenceFriendsOnly = false;
+
+	// Steam Lobby에서는 두 값을 동일하게 유지
+	SessionSettings.bUsesPresence = !bIsLAN;
+	SessionSettings.bUseLobbiesIfAvailable = !bIsLAN;
+
+	// 실제 보이스 채팅을 사용하지 않는다면 false
+	SessionSettings.bUseLobbiesVoiceChatIfAvailable = false;
+
+	SessionSettings.Set(
+		SETTING_MAPNAME,
+		FString(TEXT("SG_LobbyLevel")),
+		EOnlineDataAdvertisementType::ViaOnlineService);
+
+	//------------------------------------------------------------
+	// CreateSession 완료 델리게이트 등록
+	//------------------------------------------------------------
+
+	CreateSessionCompleteDelegateHandle =
+		SessionInterface->AddOnCreateSessionCompleteDelegate_Handle(
+			CreateSessionCompleteDelegate);
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("[Multiplay] Before CreateSession: LAN=%d Presence=%d Lobby=%d"),
+		SessionSettings.bIsLANMatch,
+		SessionSettings.bUsesPresence,
+		SessionSettings.bUseLobbiesIfAvailable);
+
+	const bool bCreateStarted =
+		SessionInterface->CreateSession(
+			*PreferredNetId,
+			NAME_GameSession,
+			SessionSettings);
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("[Multiplay] CreateSession Return: %s"),
+		bCreateStarted ? TEXT("TRUE") : TEXT("FALSE"));
+
+	if (!bCreateStarted)
+	{
+		SessionInterface
+			->ClearOnCreateSessionCompleteDelegate_Handle(
+				CreateSessionCompleteDelegateHandle);
+
+		if (GEngine)
 		{
-			SessionInterface->CreateSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, SessionSettings);	
-		}
-		else
-		{
-			// error log: 플레이어 정보를 불러오지 못함
-			if (GEngine)
-			{
-				GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Red, TEXT("[Multiplay] 에러: LocalPlayer를 찾을 수 없습니다!"));
-			}
+			GEngine->AddOnScreenDebugMessage(
+				-1,
+				10.0f,
+				FColor::Red,
+				TEXT("[Multiplay] CreateSession 시작 실패"));
 		}
 	}
 }
@@ -260,9 +312,7 @@ void USGMultiplayGameInstance::FindServers()
 		}
        
 		//SessionSearch->QuerySettings.Set(SEARCH_PRESENCE, true, EOnlineComparisonOp::Equals);
-       
-		SessionSearch->QuerySettings.Set(SETTING_MAPNAME, FString("SG_LobbyLevel"), EOnlineComparisonOp::Equals);
-		
+		//SessionSearch->QuerySettings.Set(SETTING_MAPNAME, FString("SG_LobbyLevel"), EOnlineComparisonOp::Equals);
 		// 검색 시작!
 		//const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
 		SessionInterface->FindSessions(*LocalPlayer->GetPreferredUniqueNetId(), SessionSearch.ToSharedRef());
@@ -434,6 +484,89 @@ SearchResult.Session.SessionSettings.bUsesPresence);
 
 void USGMultiplayGameInstance::OnCreateSessionComplete(FName Sessionname, bool bWasSuccessful)
 {
+	if (SessionInterface.IsValid())
+	{
+		SessionInterface->ClearOnCreateSessionCompleteDelegate_Handle(
+			CreateSessionCompleteDelegateHandle);
+	}
+
+	if (!bWasSuccessful)
+	{
+		UE_LOG(
+			LogTemp,
+			Error,
+			TEXT("[Multiplay] CreateSession 실패: %s"),
+			*Sessionname.ToString());
+
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(
+				-1,
+				10.0f,
+				FColor::Red,
+				TEXT("[Multiplay] 세션 생성 실패"));
+		}
+
+		return;
+	}
+
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("[Multiplay] 세션 생성 성공"));
+
+	if (SessionInterface.IsValid())
+	{
+		if (FNamedOnlineSession* NamedSession =
+			SessionInterface->GetNamedSession(NAME_GameSession))
+		{
+			UE_LOG(
+				LogTemp,
+				Warning,
+				TEXT("[Multiplay] Host Presence=%s / Lobby=%s"),
+				NamedSession->SessionSettings.bUsesPresence
+					? TEXT("TRUE")
+					: TEXT("FALSE"),
+				NamedSession->SessionSettings.bUseLobbiesIfAvailable
+					? TEXT("TRUE")
+					: TEXT("FALSE"));
+		}
+	}
+
+	UWorld* World = GetWorld();
+
+	if (!World)
+	{
+		UE_LOG(
+			LogTemp,
+			Error,
+			TEXT("[Multiplay] GetWorld() == nullptr"));
+
+		return;
+	}
+
+	// ============================================================
+	// ★ 수정 핵심
+	// ★ 첫 Host 생성 시에는 ServerTravel 대신 OpenLevel + listen 사용
+	// ============================================================
+
+	const FName LobbyMapName =
+		TEXT("/Game/SoccerGame/Maps/System/SG_LobbyLevel");
+
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("[Multiplay] OpenLevel 시작: %s?listen"),
+		*LobbyMapName.ToString());
+
+	UGameplayStatics::OpenLevel(
+		World,
+		LobbyMapName,
+		true,          // 기존 URL 옵션 유지
+		TEXT("listen") // Listen Server로 열기
+	);
+
+	/*
 	
 	if (SessionInterface.IsValid())
 	{
@@ -481,6 +614,7 @@ void USGMultiplayGameInstance::OnCreateSessionComplete(FName Sessionname, bool b
 				? TEXT("TRUE")
 				: TEXT("FALSE"));
 	}
+	 */
 }
 
 void USGMultiplayGameInstance::OnFindSessionsComplete(bool bWasSuccessful)
