@@ -17,7 +17,8 @@ ASGProjectileBase::ASGProjectileBase() :
 	ThrowHeightOffset(0.f), 
 	bPreview(false),
 	bDestroyOnSurface(true),
-	Bounciness(0.35f)
+	Bounciness(0.35f),
+	EffectScale(1.f)
 {
 	// Tick 사용, 초깃값 비활성화
  	PrimaryActorTick.bCanEverTick = true;
@@ -66,6 +67,11 @@ void ASGProjectileBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	}
 	
 	if (!bPreview){
+		if (FinishedEffect != nullptr && GetNetMode() != NM_DedicatedServer){
+			UGameplayStatics::SpawnEmitterAtLocation(
+				GetWorld(), FinishedEffect, GetActorLocation(), GetActorRotation(), FVector(EffectScale));
+		}
+		
 		OnProjectileFinished.Broadcast(this);
 	}
 	

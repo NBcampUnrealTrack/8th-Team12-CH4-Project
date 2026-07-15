@@ -128,4 +128,10 @@ private:
 	// 튕기는 정도
 	UPROPERTY(EditAnywhere, Category = "Projectile|Bounce")
 	float Bounciness;
+	
+	UPROPERTY(EditAnywhere, Category = "Projectile|VFX")
+	TObjectPtr<UParticleSystem> FinishedEffect;
+	
+	UPROPERTY(EditAnywhere, Category = "Projectile|VFX")
+	float EffectScale;
 };
