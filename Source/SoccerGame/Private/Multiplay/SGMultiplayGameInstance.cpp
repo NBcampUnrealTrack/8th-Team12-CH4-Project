@@ -16,12 +16,27 @@ void USGMultiplayGameInstance::OnDestroySessionComplete(FName SessionName, bool 
 	{
 		SessionInterface->ClearOnDestroySessionCompleteDelegate_Handle(DestroySessionCompleteDelegateHandle);
 	}
+	if (!bWasSuccessful)
+	{
+		UE_LOG(
+			LogTemp,
+			Error,
+			TEXT("[Multiplay] DestroySession 실패: %s"),
+			*SessionName.ToString());
+
+		return;
+	}
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimerForNextTick(
+			this,
+			&USGMultiplayGameInstance::CreateServer);
+	}
 	if (GEngine)
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Orange, TEXT("[Multiplay] 기존 세션을 파괴했습니다. 서버를 재생성합니다."));
 	}
-	// 파괴가 끝났으니 안전하게 다시 CreateServer를 호출 (이번엔 ExistingSession이 없으므로 통과됨)
-	GetWorld()->GetTimerManager().SetTimerForNextTick(this, &USGMultiplayGameInstance::CreateServer);
 }
 
 USGMultiplayGameInstance::USGMultiplayGameInstance()
@@ -49,11 +64,12 @@ void USGMultiplayGameInstance::Init()
 	if (Subsystem)
 	{
 		SessionInterface = Subsystem->GetSessionInterface();
-		UE_LOG(LogTemp, Warning, TEXT("찾아낸 서브시스템: %s"), *Subsystem->GetSubsystemName().ToString())
+		UE_LOG(LogTemp, Warning, TEXT("찾아낸 서브시스템: %s"), *Subsystem->GetSubsystemName().ToString());
 		if (GEngine)
 		{
 			GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Cyan, 
-			   FString::Printf(TEXT("[System] 온라인 서브시스템 활성화: %s"), *Subsystem->GetSubsystemName().ToString()));
+			   FString::Printf(TEXT("[System] 온라인 서브시스템 활성화: %s")
+			   	, *Subsystem->GetSubsystemName().ToString()));
 		}
 	}
 	
@@ -341,8 +357,20 @@ void USGMultiplayGameInstance::JoinServer(int32 SessionIndex)
 		UE_LOG(LogTemp, Error, TEXT("LocalPlayer == nullptr"));
 		return;
 	}
-	const FOnlineSessionSearchResult SearchResult =
+	FOnlineSessionSearchResult SearchResult =
 	  SessionSearch->SearchResults[SessionIndex];
+	
+	
+	// Steam JoinSession은 두 값이 같아야 함
+	SearchResult.Session.SessionSettings.bUseLobbiesIfAvailable =
+		SearchResult.Session.SessionSettings.bUsesPresence;
+
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("[Join Fix] Presence=%d / Lobby=%d"),
+		SearchResult.Session.SessionSettings.bUsesPresence,
+		SearchResult.Session.SessionSettings.bUseLobbiesIfAvailable);
 	
 	UE_LOG(LogTemp, Warning,
 		TEXT("Search Presence=%d"),
@@ -870,8 +898,6 @@ void USGMultiplayGameInstance::OnJoinSessionComplete(FName SessionName, EOnJoinS
 
 			return;
 		}
-
-	
 		PlayerController->ClientTravel(
 			ConnectInfo,
 			ETravelType::TRAVEL_Absolute);
