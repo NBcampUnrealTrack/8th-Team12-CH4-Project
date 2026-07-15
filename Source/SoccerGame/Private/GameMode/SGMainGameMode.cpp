@@ -12,6 +12,8 @@
 
 ASGMainGameMode::ASGMainGameMode()
 {
+   UE_LOG(LogTemp, Warning,
+      TEXT("★★★★ SGMainGameMode Constructor ★★★★"));
     // GameMode는 오직 서버에만 존재하므로 복제(Replicate)할 필요가 없습니다.
     bReplicates = false;
 
@@ -22,6 +24,8 @@ ASGMainGameMode::ASGMainGameMode()
 
 void ASGMainGameMode::BeginPlay()
 {
+   UE_LOG(LogTemp, Warning,
+   TEXT("★★★★ SGMainGameMode BeginPlay ★★★★"));
     Super::BeginPlay();
     // 최초 진입 시 GameState 설정 세팅 및 대기 상태 태그 적용
     if (ASGMainGameState* SG_GameState = GetGameState<ASGMainGameState>())
