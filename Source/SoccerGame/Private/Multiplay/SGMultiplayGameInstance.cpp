@@ -164,6 +164,7 @@ void USGMultiplayGameInstance::CreateServer()
 		SessionSettings.bUseLobbiesIfAvailable = true;
 		SessionSettings.bUseLobbiesVoiceChatIfAvailable = true; // 보이스챗은 일단 안전하게 끔
 		
+		
 		// ◀ 스팀 검색 정확도를 높이기 위한 커스텀 세팅 (나의 프로젝트 전용 방 식별용)
 		SessionSettings.Settings.Add(SETTING_MAPNAME, FOnlineSessionSetting(FString("SG_LobbyLevel"), EOnlineDataAdvertisementType::ViaOnlineService));
 		// 엔진에 세션 생성 명령
@@ -226,8 +227,9 @@ void USGMultiplayGameInstance::FindServers()
 		if (!bIsLAN)
 		{
 			SessionSearch->MaxSearchResults = 100; // 스팀 검색 개수 제한
+			SessionSearch->QuerySettings.SearchParams.Empty();
+			
 			SessionSearch->QuerySettings.Set(SEARCH_LOBBIES,true,EOnlineComparisonOp::Equals);
-
 			// ★ 이 두 쿼리 값이 호스트 세팅과 일치해야 조인할 때 에러가 나지 않습니다.
 			//SessionSearch->QuerySettings.Set(SEARCH_PRESENCE, true, EOnlineComparisonOp::Equals);
 			//SessionSearch->QuerySettings.Set(SEARCH_LOBBIES, true, EOnlineComparisonOp::Equals); // 로비 검색 필터 추가
@@ -246,6 +248,10 @@ void USGMultiplayGameInstance::FindServers()
 		//const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
 		SessionInterface->FindSessions(*LocalPlayer->GetPreferredUniqueNetId(), SessionSearch.ToSharedRef());
 	}
+	SessionSearch->QuerySettings.Set(
+	SETTING_MAPNAME,
+	FString("SG_LobbyLevel"),
+	EOnlineComparisonOp::Equals);
 }
 
 void USGMultiplayGameInstance::JoinServer(int32 SessionIndex)
@@ -283,9 +289,12 @@ void USGMultiplayGameInstance::JoinServer(int32 SessionIndex)
 		UE_LOG(LogTemp, Error, TEXT("LocalPlayer == nullptr"));
 		return;
 	}
+	FOnlineSessionSearchResult SearchResult =
+	  SessionSearch->SearchResults[SessionIndex];
+	
+	SearchResult.Session.SessionSettings.bUsesPresence = true;
+	SearchResult.Session.SessionSettings.bUseLobbiesIfAvailable = true;
 
-	const FOnlineSessionSearchResult& SearchResult =
-		SessionSearch->SearchResults[SessionIndex];
 	
 	UE_LOG(LogTemp, Warning,
 TEXT("Search Presence=%d"),
@@ -325,6 +334,7 @@ SearchResult.Session.SessionSettings.bUsesPresence);
 	UE_LOG(LogTemp, Warning,
 		TEXT("Map : %s"),
 		*MapName);
+	
 
 	//--------------------------------------------------------
 	// Join Delegate 등록
