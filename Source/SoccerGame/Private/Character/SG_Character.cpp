@@ -347,6 +347,14 @@ void ASG_Character::EnableRagdoll(FVector HitImpulse, FVector HitLocation)
 	{
 		return;
 	}
+	
+	if (AbilitySystemComponent)
+	{
+		FGameplayTag ImmunityTag = FGameplayTag::RequestGameplayTag(FName("State.Immunity"));
+		
+		AbilitySystemComponent->AddLooseGameplayTag(ImmunityTag);
+		// UE_LOG(LogTemp, Warning, TEXT("[%s] EnableRagdoll: State.Immunity 태그 부여 완료"), *GetName());
+	}
 
 	// 캡슐 콜리전 비활성화
 	CapsuleComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -381,14 +389,6 @@ void ASG_Character::EnableRagdoll(FVector HitImpulse, FVector HitLocation)
 	}
 }
 
-void ASG_Character::CacheRagdollPoseSnapshot()
-{
-	if (UAnimInstance* AnimInst = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr)
-	{
-		AnimInst->SavePoseSnapshot(FName("RagdollFinalPose"));
-	}
-}
-
 void ASG_Character::ServerDisableRagdoll()
 {
 	if (!HasAuthority())
@@ -407,11 +407,29 @@ void ASG_Character::ServerDisableRagdoll()
 	FVector HipsLocation = MeshComp->GetSocketLocation(TEXT("Hips"));
 	FRotator HipsRotation = MeshComp->GetSocketRotation(TEXT("Hips"));
 	bool bIsFaceDown = IsRagdollFaceDown();
+	
+	// LineTrace로 정확한 지형 바닥점 찾기
+	FVector Start = HipsLocation + FVector(0.0f, 0.0f, 50.0f);
+	FVector End = HipsLocation - FVector(0.0f, 0.0f, 150.0f);
+	
+	FHitResult HitResult;
+	FCollisionQueryParams QueryParams;
+	QueryParams.AddIgnoredActor(this);
 
 	// 동기화할 캡슐 위치 및 회전값 연산
-	FVector NewCapsuleLocation = HipsLocation;
-	NewCapsuleLocation.Z += CapsuleComp->GetScaledCapsuleHalfHeight();
+	// FVector NewCapsuleLocation = HipsLocation;
+	// NewCapsuleLocation.Z += CapsuleComp->GetScaledCapsuleHalfHeight();
 
+	FVector NewCapsuleLocation = HipsLocation;
+	if (GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility, QueryParams))
+	{
+		NewCapsuleLocation.Z = HitResult.ImpactPoint.Z + CapsuleComp->GetScaledCapsuleHalfHeight();
+	}
+	else
+	{
+		NewCapsuleLocation.Z += CapsuleComp->GetScaledCapsuleHalfHeight();
+	}
+	
 	FRotator NewCapsuleRotation = FRotator(0.0f, HipsRotation.Yaw, 0.0f);
 	if (bIsFaceDown)
 	{
@@ -437,19 +455,21 @@ void ASG_Character::DisableRagdollInternal(FVector TargetLocation, FRotator Targ
     {
 	    return;
     }
-
+	
     // 시뮬레이션 끄기 직전 포즈 스냅샷 저장 (AnimBP 연결용)
     CacheRagdollPoseSnapshot();
+	
+	bIsRecoveringFromRagdoll = true;
 	
 	// 물리 및 속도 초기화
 	MeshComp->SetAllPhysicsLinearVelocity(FVector::ZeroVector);
 	MeshComp->SetAllPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
 	MeshComp->SetSimulatePhysics(false);
 	MeshComp->SetCollisionProfileName(TEXT("CharacterMesh"));
-
+	
 	// 서버에서 결정된 동기화 위치로 캡슐 이동
-	CapsuleComp->SetWorldLocation(TargetLocation);
-	CapsuleComp->SetWorldRotation(TargetRotation);
+	CapsuleComp->SetWorldLocation(TargetLocation, false, nullptr, ETeleportType::TeleportPhysics);
+	CapsuleComp->SetWorldRotation(TargetRotation, false, nullptr, ETeleportType::TeleportPhysics);
 	CapsuleComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	
 	// 메쉬 상대 위치 오프셋 원복
@@ -464,28 +484,41 @@ void ASG_Character::DisableRagdollInternal(FVector TargetLocation, FRotator Targ
 		CameraBoom->SetRelativeLocation(FVector(0.0f, 0.0f, 0.0f));
 	}
 	
-    // 방향에 맞는 GetUp 몽타주 재생 (0.3초 BlendIn 적용)
-    UAnimMontage* TargetMontage = bIsFaceDown ? GetUpFrontMontage : GetUpBackMontage;
-    if (TargetMontage && MeshComp->GetAnimInstance())
-    {
-        UAnimInstance* AnimInst = MeshComp->GetAnimInstance();
-        float Duration = AnimInst->Montage_Play(TargetMontage, 1.0f, EMontagePlayReturnType::MontageLength, 0.0f, true);
+	// 방향에 맞는 GetUp 몽타주 재생
+	UAnimMontage* TargetMontage = bIsFaceDown ? GetUpFrontMontage : GetUpBackMontage;
+	UAnimInstance* AnimInst = MeshComp ? MeshComp->GetAnimInstance() : nullptr;
+	if (TargetMontage && AnimInst)
+	{
+		const float PlayedDuration = AnimInst->Montage_Play(TargetMontage, 1.0f, EMontagePlayReturnType::MontageLength, 0.0f, true);
+		
+		if (PlayedDuration > 0.0f)
+		{
+			FOnMontageEnded EndedDelegate;
+			EndedDelegate.BindUObject(this, &ASG_Character::OnGetUpMontageEnded);
+			AnimInst->Montage_SetEndDelegate(EndedDelegate, TargetMontage);
+		}
+		else
+		{
+			// 몽타주 재생 실패시 예외 처리 (캐릭터 굳음 방지)
+			UE_LOG(Log_SG_Character, Warning, TEXT("[%s] DisableRagdollInternal: Montage_Play Failed (Duration is 0.0)"), *GetName());
+			bIsRecoveringFromRagdoll = false;
+			MovementComp->SetMovementMode(EMovementMode::MOVE_Walking);
+		}
+	}
+	else
+	{
+		// 몽타주가 없는 예외 경우 복구
+		bIsRecoveringFromRagdoll = false;
+		MovementComp->SetMovementMode(EMovementMode::MOVE_Walking);
+	}
+}
 
-        if (Duration > 0.0f)
-        {
-            FOnMontageEnded EndedDelegate;
-            EndedDelegate.BindUObject(this, &ASG_Character::OnGetUpMontageEnded);
-            AnimInst->Montage_SetEndDelegate(EndedDelegate, TargetMontage);
-        }
-        else
-        {
-            MovementComp->SetMovementMode(EMovementMode::MOVE_Walking);
-        }
-    }
-    else
-    {
-        MovementComp->SetMovementMode(EMovementMode::MOVE_Walking);
-    }
+void ASG_Character::CacheRagdollPoseSnapshot()
+{
+	if (UAnimInstance* AnimInst = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr)
+	{
+		AnimInst->SavePoseSnapshot(FName("RagdollFinalPose"));
+	}
 }
 
 // 엎드려 있는지 판단 (골반 Up 벡터 기반)
@@ -507,8 +540,17 @@ bool ASG_Character::IsRagdollFaceDown() const
 // 일어나기 애니메이션이 끝나면 조작 및 이동 가능 상태로 전환
 void ASG_Character::OnGetUpMontageEnded(UAnimMontage* Montage, bool bInterrupted)
 {
+	bIsRecoveringFromRagdoll = false;
+	
     if (UCharacterMovementComponent* MovementComp = GetCharacterMovement())
     {
         MovementComp->SetMovementMode(EMovementMode::MOVE_Walking);
     }
+	
+	if (AbilitySystemComponent)
+	{
+		FGameplayTag ImmunityTag = FGameplayTag::RequestGameplayTag(FName("State.Immunity"));
+		AbilitySystemComponent->RemoveLooseGameplayTag(ImmunityTag);
+		// UE_LOG(LogTemp, Warning, TEXT("[%s] OnGetUpMontageEnded: State.Immunity 태그 제거 완료"), *GetName());
+	}
 }
