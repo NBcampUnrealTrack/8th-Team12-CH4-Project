@@ -66,7 +66,7 @@ void UANS_SG_DropKick::NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequenc
 	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECollisionChannel::ECC_PhysicsBody)); 
 
 	// 일반 동적 오브젝트 채널도 추가(보험용)
-	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECollisionChannel::ECC_WorldDynamic));
+	// ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECollisionChannel::ECC_WorldDynamic));
 
 	TArray<AActor*> ActorsToIgnore;
 	ActorsToIgnore.Add(MyCharacter);

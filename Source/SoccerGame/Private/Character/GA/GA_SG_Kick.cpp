@@ -5,13 +5,11 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "Character/GAS/GAS_SG_CharacterAttributeSet.h"
-#include "Abilities/Tasks/AbilityTask_WaitInputRelease.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "AbilitySystemGlobals.h"
 #include "AbilitySystemInterface.h"
 #include "Character/SG_SoccerBall.h"
-#include "PlayerController/SGMainPlayerController.h"
 
 UGA_SG_Kick::UGA_SG_Kick()
 {
@@ -58,6 +56,8 @@ void UGA_SG_Kick::ActivateAbility(
     }
    
     bIsKickInProgress = true;
+    // 시작 시 중복 타격 배열 초기화
+    AlreadyHitActors.Empty();
 
     // 발차기 몽타주 바로 재생
     if (KickMontage)
@@ -104,6 +104,8 @@ void UGA_SG_Kick::EndAbility(
 {
    // UE_LOG(LogTemp, Error, TEXT("<<< Kick EndAbility 호출됨!"));
    bIsKickInProgress = false;
+    
+    AlreadyHitActors.Empty();
 
    Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
@@ -211,6 +213,17 @@ void UGA_SG_Kick::FindAndPushBall()
 
 void UGA_SG_Kick::OnGameplayEventReceived(FGameplayEventData Payload)
 {
+    AActor* HitTarget = const_cast<AActor*>(Payload.Target.Get());
+    if (!HitTarget)
+    {
+        return;
+    }
+    if (AlreadyHitActors.Contains(HitTarget))
+    {
+        return;
+    }
+    AlreadyHitActors.Add(HitTarget);
+    
     // 공 밀어내기 (서버 & 로컬 오너 연산)
     FindAndPushBall();
     
@@ -223,11 +236,6 @@ void UGA_SG_Kick::OnGameplayEventReceived(FGameplayEventData Payload)
 
 void UGA_SG_Kick::OnEnemyHitReceived(FGameplayEventData Payload)
 {
-    if (!HasAuthority(&CurrentActivationInfo))
-    {
-        return;
-    }
-
     AActor* HitEnemy = const_cast<AActor*>(Payload.Target.Get());
     if (!HitEnemy || !DamageEffectClass)
     {
@@ -250,14 +258,23 @@ void UGA_SG_Kick::OnEnemyHitReceived(FGameplayEventData Payload)
     {
         return;
     }
+    
+    // 무적상태 검사
+    FGameplayTag ImmunityTag = FGameplayTag::RequestGameplayTag(FName("State.Immunity"));
+    if (TargetASC->HasMatchingGameplayTag(ImmunityTag))
+    {
+        return;
+    }
 
     FGameplayEffectContextHandle EffectContext = MyASC->MakeEffectContext();
     EffectContext.AddSourceObject(this);
 
     FGameplayEffectSpecHandle NewHandle = MyASC->MakeOutgoingSpec(DamageEffectClass, 1.0f, EffectContext);
-    
     if (NewHandle.IsValid())
     {
+        FGameplayTag KickTag = FGameplayTag::RequestGameplayTag(FName("Character.Skill.Kick"));
+        NewHandle.Data.Get()->DynamicAssetTags.AddTag(KickTag);
+        
         MyASC->ApplyGameplayEffectSpecToTarget(*NewHandle.Data.Get(), TargetASC);
     }
 }
