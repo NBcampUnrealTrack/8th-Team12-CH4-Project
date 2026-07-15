@@ -9,13 +9,13 @@
 #include "Net/UnrealNetwork.h"
 
 ASGProjectileBase::ASGProjectileBase() :  
+	LifeTime(5.f),
+	PreviewOpacity(0.6f),	
 	TargetDistance(0.f), 
 	ThrowSpeed(0.f), 
 	ThrowForwardOffset(0.f), 
 	ThrowHeightOffset(0.f), 
 	bPreview(false),
-	LifeTime(5.f),
-	PreviewOpacity(0.6f),
 	bDestroyOnSurface(true),
 	Bounciness(0.35f)
 {
