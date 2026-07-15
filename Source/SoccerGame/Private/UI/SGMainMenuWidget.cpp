@@ -28,6 +28,9 @@ void USGMainMenuWidget::OnGameStartButtonClicked()
 	{
 		//SGGameInstance->CreateServer();
 		SGGameInstance->FindServers();
-		
+	}
+	else
+	{
+		UE_LOG(LogTemp,Warning,TEXT(" SGGameInstance : None "));
 	}
 }

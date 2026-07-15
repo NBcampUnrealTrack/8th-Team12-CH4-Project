@@ -16,10 +16,6 @@ void USGMultiplayGameInstance::OnDestroySessionComplete(FName SessionName, bool 
 	{
 		SessionInterface->ClearOnDestroySessionCompleteDelegate_Handle(DestroySessionCompleteDelegateHandle);
 	}
-
-	// =========================================================================
-	// ★ [화면 로그 추가] 세션 파괴 완료 알림 (주황색, 5초)
-	// =========================================================================
 	if (GEngine)
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Orange, TEXT("[Multiplay] 기존 세션을 파괴했습니다. 서버를 재생성합니다."));
@@ -44,42 +40,11 @@ void USGMultiplayGameInstance::Init()
 	Super::Init();
 	IOnlineSubsystem* DefaultOSS = IOnlineSubsystem::Get();
 	IOnlineSubsystem* SteamOSS = IOnlineSubsystem::Get(TEXT("Steam"));
-
-	if (DefaultOSS)
-	{
-		UE_LOG(LogTemp, Warning,
-			TEXT("[OSS] Default = %s"),
-			*DefaultOSS->GetSubsystemName().ToString());
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error,
-			TEXT("[OSS] Default = NULL"));
-	}
-
-	if (SteamOSS)
-	{
-		UE_LOG(LogTemp, Warning,
-			TEXT("[OSS] Steam = FOUND"));
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error,
-			TEXT("[OSS] Steam = NOT FOUND"));
-	}
-
 	if (DefaultOSS)
 	{
 		SessionInterface = DefaultOSS->GetSessionInterface();
-
-		UE_LOG(LogTemp, Warning,
-			TEXT("[OSS] SessionInterface = %s"),
-			SessionInterface.IsValid()
-				? TEXT("VALID")
-				: TEXT("INVALID"));
 	}
 	
-	// Online Subsystem과 인터페이스 연결
 	IOnlineSubsystem* Subsystem = IOnlineSubsystem::Get();
 	if (Subsystem)
 	{
@@ -195,20 +160,22 @@ void USGMultiplayGameInstance::CreateServer()
 
 	SessionSettings.bIsLANMatch = bIsLAN;
 	SessionSettings.NumPublicConnections = 6;
+	
 	SessionSettings.NumPrivateConnections = 0;
 
 	SessionSettings.bShouldAdvertise = true;
 	SessionSettings.bAllowJoinInProgress = true;
-	SessionSettings.bAllowInvites = true;
+	
+	//SessionSettings.bAllowInvites = true;
 	SessionSettings.bAllowJoinViaPresence = true;
-	SessionSettings.bAllowJoinViaPresenceFriendsOnly = false;
-
+	
+	//SessionSettings.bAllowJoinViaPresenceFriendsOnly = false;
 	// Steam Lobby에서는 두 값을 동일하게 유지
 	SessionSettings.bUsesPresence = !bIsLAN;
 	SessionSettings.bUseLobbiesIfAvailable = !bIsLAN;
 
 	// 실제 보이스 채팅을 사용하지 않는다면 false
-	SessionSettings.bUseLobbiesVoiceChatIfAvailable = false;
+	//SessionSettings.bUseLobbiesVoiceChatIfAvailable = false;
 
 	SessionSettings.Set(
 		SETTING_MAPNAME,
@@ -286,46 +253,62 @@ void USGMultiplayGameInstance::FindServers()
 		if (OSS)
 		{
 			bIsLAN = (OSS->GetSubsystemName()=="NULL");
+			UE_LOG(
+				LogTemp,
+				Warning,
+				TEXT("[Multiplay] OnlineSubsystem: %s"),
+				*OSS->GetSubsystemName().ToString()
+			);
+		}
+		else
+		{
+			UE_LOG(
+				LogTemp,
+				Error,
+				TEXT("[Multiplay] OnlineSubsystem == nullptr")
+			);
+			return;
 		}
 		SessionSearch->bIsLanQuery = bIsLAN;
-		// =========================================================================
-		
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Cyan, 
-			   FString::Printf(TEXT("[Multiplay] 활성화된 서버 방 탐색 중... (%s)"), bIsLAN ? TEXT("LAN 주소") : TEXT("스팀 서비스")));
-		}
 		if (!bIsLAN)
 		{
 			SessionSearch->MaxSearchResults = 100; // 스팀 검색 개수 제한
-			SessionSearch->QuerySettings.SearchParams.Empty();
-			
 			SessionSearch->QuerySettings.Set(SEARCH_LOBBIES,true,EOnlineComparisonOp::Equals);
-			// ★ 이 두 쿼리 값이 호스트 세팅과 일치해야 조인할 때 에러가 나지 않습니다.
-			//SessionSearch->QuerySettings.Set(SEARCH_PRESENCE, true, EOnlineComparisonOp::Equals);
-			//SessionSearch->QuerySettings.Set(SEARCH_LOBBIES, true, EOnlineComparisonOp::Equals); // 로비 검색 필터 추가
 		}
 		else
 		{
 			SessionSearch->MaxSearchResults = 10000; // LAN 환경은 그대로 높게 유지
 			SessionSearch->QuerySettings.Set(SEARCH_PRESENCE, true, EOnlineComparisonOp::Equals);
 		}
-       
-		//SessionSearch->QuerySettings.Set(SEARCH_PRESENCE, true, EOnlineComparisonOp::Equals);
-		//SessionSearch->QuerySettings.Set(SETTING_MAPNAME, FString("SG_LobbyLevel"), EOnlineComparisonOp::Equals);
-		// 검색 시작!
-		//const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
-		SessionInterface->FindSessions(*LocalPlayer->GetPreferredUniqueNetId(), SessionSearch.ToSharedRef());
+		
+		SessionSearch->QuerySettings.Set(SETTING_MAPNAME,FString(TEXT("SG_LobbyLevel")),
+			EOnlineComparisonOp::Equals);
+		
+		const bool bFindStarted =SessionInterface->FindSessions(*LocalPlayer->GetPreferredUniqueNetId(),
+				SessionSearch.ToSharedRef());
+		
+		UE_LOG(LogTemp,Warning,TEXT("[Multiplay] FindSessions Return: %s"),
+			bFindStarted? TEXT("TRUE"): TEXT("FALSE"));
+
+		if (!bFindStarted)
+		{
+			SessionInterface->ClearOnFindSessionsCompleteDelegate_Handle(
+					FindSessionsCompleteDelegateHandle);
+			UE_LOG(LogTemp,Error,TEXT("[Multiplay] FindSessions 시작 실패"));
+		}
 	}
-	SessionSearch->QuerySettings.Set(
-	SETTING_MAPNAME,
-	FString("SG_LobbyLevel"),
-	EOnlineComparisonOp::Equals);
+	else
+	{
+		UE_LOG(
+			LogTemp,
+			Error,
+			TEXT("[Multiplay] FindServers 실패: SessionInterface Invalid")
+		);
+	}
 }
 
 void USGMultiplayGameInstance::JoinServer(int32 SessionIndex)
 {
-	
 	
 	UE_LOG(LogTemp, Warning, TEXT("=========================================="));
 	UE_LOG(LogTemp, Warning, TEXT("JoinServer()"));
@@ -358,25 +341,21 @@ void USGMultiplayGameInstance::JoinServer(int32 SessionIndex)
 		UE_LOG(LogTemp, Error, TEXT("LocalPlayer == nullptr"));
 		return;
 	}
-	FOnlineSessionSearchResult SearchResult =
+	const FOnlineSessionSearchResult SearchResult =
 	  SessionSearch->SearchResults[SessionIndex];
 	
-	SearchResult.Session.SessionSettings.bUsesPresence = true;
-	SearchResult.Session.SessionSettings.bUseLobbiesIfAvailable = true;
-
-	
 	UE_LOG(LogTemp, Warning,
-TEXT("Search Presence=%d"),
-SearchResult.Session.SessionSettings.bUsesPresence);
+		TEXT("Search Presence=%d"),
+		SearchResult.Session.SessionSettings.bUsesPresence);
 
 	UE_LOG(LogTemp, Warning,
-	TEXT("Search Lobby=%d"),
-	SearchResult.Session.SessionSettings.bUseLobbiesIfAvailable);
+		TEXT("Search Lobby=%d"),
+		SearchResult.Session.SessionSettings.bUseLobbiesIfAvailable);
 
 	UE_LOG(LogTemp, Warning,
 		TEXT("Host : %s"),
 		*SearchResult.Session.OwningUserName);
-
+	
 	UE_LOG(LogTemp, Warning,
 		TEXT("Ping : %d"),
 		SearchResult.PingInMs);
@@ -396,9 +375,11 @@ SearchResult.Session.SessionSettings.bUsesPresence);
 			: TEXT("NO"));
 
 	FString MapName;
-	SearchResult.Session.SessionSettings.Get(
-		SETTING_MAPNAME,
-		MapName);
+	
+	const bool bHasMapName =
+		SearchResult.Session.SessionSettings.Get(
+			SETTING_MAPNAME,
+			MapName);
 
 	UE_LOG(LogTemp, Warning,
 		TEXT("Map : %s"),
@@ -408,37 +389,17 @@ SearchResult.Session.SessionSettings.bUsesPresence);
 	//--------------------------------------------------------
 	// Join Delegate 등록
 	//--------------------------------------------------------
-
-	JoinSessionCompleteDelegateHandle =
-		SessionInterface->AddOnJoinSessionCompleteDelegate_Handle(
-			JoinSessionCompleteDelegate);
-
-	//--------------------------------------------------------
-	// Join 전 ConnectString 확인
-	//--------------------------------------------------------
-
-	FString PreviewConnectString;
-
-	bool bHasConnectString =
-		SessionInterface->GetResolvedConnectString(
-			NAME_GameSession,
-			PreviewConnectString);
-
-	UE_LOG(LogTemp, Warning,
-		TEXT("Pre Join ConnectString : %s"),
-		bHasConnectString ? TEXT("YES") : TEXT("NO"));
-
-	if (bHasConnectString)
+	if (JoinSessionCompleteDelegateHandle.IsValid())
 	{
-		UE_LOG(LogTemp, Warning,
-			TEXT("ConnectString : %s"),
-			*PreviewConnectString);
+		SessionInterface->ClearOnJoinSessionCompleteDelegate_Handle(
+			JoinSessionCompleteDelegateHandle);
+		
+		JoinSessionCompleteDelegateHandle.Reset();
+
 	}
-
-	//--------------------------------------------------------
-	// 화면 출력
-	//--------------------------------------------------------
-
+	JoinSessionCompleteDelegateHandle =
+			SessionInterface->AddOnJoinSessionCompleteDelegate_Handle(
+				JoinSessionCompleteDelegate);
 	if (GEngine)
 	{
 		GEngine->AddOnScreenDebugMessage(
@@ -468,6 +429,10 @@ SearchResult.Session.SessionSettings.bUsesPresence);
 	{
 		UE_LOG(LogTemp, Error,
 			TEXT("JoinSession() returned FALSE"));
+		// 요청 시작 실패 시 완료 콜백이 오지 않을 수 있으므로
+		// 등록한 델리게이트를 직접 정리합니다.
+		SessionInterface->ClearOnJoinSessionCompleteDelegate_Handle(
+			JoinSessionCompleteDelegateHandle);
 
 		if (GEngine)
 		{
@@ -544,70 +509,13 @@ void USGMultiplayGameInstance::OnCreateSessionComplete(FName Sessionname, bool b
 
 		return;
 	}
-
-	// ============================================================
-	// ★ 수정 핵심
-	// ★ 첫 Host 생성 시에는 ServerTravel 대신 OpenLevel + listen 사용
-	// ============================================================
+	
 
 	//const FName LobbyMapName =TEXT("Game/SoccerGame/Maps/System/SG_LobbyLevel");
-	FString LobbyMapWithOption = TEXT("Game/SoccerGame/Maps/System/SG_LobbyLevel");
-	UGameplayStatics::OpenLevel(
-		World,
-		*LobbyMapWithOption,
-		true,          // 기존 URL 옵션 유지
-		TEXT("listen") // Listen Server로 열기
-	);
+	UE_LOG(LogTemp, Warning,
+	TEXT("[Multiplay] OpenLevel Start"));
+	World->ServerTravel(TEXT("/Game/SoccerGame/Maps/System/SG_LobbyLevel?listen"));
 
-	/*
-	
-	if (SessionInterface.IsValid())
-	{
-		// 델리게이트 해제
-		SessionInterface->ClearOnCreateSessionCompleteDelegate_Handle(CreateSessionCompleteDelegateHandle);
-	}
-	
-	
-	if (bWasSuccessful)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[Multiplay] 방 생성 성공! 로비로 이동합니다."))
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Green, TEXT("[Multiplay] 세션 생성 완료! ServerTravel을 시도합니다."));
-		}
-		
-		UWorld* World = GetWorld();
-		if (World)
-		{
-			// 레벨 열기
-			World->ServerTravel("/Game/SoccerGame/Maps/System/SG_LobbyLevel?listen");
-		}
-	}
-	else
-	{
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Red, TEXT("[Multiplay] 세션 생성 실패!"));
-		}
-	}
-	FNamedOnlineSession* Session =
-	SessionInterface->GetNamedSession(NAME_GameSession);
-
-	if (Session)
-	{
-		UE_LOG(LogTemp, Warning,
-			TEXT("Host Presence=%s"),
-			Session->SessionSettings.bUsesPresence
-				? TEXT("TRUE")
-				: TEXT("FALSE"));
-
-		UE_LOG(LogTemp, Warning,
-			TEXT("Host Lobby=%s"),
-			Session->SessionSettings.bUseLobbiesIfAvailable
-				? TEXT("TRUE")
-				: TEXT("FALSE"));
-	}
-	 */
 }
 
 void USGMultiplayGameInstance::OnFindSessionsComplete(bool bWasSuccessful)
@@ -630,10 +538,7 @@ void USGMultiplayGameInstance::OnFindSessionsComplete(bool bWasSuccessful)
 
 		if (GEngine)
 		{
-			GEngine->AddOnScreenDebugMessage(
-				-1,
-				10.f,
-				FColor::Red,
+			GEngine->AddOnScreenDebugMessage(-1,10.f,FColor::Red,
 				TEXT("[Multiplay] FindSessions Failed"));
 		}
 		return;
@@ -654,9 +559,7 @@ void USGMultiplayGameInstance::OnFindSessionsComplete(bool bWasSuccessful)
 	if (GEngine)
 	{
 		GEngine->AddOnScreenDebugMessage(
-			-1,
-			5.f,
-			FColor::Green,
+			-1,5.f,FColor::Green,
 			FString::Printf(TEXT("[Multiplay] Found %d Sessions"), FoundCount));
 	}
 
@@ -688,15 +591,11 @@ void USGMultiplayGameInstance::OnFindSessionsComplete(bool bWasSuccessful)
 		if (!Result.IsValid())
 		{
 			UE_LOG(LogTemp, Warning,
-				TEXT("[%d] Invalid Search Result"),
-				i);
+				TEXT("[%d] Invalid Search Result"),i);
 			continue;
 		}
-		UE_LOG(LogTemp, Warning,
-	TEXT("Presence : %s"),
-	Result.Session.SessionSettings.bUsesPresence
-		? TEXT("TRUE")
-		: TEXT("FALSE"));
+		UE_LOG(LogTemp, Warning,TEXT("Presence : %s"),
+			Result.Session.SessionSettings.bUsesPresence? TEXT("TRUE"): TEXT("FALSE"));
 
 		UE_LOG(LogTemp, Warning,
 			TEXT("Lobby : %s"),
@@ -705,6 +604,11 @@ void USGMultiplayGameInstance::OnFindSessionsComplete(bool bWasSuccessful)
 				: TEXT("FALSE"));
 
 		FString MapName;
+		
+		const bool bHasMapName =
+			Result.Session.SessionSettings.Get(
+				SETTING_MAPNAME,
+				MapName);
 		Result.Session.SessionSettings.Get(
 			SETTING_MAPNAME,
 			MapName);
@@ -754,11 +658,14 @@ void USGMultiplayGameInstance::OnFindSessionsComplete(bool bWasSuccessful)
 			continue;
 		}
 
-		//-----------------------------------------------------
-		// 맵 체크
-		//-----------------------------------------------------
+		// ========================================================
+		// ★ MAPNAME 필터를 FindServers()에 넣었다면
+		// ★ 여기의 맵 체크는 중복 검사입니다.
+		// ★ 디버깅 단계에서는 유지하는 것이 안전합니다.
+		// ========================================================
 
-		if (MapName != TEXT("SG_LobbyLevel"))
+
+		if (!bHasMapName  ||MapName != TEXT("SG_LobbyLevel"))
 		{
 			UE_LOG(LogTemp, Warning,
 				TEXT("[%d] Skip (Different Map)"),
@@ -821,17 +728,17 @@ void USGMultiplayGameInstance::OnFindSessionsComplete(bool bWasSuccessful)
 				FColor::Yellow,
 				TEXT("[Multiplay] Valid Session Found"));
 		}
+		JoinServer(TargetSessionIndex);
 
-		FTimerHandle TimerHandle;
-
-		GetWorld()->GetTimerManager().SetTimer(
-			TimerHandle,
-			FTimerDelegate::CreateUObject(
-				this,
-				&USGMultiplayGameInstance::JoinServer,
-				TargetSessionIndex),
-			2.0f,      // 기존 0.2 -> 2초
-			false);
+		//FTimerHandle TimerHandle;
+		//GetWorld()->GetTimerManager().SetTimer(
+		//	TimerHandle,
+		//	FTimerDelegate::CreateUObject(
+		//		this,
+		//		&USGMultiplayGameInstance::JoinServer,
+		//		TargetSessionIndex),
+		//	2.0f,      // 기존 0.2 -> 2초
+		//	false);
 	}
 	else
 	{
@@ -902,28 +809,28 @@ void USGMultiplayGameInstance::OnJoinSessionComplete(FName SessionName, EOnJoinS
 		TEXT("Join Result : %s"),
 		*ResultString);
 
-	if (GEngine)
+	if (Result != EOnJoinSessionCompleteResult::Success)
 	{
-		GEngine->AddOnScreenDebugMessage(
-			-1,
-			5.f,
-			Result == EOnJoinSessionCompleteResult::Success
-				? FColor::Green
-				: FColor::Red,
-			FString::Printf(
-				TEXT("[Multiplay] Join Result : %s"),
-				*ResultString));
+		UE_LOG(
+			LogTemp,
+			Error,
+			TEXT("Join Failed : %s"),
+			*ResultString);
+		return;
 	}
-
-	//------------------------------------------------------------
-	// Join 성공
-	//------------------------------------------------------------
-
-	if (Result == EOnJoinSessionCompleteResult::Success)
+	if (!SessionInterface.IsValid())
 	{
+		UE_LOG(
+			LogTemp,
+			Error,
+			TEXT("[Multiplay] SessionInterface Invalid after Join"));
+
+		return;
+	}
+	
 		FString ConnectInfo;
 
-		bool bResolved =
+		const bool bResolved =
 			SessionInterface->GetResolvedConnectString(
 				NAME_GameSession,
 				ConnectInfo);
@@ -953,17 +860,6 @@ void USGMultiplayGameInstance::OnJoinSessionComplete(FName SessionName, EOnJoinS
 			TEXT("ConnectString : %s"),
 			*ConnectInfo);
 
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(
-				-1,
-				10.f,
-				FColor::Green,
-				FString::Printf(
-					TEXT("[Multiplay] ClientTravel -> %s"),
-					*ConnectInfo));
-		}
-
 		APlayerController* PlayerController =
 			GetFirstLocalPlayerController();
 
@@ -975,37 +871,8 @@ void USGMultiplayGameInstance::OnJoinSessionComplete(FName SessionName, EOnJoinS
 			return;
 		}
 
-		UE_LOG(LogTemp, Warning,
-			TEXT("ClientTravel Start"));
-
+	
 		PlayerController->ClientTravel(
 			ConnectInfo,
 			ETravelType::TRAVEL_Absolute);
-
-		UE_LOG(LogTemp, Warning,
-			TEXT("ClientTravel End"));
-	}
-	else
-	{
-		//--------------------------------------------------------
-		// Join 실패
-		//--------------------------------------------------------
-
-		UE_LOG(LogTemp, Error,
-			TEXT("Join Failed : %s"),
-			*ResultString);
-
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(
-				-1,
-				10.f,
-				FColor::Red,
-				FString::Printf(
-					TEXT("[Multiplay] Join Failed : %s"),
-					*ResultString));
-		}
-	}
-
-	UE_LOG(LogTemp, Warning, TEXT("=========================================="));
 }
