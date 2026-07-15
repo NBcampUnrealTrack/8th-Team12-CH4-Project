@@ -17,7 +17,47 @@ UGA_SG_DropKick::UGA_SG_DropKick()
     bReplicateInputDirectly = true;
 }
 
-void UGA_SG_DropKick::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
+bool UGA_SG_DropKick::CanActivateAbility(
+    const FGameplayAbilitySpecHandle Handle,
+    const FGameplayAbilityActorInfo* ActorInfo, 
+    const FGameplayTagContainer* SourceTags,
+    const FGameplayTagContainer* TargetTags,
+    FGameplayTagContainer* OptionalRelevantTags) const
+{
+    // // Immunity면 return
+    // UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get();
+    // FGameplayTag ImmunityTag = FGameplayTag::RequestGameplayTag(FName("State.Immunity"));
+    // if (ASC->HasMatchingGameplayTag(ImmunityTag))
+    // {
+    //     UE_LOG(LogTemp, Warning, TEXT("무적상태라 드롭킥 X"));
+    //     return false;
+    // }
+    
+    if (!ActorInfo || !ActorInfo->AbilitySystemComponent.IsValid())
+    {
+        return false;
+    }
+
+    UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get();
+    FGameplayTag ImmunityTag = FGameplayTag::RequestGameplayTag(FName("State.Immunity"));
+    
+    bool bHasImmunity = ASC->HasMatchingGameplayTag(ImmunityTag);
+    // UE_LOG(LogTemp, Log, TEXT("피격자가 무적 : %s"), bHasImmunity ? TEXT("TRUE") : TEXT("FALSE"));
+
+    if (bHasImmunity)
+    {
+        // UE_LOG(LogTemp, Warning, TEXT("피격자가 무적이라서 드롭킥 발동x"));
+        return false;
+    }
+    
+    return Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags);
+}
+
+void UGA_SG_DropKick::ActivateAbility(
+    const FGameplayAbilitySpecHandle Handle, 
+    const FGameplayAbilityActorInfo* ActorInfo, 
+    const FGameplayAbilityActivationInfo ActivationInfo, 
+    const FGameplayEventData* TriggerEventData)
 {
     Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
@@ -67,7 +107,11 @@ void UGA_SG_DropKick::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
     }
 }
 
-void UGA_SG_DropKick::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
+void UGA_SG_DropKick::EndAbility(
+    const FGameplayAbilitySpecHandle Handle, 
+    const FGameplayAbilityActorInfo* ActorInfo,
+    const FGameplayAbilityActivationInfo ActivationInfo, 
+    bool bReplicateEndAbility, bool bWasCancelled)
 {
     AlreadyHitActors.Empty();
     
@@ -82,7 +126,7 @@ void UGA_SG_DropKick::OnGameplayEventReceived(FGameplayEventData Payload)
     {
         return;
     }
-    UE_LOG(LogTemp, Log, TEXT("드롭킥 충돌 감지된 액터: %s"), *HitTarget->GetName());
+    // UE_LOG(LogTemp, Log, TEXT("드롭킥 충돌 감지된 액터: %s"), *HitTarget->GetName());
 
     // 이미 맞은놈은 제외
     if (AlreadyHitActors.Contains(HitTarget))
@@ -134,7 +178,7 @@ void UGA_SG_DropKick::PushBall(AActor* BallActor)
         PushDirection = PushDirection.GetSafeNormal();
 
         BallMesh->AddImpulse(PushDirection * DropKickPower, NAME_None, true);
-        UE_LOG(LogTemp, Log, TEXT("쥰내 센 드롭킥 파워: %f"), DropKickPower);
+        // UE_LOG(LogTemp, Log, TEXT("쥰내 센 드롭킥 파워: %f"), DropKickPower);
     }
 }
 
@@ -162,6 +206,14 @@ void UGA_SG_DropKick::ApplyDamageToTarget(AActor* HitEnemy, const FGameplayEvent
         return;
     }
     
+    // 무적상태 검사
+    FGameplayTag ImmunityTag = FGameplayTag::RequestGameplayTag(FName("State.Immunity"));
+    if (TargetASC->HasMatchingGameplayTag(ImmunityTag))
+    {
+        // UE_LOG(LogTemp, Warning, TEXT("%s 상대방이 무적상태이므로 드롭킥 피격을 무시"), *HitEnemy->GetName());
+        return;
+    }
+    
     HitEnemy = const_cast<AActor*>(Payload.Target.Get());
     ACharacter* Attacker = Cast<ACharacter>(GetAvatarActorFromActorInfo());
 
@@ -183,7 +235,7 @@ void UGA_SG_DropKick::ApplyDamageToTarget(AActor* HitEnemy, const FGameplayEvent
         VictimCharacter->MulticastEnableRagdoll(HitImpulse, HitLocation);
     }
 
-    UE_LOG(LogTemp, Warning, TEXT("%s에게 드롭킥 날리기 성공"), *HitEnemy->GetName());
+    // UE_LOG(LogTemp, Warning, TEXT("%s에게 드롭킥 날리기 성공"), *HitEnemy->GetName());
 
     FGameplayEffectContextHandle EffectContext = MyASC->MakeEffectContext();
     EffectContext.AddSourceObject(this);

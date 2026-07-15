@@ -42,7 +42,7 @@ void UGA_SG_Kick::ActivateAbility(
     const FGameplayAbilityActivationInfo ActivationInfo, 
     const FGameplayEventData* TriggerEventData)
 {
-    UE_LOG(LogTemp, Warning, TEXT(">>> Kick ActivateAbility 호출됨!"));
+    // UE_LOG(LogTemp, Warning, TEXT(">>> Kick ActivateAbility 호출됨!"));
 
     if (bIsKickInProgress)
     {
@@ -102,7 +102,7 @@ void UGA_SG_Kick::EndAbility(
     bool bReplicateEndAbility, 
     bool bWasCancelled)
 {
-   UE_LOG(LogTemp, Error, TEXT("<<< Kick EndAbility 호출됨!"));
+   // UE_LOG(LogTemp, Error, TEXT("<<< Kick EndAbility 호출됨!"));
    bIsKickInProgress = false;
 
    Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
