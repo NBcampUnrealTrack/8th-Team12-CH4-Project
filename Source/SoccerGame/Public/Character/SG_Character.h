@@ -156,6 +156,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ragdoll|Animation")
 	TObjectPtr<UAnimMontage> GetUpBackMontage;
 
+	// Ragdoll 복구 상태(ABP에서 사용)
+	UPROPERTY(BlueprintReadOnly, Category = "Ragdoll")
+	bool bIsRecoveringFromRagdoll = false;
+	
 private:
 	// 엎드려 있는지 확인하는 함수
 	bool IsRagdollFaceDown() const;

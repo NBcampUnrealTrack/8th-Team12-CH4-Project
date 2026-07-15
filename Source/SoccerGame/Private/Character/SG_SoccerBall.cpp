@@ -23,8 +23,6 @@ ASG_SoccerBall::ASG_SoccerBall()
     // 잔디밭 감속 마찰력 설정
     BallMesh->SetLinearDamping(0.5f);   
     BallMesh->SetAngularDamping(0.3f);  
-    // 공 무게 
-    BallMesh->SetMassOverrideInKg(NAME_None, 50.f, true);
     // 공이 속도를 받아 바닥이나 벽을 뚫고 맵 밑으로 추락하는 것을 방지(어제 겪은 버그 방지...)
     BallMesh->SetUseCCD(true); 
     
@@ -40,6 +38,17 @@ ASG_SoccerBall::ASG_SoccerBall()
     StateSendInterval = 1.f / 30.f;
     StateSendTimer = 0.f;
     OwnershipDuration = 0.35f;
+}
+
+void ASG_SoccerBall::PostInitializeComponents()
+{
+    Super::PostInitializeComponents();
+
+    if (BallMesh)
+    {
+        // 공 무게 
+        BallMesh->SetMassOverrideInKg(NAME_None, 50.f, true);
+    }
 }
 
 void ASG_SoccerBall::Tick(float DeltaTime)
