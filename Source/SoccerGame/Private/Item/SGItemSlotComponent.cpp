@@ -6,6 +6,7 @@
 #include "AbilitySystemComponent.h"
 #include "Abilities/GameplayAbility.h"
 #include "GameFramework/Pawn.h"
+#include "Item/Ability/GA_SGItemBase.h"
 #include "Item/Data/SGItemDefinition.h"
 #include "Net/UnrealNetwork.h"
 
@@ -124,6 +125,37 @@ void USGItemSlotComponent::UseItemReleased()
 	else{
 		Server_ConsumeItem();
 	}
+}
+
+void USGItemSlotComponent::UseItemRotate(float InputValue)
+{
+	if (ItemSlots.IsEmpty() || !ItemAbilityHandles.IsValidIndex(0)) return;
+
+	AActor* Owner = GetOwner();
+	if (!IsValid(Owner)) return;
+
+	UAbilitySystemComponent* AbilitySystemComponent = Owner->FindComponentByClass<UAbilitySystemComponent>();
+	if (!IsValid(AbilitySystemComponent)) return;
+
+	FGameplayAbilitySpecHandle AbilityHandle = ItemAbilityHandles[0];
+	if (!AbilityHandle.IsValid()) return;
+
+	FGameplayAbilitySpec* AbilitySpec = AbilitySystemComponent->FindAbilitySpecFromHandle(AbilityHandle);
+	if (AbilitySpec == nullptr || !AbilitySpec->IsActive()) return;
+
+	UGA_SGItemBase* ItemAbility = Cast<UGA_SGItemBase>(AbilitySpec->GetPrimaryInstance());
+	if (!IsValid(ItemAbility)) return;
+
+	ItemAbility->HandleRotateInput(InputValue);
+
+	if (!Owner->HasAuthority()){
+		Server_UseItemRotate(InputValue);
+	}
+}
+
+void USGItemSlotComponent::Server_UseItemRotate_Implementation(float InputValue)
+{
+	UseItemRotate(InputValue);
 }
 
 int32 USGItemSlotComponent::GetItemCount() const

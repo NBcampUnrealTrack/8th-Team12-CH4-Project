@@ -27,6 +27,11 @@ void UGA_SGItemBase::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 	WaitInputReleaseTask->ReadyForActivation();
 }
 
+void UGA_SGItemBase::HandleRotateInput(float InputValue)
+{
+	// 필요한 경우에만 구현
+}
+
 void UGA_SGItemBase::ExecuteItemAbility(float TimeHeld)
 {
 	// 실제 기능 구현
