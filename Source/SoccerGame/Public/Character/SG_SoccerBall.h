@@ -21,13 +21,13 @@ struct FBallState
 	GENERATED_BODY()
 
 	UPROPERTY()
-	FVector Location;
+	FVector Location = FVector::ZeroVector;
 	UPROPERTY()
-	FVector LinearVelocity;
+	FVector LinearVelocity= FVector::ZeroVector ;
 	UPROPERTY()
-	FVector AngularVelocity;
+	FVector AngularVelocity= FVector::ZeroVector;
 	UPROPERTY()
-	FRotator Rotation;
+	FRotator Rotation = FRotator::ZeroRotator;
 };
 
 UCLASS()

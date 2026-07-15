@@ -556,7 +556,7 @@ void USGMultiplayGameInstance::OnCreateSessionComplete(FName Sessionname, bool b
 		World,
 		*LobbyMapWithOption,
 		true,          // 기존 URL 옵션 유지
-		TEXT("listen?bIsLANMatch=1") // Listen Server로 열기
+		TEXT("listen") // Listen Server로 열기
 	);
 
 	/*
