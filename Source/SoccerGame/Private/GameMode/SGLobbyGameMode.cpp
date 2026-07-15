@@ -16,6 +16,10 @@ ASGLobbyGameMode::ASGLobbyGameMode()
 	PlayerControllerClass = ASGLobbyPlayerController::StaticClass();
 	PlayerStateClass = ASGLobbyPlayerState::StaticClass();
 	GameStateClass = ASGLobbyGameState::StaticClass();
+	
+	// 로비에서 Pawn을 생성하지 않을 경우
+	DefaultPawnClass = nullptr;
+	bStartPlayersAsSpectators = true;
 }
 
 void ASGLobbyGameMode::BeginPlay()
