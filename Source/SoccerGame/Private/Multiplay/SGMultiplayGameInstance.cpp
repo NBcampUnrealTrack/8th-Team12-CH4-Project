@@ -249,6 +249,8 @@ void USGMultiplayGameInstance::FindServers()
 
 void USGMultiplayGameInstance::JoinServer(int32 SessionIndex)
 {
+	
+	
 	UE_LOG(LogTemp, Warning, TEXT("=========================================="));
 	UE_LOG(LogTemp, Warning, TEXT("JoinServer()"));
 
@@ -271,6 +273,7 @@ void USGMultiplayGameInstance::JoinServer(int32 SessionIndex)
 			SessionIndex);
 		return;
 	}
+	
 
 	ULocalPlayer* LocalPlayer = GetFirstGamePlayer();
 
@@ -282,6 +285,14 @@ void USGMultiplayGameInstance::JoinServer(int32 SessionIndex)
 
 	const FOnlineSessionSearchResult& SearchResult =
 		SessionSearch->SearchResults[SessionIndex];
+	
+	UE_LOG(LogTemp, Warning,
+TEXT("Search Presence=%d"),
+SearchResult.Session.SessionSettings.bUsesPresence);
+
+	UE_LOG(LogTemp, Warning,
+	TEXT("Search Lobby=%d"),
+	SearchResult.Session.SessionSettings.bUseLobbiesIfAvailable);
 
 	UE_LOG(LogTemp, Warning,
 		TEXT("Host : %s"),
@@ -393,6 +404,7 @@ void USGMultiplayGameInstance::JoinServer(int32 SessionIndex)
 
 void USGMultiplayGameInstance::OnCreateSessionComplete(FName Sessionname, bool bWasSuccessful)
 {
+	
 	if (SessionInterface.IsValid())
 	{
 		// 델리게이트 해제
@@ -422,6 +434,23 @@ void USGMultiplayGameInstance::OnCreateSessionComplete(FName Sessionname, bool b
 			GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Red, TEXT("[Multiplay] 세션 생성 실패!"));
 		}
 	}
+	FNamedOnlineSession* Session =
+	SessionInterface->GetNamedSession(NAME_GameSession);
+
+	if (Session)
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("Host Presence=%s"),
+			Session->SessionSettings.bUsesPresence
+				? TEXT("TRUE")
+				: TEXT("FALSE"));
+
+		UE_LOG(LogTemp, Warning,
+			TEXT("Host Lobby=%s"),
+			Session->SessionSettings.bUseLobbiesIfAvailable
+				? TEXT("TRUE")
+				: TEXT("FALSE"));
+	}
 }
 
 void USGMultiplayGameInstance::OnFindSessionsComplete(bool bWasSuccessful)
@@ -431,6 +460,7 @@ void USGMultiplayGameInstance::OnFindSessionsComplete(bool bWasSuccessful)
 		SessionInterface->ClearOnFindSessionsCompleteDelegate_Handle(
 			FindSessionsCompleteDelegateHandle);
 	}
+	
 
 	UE_LOG(LogTemp, Warning, TEXT("=========================================="));
 	UE_LOG(LogTemp, Warning, TEXT("OnFindSessionsComplete"));
@@ -505,6 +535,17 @@ void USGMultiplayGameInstance::OnFindSessionsComplete(bool bWasSuccessful)
 				i);
 			continue;
 		}
+		UE_LOG(LogTemp, Warning,
+	TEXT("Presence : %s"),
+	Result.Session.SessionSettings.bUsesPresence
+		? TEXT("TRUE")
+		: TEXT("FALSE"));
+
+		UE_LOG(LogTemp, Warning,
+			TEXT("Lobby : %s"),
+			Result.Session.SessionSettings.bUseLobbiesIfAvailable
+				? TEXT("TRUE")
+				: TEXT("FALSE"));
 
 		FString MapName;
 		Result.Session.SessionSettings.Get(
