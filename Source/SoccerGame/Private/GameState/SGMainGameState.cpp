@@ -28,6 +28,7 @@ void ASGMainGameState::OnRep_MatchState()
 void ASGMainGameState::OnRep_UpdateScore()
 {
 	// 레드팀이든 블루팀이든 점수가 복제되어 내려오면 이 함수가 실행됩니다.
+	// 
 	APlayerController* PC = GetWorld()->GetFirstPlayerController();
 	if (PC)
 	{

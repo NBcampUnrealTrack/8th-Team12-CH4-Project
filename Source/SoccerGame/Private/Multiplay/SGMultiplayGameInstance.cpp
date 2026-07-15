@@ -40,6 +40,42 @@ USGMultiplayGameInstance::USGMultiplayGameInstance()
 void USGMultiplayGameInstance::Init()
 {
 	Super::Init();
+	IOnlineSubsystem* DefaultOSS = IOnlineSubsystem::Get();
+	IOnlineSubsystem* SteamOSS = IOnlineSubsystem::Get(TEXT("Steam"));
+
+	if (DefaultOSS)
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("[OSS] Default = %s"),
+			*DefaultOSS->GetSubsystemName().ToString());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error,
+			TEXT("[OSS] Default = NULL"));
+	}
+
+	if (SteamOSS)
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("[OSS] Steam = FOUND"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error,
+			TEXT("[OSS] Steam = NOT FOUND"));
+	}
+
+	if (DefaultOSS)
+	{
+		SessionInterface = DefaultOSS->GetSessionInterface();
+
+		UE_LOG(LogTemp, Warning,
+			TEXT("[OSS] SessionInterface = %s"),
+			SessionInterface.IsValid()
+				? TEXT("VALID")
+				: TEXT("INVALID"));
+	}
 	
 	// Online Subsystem과 인터페이스 연결
 	IOnlineSubsystem* Subsystem = IOnlineSubsystem::Get();
@@ -53,6 +89,7 @@ void USGMultiplayGameInstance::Init()
 			   FString::Printf(TEXT("[System] 온라인 서브시스템 활성화: %s"), *Subsystem->GetSubsystemName().ToString()));
 		}
 	}
+	
 	
 }
 
@@ -78,7 +115,23 @@ void USGMultiplayGameInstance::CreateServer()
 		
 		// 현재 활성화된 네트워크가 NULL이면 LAN모드(true)로, 스팀이면 인터넷 모드(false)로 자동 설정 
 		//SessionSettings.bIsLANMatch = IOnlineSubsystem::Get()->GetSubsystemName() == "NULL" ? true : false;
-		bool bIsLAN = (IOnlineSubsystem::Get()->GetSubsystemName() == "NULL");
+		IOnlineSubsystem* OSS = IOnlineSubsystem::Get();
+
+		bool bIsLAN = true;
+
+		if (OSS)
+		{
+			bIsLAN = (OSS->GetSubsystemName() == "NULL");
+
+			UE_LOG(LogTemp, Warning,
+				TEXT("Subsystem : %s"),
+				*OSS->GetSubsystemName().ToString());
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error,
+				TEXT("OnlineSubsystem == nullptr"));
+		}
 		SessionSettings.bIsLANMatch = bIsLAN;
 		
 		if (GEngine)
@@ -154,7 +207,14 @@ void USGMultiplayGameInstance::FindServers()
 		// =========================================================================
 		// ★ [수정] 검색 시에도 LAN환경인지 스팀인지 자동 판별하여 매칭 처리
 		// =========================================================================
-		bool bIsLAN = (IOnlineSubsystem::Get()->GetSubsystemName() == "NULL");
+		IOnlineSubsystem* OSS = IOnlineSubsystem::Get();
+
+		bool bIsLAN = true;
+
+		if (OSS)
+		{
+			bIsLAN = (OSS->GetSubsystemName()=="NULL");
+		}
 		SessionSearch->bIsLanQuery = bIsLAN;
 		// =========================================================================
 		
