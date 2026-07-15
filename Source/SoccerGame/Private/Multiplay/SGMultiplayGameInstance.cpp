@@ -550,20 +550,13 @@ void USGMultiplayGameInstance::OnCreateSessionComplete(FName Sessionname, bool b
 	// ★ 첫 Host 생성 시에는 ServerTravel 대신 OpenLevel + listen 사용
 	// ============================================================
 
-	const FName LobbyMapName =
-		TEXT("/Game/SoccerGame/Maps/System/SG_LobbyLevel");
-
-	UE_LOG(
-		LogTemp,
-		Warning,
-		TEXT("[Multiplay] OpenLevel 시작: %s?listen"),
-		*LobbyMapName.ToString());
-
+	//const FName LobbyMapName =TEXT("Game/SoccerGame/Maps/System/SG_LobbyLevel");
+	FString LobbyMapWithOption = TEXT("Game/SoccerGame/Maps/System/SG_LobbyLevel");
 	UGameplayStatics::OpenLevel(
 		World,
-		LobbyMapName,
+		*LobbyMapWithOption,
 		true,          // 기존 URL 옵션 유지
-		TEXT("listen") // Listen Server로 열기
+		TEXT("listen?bIsLANMatch=1") // Listen Server로 열기
 	);
 
 	/*
