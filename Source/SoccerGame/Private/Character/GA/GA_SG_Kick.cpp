@@ -115,6 +115,7 @@ void UGA_SG_Kick::FindAndPushBall()
     ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
     if (!Character)
     {
+        UE_LOG(LogTemp, Error, TEXT("Character is nullptr"));
         return;
     }
 
@@ -152,7 +153,7 @@ void UGA_SG_Kick::FindAndPushBall()
         OutActors
     );
    
-    FString NetMode = HasAuthority(&CurrentActivationInfo) ? TEXT("🔴 서버") : TEXT("🟢 클라이언트");
+    // FString NetMode = HasAuthority(&CurrentActivationInfo) ? TEXT("🔴 서버") : TEXT("🟢 클라이언트");
 
     if (bHit)
     {
@@ -164,7 +165,6 @@ void UGA_SG_Kick::FindAndPushBall()
             {
                 FVector DirToBall = (HitActor->GetActorLocation() - Character->GetActorLocation()).GetSafeNormal2D();
                 float DotResult = FVector::DotProduct(Forward.GetSafeNormal2D(), DirToBall);
-
                 // 전방 범위 내 공만 판정
                 if (DotResult < -0.2f) 
                 {
@@ -179,7 +179,7 @@ void UGA_SG_Kick::FindAndPushBall()
                     PushDirection = PushDirection.GetSafeNormal();
                 
                     FVector ImpulseVector = PushDirection * FinalKickPower;
-                
+
                     // 🔴 서버: 소유권 넘기고 물리 적용
                     if (HasAuthority(&CurrentActivationInfo))
                     {
@@ -213,6 +213,9 @@ void UGA_SG_Kick::FindAndPushBall()
 
 void UGA_SG_Kick::OnGameplayEventReceived(FGameplayEventData Payload)
 {
+    // 공 밀어내기 (서버 & 로컬 오너 연산)
+    FindAndPushBall();
+    
     AActor* HitTarget = const_cast<AActor*>(Payload.Target.Get());
     if (!HitTarget)
     {
@@ -223,9 +226,6 @@ void UGA_SG_Kick::OnGameplayEventReceived(FGameplayEventData Payload)
         return;
     }
     AlreadyHitActors.Add(HitTarget);
-    
-    // 공 밀어내기 (서버 & 로컬 오너 연산)
-    FindAndPushBall();
     
     // 사람 타격 및 데미지 처리는 서버에서만
     if (HasAuthority(&CurrentActivationInfo))
