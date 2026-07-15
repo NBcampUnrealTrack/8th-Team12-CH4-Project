@@ -139,6 +139,26 @@ void USGMultiplayGameInstance::CreateServer()
 			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Cyan, 
 			   FString::Printf(TEXT("[Multiplay] 서버 생성 시작... (모드: %s)"), bIsLAN ? TEXT("LAN") : TEXT("스팀 인터넷")));
 		}
+		UWorld* World = GetWorld();
+
+		if (!World)
+		{
+			UE_LOG(LogTemp, Error, TEXT("[Multiplay] GetWorld() == nullptr"));
+			return;
+		}
+
+		const FString LobbyMapPath =
+			TEXT("/Game/SoccerGame/Maps/System/SG_LobbyLevel?listen");
+
+		UE_LOG(LogTemp, Warning,
+			TEXT("[Multiplay] ServerTravel Start : %s"),
+			*LobbyMapPath);
+
+		bool bTravelResult = World->ServerTravel(LobbyMapPath);
+
+		UE_LOG(LogTemp, Warning,
+			TEXT("[Multiplay] ServerTravel Return : %s"),
+			bTravelResult ? TEXT("TRUE") : TEXT("FALSE"));
 		// -------------------------------------------------------------------------
 		// ★ [스팀 수정 1] bIsLANMatch 하드코딩 제거 및 스팀 로비 활성화
 		// 기존 코드에 'SessionSettings.bIsLANMatch = false;'가 하드코딩되어 있어 
@@ -150,7 +170,6 @@ void USGMultiplayGameInstance::CreateServer()
 		SessionSettings.bAllowJoinInProgress = true; 
 		SessionSettings.bAllowJoinViaPresence = true; 
 		SessionSettings.bShouldAdvertise = true; 
-		SessionSettings.bUsesPresence = true;
 		/*
 		SessionSettings.bIsLANMatch = false;
 		SessionSettings.NumPublicConnections = 6; // 최대 인원수 TODO: 나중에 변수 가져오기
@@ -435,7 +454,7 @@ void USGMultiplayGameInstance::OnCreateSessionComplete(FName Sessionname, bool b
 		if (World)
 		{
 			// 레벨 열기
-			World->ServerTravel("SG_LobbyLevel?listen");
+			World->ServerTravel("/Game/SoccerGame/Maps/System/SG_LobbyLevel?listen");
 		}
 	}
 	else
