@@ -42,11 +42,11 @@ bool UGA_SG_DropKick::CanActivateAbility(
     FGameplayTag ImmunityTag = FGameplayTag::RequestGameplayTag(FName("State.Immunity"));
     
     bool bHasImmunity = ASC->HasMatchingGameplayTag(ImmunityTag);
-    UE_LOG(LogTemp, Log, TEXT("피격자가 무적 : %s"), bHasImmunity ? TEXT("TRUE") : TEXT("FALSE"));
+    // UE_LOG(LogTemp, Log, TEXT("피격자가 무적 : %s"), bHasImmunity ? TEXT("TRUE") : TEXT("FALSE"));
 
     if (bHasImmunity)
     {
-        UE_LOG(LogTemp, Warning, TEXT("피격자가 무적이라서 드롭킥 발동x"));
+        // UE_LOG(LogTemp, Warning, TEXT("피격자가 무적이라서 드롭킥 발동x"));
         return false;
     }
     
@@ -126,7 +126,7 @@ void UGA_SG_DropKick::OnGameplayEventReceived(FGameplayEventData Payload)
     {
         return;
     }
-    UE_LOG(LogTemp, Log, TEXT("드롭킥 충돌 감지된 액터: %s"), *HitTarget->GetName());
+    // UE_LOG(LogTemp, Log, TEXT("드롭킥 충돌 감지된 액터: %s"), *HitTarget->GetName());
 
     // 이미 맞은놈은 제외
     if (AlreadyHitActors.Contains(HitTarget))
@@ -178,7 +178,7 @@ void UGA_SG_DropKick::PushBall(AActor* BallActor)
         PushDirection = PushDirection.GetSafeNormal();
 
         BallMesh->AddImpulse(PushDirection * DropKickPower, NAME_None, true);
-        UE_LOG(LogTemp, Log, TEXT("쥰내 센 드롭킥 파워: %f"), DropKickPower);
+        // UE_LOG(LogTemp, Log, TEXT("쥰내 센 드롭킥 파워: %f"), DropKickPower);
     }
 }
 
@@ -210,7 +210,7 @@ void UGA_SG_DropKick::ApplyDamageToTarget(AActor* HitEnemy, const FGameplayEvent
     FGameplayTag ImmunityTag = FGameplayTag::RequestGameplayTag(FName("State.Immunity"));
     if (TargetASC->HasMatchingGameplayTag(ImmunityTag))
     {
-        UE_LOG(LogTemp, Warning, TEXT("%s 상대방이 무적상태이므로 드롭킥 피격을 무시"), *HitEnemy->GetName());
+        // UE_LOG(LogTemp, Warning, TEXT("%s 상대방이 무적상태이므로 드롭킥 피격을 무시"), *HitEnemy->GetName());
         return;
     }
     
@@ -235,7 +235,7 @@ void UGA_SG_DropKick::ApplyDamageToTarget(AActor* HitEnemy, const FGameplayEvent
         VictimCharacter->MulticastEnableRagdoll(HitImpulse, HitLocation);
     }
 
-    UE_LOG(LogTemp, Warning, TEXT("%s에게 드롭킥 날리기 성공"), *HitEnemy->GetName());
+    // UE_LOG(LogTemp, Warning, TEXT("%s에게 드롭킥 날리기 성공"), *HitEnemy->GetName());
 
     FGameplayEffectContextHandle EffectContext = MyASC->MakeEffectContext();
     EffectContext.AddSourceObject(this);

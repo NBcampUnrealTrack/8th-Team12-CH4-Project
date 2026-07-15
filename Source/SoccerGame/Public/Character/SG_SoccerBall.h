@@ -20,13 +20,10 @@ struct FBallState
 
 	UPROPERTY()
 	FVector Location = FVector::ZeroVector;
-
 	UPROPERTY()
 	FVector LinearVelocity = FVector::ZeroVector;
-
 	UPROPERTY()
 	FVector AngularVelocity = FVector::ZeroVector;
-
 	UPROPERTY()
 	FRotator Rotation = FRotator::ZeroRotator;
 };
@@ -40,6 +37,7 @@ public:
 	ASG_SoccerBall();
 	virtual void Tick(float DeltaTime) override;
 	virtual void BeginPlay() override;
+	virtual void PostInitializeComponents() override;
 	
 	FORCEINLINE UStaticMeshComponent* GetBallMesh() const { return BallMesh; }
 
