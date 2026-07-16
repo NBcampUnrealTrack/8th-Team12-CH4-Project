@@ -3,19 +3,23 @@
 
 #include "Item/Preview/SGProjectileBase.h"
 
+#include "NiagaraFunctionLibrary.h"
 #include "Components/SphereComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
 
 ASGProjectileBase::ASGProjectileBase() :  
+	LifeTime(5.f),
+	PreviewOpacity(0.6f),	
 	TargetDistance(0.f), 
 	ThrowSpeed(0.f), 
 	ThrowForwardOffset(0.f), 
 	ThrowHeightOffset(0.f), 
 	bPreview(false),
-	LifeTime(5.f),
-	PreviewOpacity(0.6f)
+	bDestroyOnSurface(true),
+	Bounciness(0.35f),
+	EffectScale(1.f)
 {
 	// Tick 사용, 초깃값 비활성화
  	PrimaryActorTick.bCanEverTick = true;
@@ -37,6 +41,8 @@ ASGProjectileBase::ASGProjectileBase() :
 	ProjectileMovement->UpdatedComponent = CollisionComponent;
 	ProjectileMovement->bAutoActivate = false;
 	ProjectileMovement->bRotationFollowsVelocity = true;
+	ProjectileMovement->bShouldBounce = true;
+	ProjectileMovement->Bounciness = Bounciness;
 }
 
 void ASGProjectileBase::BeginPlay()
@@ -62,6 +68,16 @@ void ASGProjectileBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	}
 	
 	if (!bPreview){
+		if (GetNetMode() != NM_DedicatedServer){
+			if (FinishedNiagaraEffect != nullptr){
+				UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+					GetWorld(), FinishedNiagaraEffect, GetActorLocation(), GetActorRotation(), FVector(EffectScale));
+			}else if (FinishedEffect != nullptr){
+				UGameplayStatics::SpawnEmitterAtLocation(
+					GetWorld(), FinishedEffect, GetActorLocation(), GetActorRotation(), FVector(EffectScale));	
+			}
+		}
+		
 		OnProjectileFinished.Broadcast(this);
 	}
 	
@@ -94,10 +110,15 @@ void ASGProjectileBase::InitializeCosmeticProjectile(const FVector& StartLocatio
 {
 	bPreview = true;
 	
-	// 복제 비활성화, 충돌 비활성화
+	// 복제 비활성화
 	SetReplicates(false);
-	SetActorEnableCollision(false);
 	SetLifeSpan(LifeTime);
+	
+	// 바닥, 벽을 대상을 충돌 활성화
+	SetActorEnableCollision(true);
+	CollisionComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
+	CollisionComponent->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
+	CollisionComponent->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Block);
 	
 	// 해당 투사체가 보이도록 변경
 	if (IsValid(MeshComponent)){
@@ -159,6 +180,9 @@ bool ASGProjectileBase::LaunchByTrajectory(AActor* InPlayerActor, float InTarget
 	
 	// 자기 자신과의 충돌 무시
 	CollisionComponent->IgnoreActorWhenMoving(PlayerActor, true);
+	if (UPrimitiveComponent* PlayerRootComponent = Cast<UPrimitiveComponent>(PlayerActor->GetRootComponent())){
+		PlayerRootComponent->IgnoreActorWhenMoving(this, true);
+	}
 	
 	// 충돌 예측 지점 계산
 	FVector StartLocation, LaunchVelocity;
@@ -245,6 +269,10 @@ void ASGProjectileBase::OnProjectileHit(UPrimitiveComponent* HitComponent, AActo
 	if (!HasAuthority() || bPreview) return;
 	if (!IsValid(OtherActor) || OtherActor == this || OtherActor == PlayerActor) return;
 	
+	// 바닥, 벽에 충돌했을 때의 처리
+	const bool bHitPawn = OtherActor->IsA<APawn>();
+	if (!bHitPawn && !bDestroyOnSurface) return;
+	
 	OnProjectileHitTarget.Broadcast(this, OtherActor);
 	Destroy();
 }
@@ -269,6 +297,10 @@ void ASGProjectileBase::SpawnCosmeticProjectile()
 	ActiveCosmeticProjectile = World->SpawnActor<ASGProjectileBase>(
 		GetClass(), CosmeticLaunchData.StartLocation, CosmeticLaunchData.LaunchVelocity.Rotation(), SpawnParams);
 	if (!IsValid(ActiveCosmeticProjectile)) return;
+	
+	// Player - Projectile 충돌 무시
+	CollisionComponent->IgnoreActorWhenMoving(ActiveCosmeticProjectile, true);
+	ActiveCosmeticProjectile->CollisionComponent->IgnoreActorWhenMoving(this, true);
 	
 	ActiveCosmeticProjectile->InitializeCosmeticProjectile(
 		CosmeticLaunchData.StartLocation, CosmeticLaunchData.LaunchVelocity);
