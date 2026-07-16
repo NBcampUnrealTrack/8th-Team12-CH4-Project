@@ -71,12 +71,4 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "KickPowerSetting")
 	float UpwardForceRatio = 1.0f;
 	
-	// ---------------------- DropKick 래그돌 파워 배율, Z축 파워 변수 ---------------------- //
-	// 드롭킥 래그돌 파워 배율 (기본값: 1.0f)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "KickPowerSetting")
-	float RagdollKickPowerMultiplier = 1.0f;
-
-	// 캐릭터가 위로 뜨는 Z축 보정 비율 (기본값: 0.5f)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "KickPowerSetting")
-	float RagdollUpwardForceRatio = 0.5f;
 };

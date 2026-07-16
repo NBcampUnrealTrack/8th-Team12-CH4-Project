@@ -94,18 +94,18 @@ void ASG_SoccerBall::Tick(float DeltaTime)
     }
     
     // 현재 오너 상태 디버깅 출력
-    if (GEngine)
-    {
-        AActor* CurrentOwner = GetOwner();
-        FString OwnerName = CurrentOwner ? CurrentOwner->GetName() : TEXT("No Owner (NULL)");
-        FString NetMode = HasAuthority() ? TEXT("🔴 서버") : TEXT("🟢 클라이언트");
-        FColor DisplayColor = HasAuthority() ? FColor::Red : FColor::Green;
-
-        GEngine->AddOnScreenDebugMessage(
-            1, 0.0f, DisplayColor, 
-            FString::Printf(TEXT("[%s] 공의 현재 Owner: %s"), *NetMode, *OwnerName)
-        );
-    }
+    // if (GEngine)
+    // {
+    //     AActor* CurrentOwner = GetOwner();
+    //     FString OwnerName = CurrentOwner ? CurrentOwner->GetName() : TEXT("No Owner (NULL)");
+    //     FString NetMode = HasAuthority() ? TEXT("🔴 서버") : TEXT("🟢 클라이언트");
+    //     FColor DisplayColor = HasAuthority() ? FColor::Red : FColor::Green;
+    //
+    //     GEngine->AddOnScreenDebugMessage(
+    //         1, 0.0f, DisplayColor, 
+    //         FString::Printf(TEXT("[%s] 공의 현재 Owner: %s"), *NetMode, *OwnerName)
+    //     );
+    // }
 }
 
 void ASG_SoccerBall::BeginPlay()
@@ -126,9 +126,9 @@ void ASG_SoccerBall::OnRep_Owner()
     Super::OnRep_Owner();
     
     // 클라이언트에서 Owner가 바뀌었을 때 실행되는지 로그 확인
-    FString NetMode = HasAuthority() ? TEXT("🔴 서버") : TEXT("🟢 클라이언트");
-    UE_LOG(LogTemp, Warning, TEXT("[%s] OnRep_Owner 호출됨! 새로운 Owner: %s"), 
-        *NetMode, GetOwner() ? *GetOwner()->GetName() : TEXT("NULL"));
+    // FString NetMode = HasAuthority() ? TEXT("🔴 서버") : TEXT("🟢 클라이언트");
+    // UE_LOG(LogTemp, Warning, TEXT("[%s] OnRep_Owner 호출됨! 새로운 Owner: %s"), 
+    //     *NetMode, GetOwner() ? *GetOwner()->GetName() : TEXT("NULL"));
     
     RefreshPhysicsSimulation();
 }
@@ -201,17 +201,6 @@ void ASG_SoccerBall::UpdateRemoteBall(float DeltaTime)
             );
 
     BallMesh->SetWorldLocationAndRotation(NewLocation, NewRotation);
-    // BallMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-    // if(bShouldSimulate)
-    // {
-    //     BallMesh->SetCollisionEnabled(
-    //         ECollisionEnabled::QueryAndPhysics);
-    // }
-    // else
-    // {
-    //     BallMesh->SetCollisionEnabled(
-    //         ECollisionEnabled::QueryOnly);
-    // }
 }
 
 void ASG_SoccerBall::FillCurrentBallState(FBallState& OutState)
@@ -235,10 +224,10 @@ void ASG_SoccerBall::RefreshPhysicsSimulation()
         BallMesh->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
     }
     
-    GEngine->AddOnScreenDebugMessage(
-                -1, 3.0f, FColor::Red,
-                FString::Printf(TEXT("PhysicsEnabled : %hhd"), bShouldSimulate)
-            );
+    // GEngine->AddOnScreenDebugMessage(
+    //             -1, 3.0f, FColor::Red,
+    //             FString::Printf(TEXT("PhysicsEnabled : %hhd"), bShouldSimulate)
+    //         );
 }
 
 
@@ -339,13 +328,13 @@ void ASG_SoccerBall::OnBallHit(
         // 즉시 Owner 부여
         SetBallOwner(TouchingPawn);
         
-        if (GEngine)
-        {
-            GEngine->AddOnScreenDebugMessage(
-                2, 2.0f, FColor::Yellow,
-                FString::Printf(TEXT("새로운 Owner : %s, ImpactForce : %f"), *TouchingPawn->GetName(), ImpactForce)
-            );
-        }
+        // if (GEngine)
+        // {
+        //     GEngine->AddOnScreenDebugMessage(
+        //         2, 2.0f, FColor::Yellow,
+        //         FString::Printf(TEXT("새로운 Owner : %s, ImpactForce : %f"), *TouchingPawn->GetName(), ImpactForce)
+        //     );
+        // }
     }
 }
 

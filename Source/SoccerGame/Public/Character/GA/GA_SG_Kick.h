@@ -62,6 +62,10 @@ protected:
 private:
 	// 연타/중복 실행 방지 플래그
 	bool bIsKickInProgress = false;
+	
+	// 중복 타격 방지 액터 리스트
+	UPROPERTY()
+	TArray<TObjectPtr<AActor>> AlreadyHitActors;
 
 public:
 	// ------------------------ Kick 파워 배율, Z축 파워 변수 ------------------------ //

@@ -13,30 +13,40 @@ void ASGLobbyPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	if (IsLocalController() == false)
+	if (!IsLocalController())
 	{
 		return; 
 	}
-	
-	if (UIWidgetClass == nullptr)
+	if (UILobbyWidgetClass == nullptr)
 	{
 		UE_LOG(LogTemp, Error, TEXT("UIWidgetClass 없음."));
 	}
 	
-	if (IsValid(UIWidgetClass) == true)
+	if (IsValid(UILobbyWidgetClass))
 	{
-		UIWidgetInstance = CreateWidget<UUserWidget>(this, UIWidgetClass); 
-		if (IsValid(UIWidgetInstance) == true)
+		UIWidgetInstance = CreateWidget<UUserWidget>(this, UILobbyWidgetClass); 
+		if (IsValid(UIWidgetInstance))
 		{
 			UIWidgetInstance->AddToViewport();
-			
+
 			FInputModeUIOnly Mode;
 			Mode.SetWidgetToFocus(UIWidgetInstance->GetCachedWidget());
 			SetInputMode(Mode);
-			
+
 			bShowMouseCursor = true;
 		}
 	}
+	InitializeLocalPlayerLobbyUI();
+}
+
+void ASGLobbyPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (UIWidgetInstance && IsLocalController())
+	{
+		UIWidgetInstance->RemoveFromParent();
+		UIWidgetInstance = nullptr;
+	}
+	Super::EndPlay(EndPlayReason);
 }
 
 void ASGLobbyPlayerController::SellectReady()
@@ -58,7 +68,6 @@ void ASGLobbyPlayerController::RequestChangeTeam_Implementation(FGameplayTag New
 	}
 
 }
-
 bool ASGLobbyPlayerController::RequestChangeTeam_Validate(FGameplayTag NewTeam)
 {
 	return true;
@@ -79,7 +88,6 @@ void ASGLobbyPlayerController::Client_UpdateLobbyUI(const TArray<FSGPlayerLobbyI
 		}
 	}
 }
-
 void ASGLobbyPlayerController::TimeUIUpdate(int32 NewTime)
 {
 	// 본인 클래스의 멤버 변수이므로 안전하게 접근 가능!
@@ -97,21 +105,6 @@ void ASGLobbyPlayerController::TimeUIUpdate(int32 NewTime)
 
 void ASGLobbyPlayerController::InitializeLocalPlayerLobbyUI()
 {
-	if (IsValid(UILobbyWidgetClass) == true)
-	{
-		UIWidgetInstance = CreateWidget<UUserWidget>(this, UILobbyWidgetClass); 
-		if (IsValid(UIWidgetInstance) == true)
-		{
-			UIWidgetInstance->AddToViewport();
-
-			FInputModeUIOnly Mode;
-			Mode.SetWidgetToFocus(UIWidgetInstance->GetCachedWidget());
-			SetInputMode(Mode);
-
-			bShowMouseCursor = true;
-		}
-	}
-	
 	//현재 화면에 생성되어 있는 로비 위젯 인스턴스가 있는지 확인
 	if (UIWidgetInstance)
 	{
@@ -125,8 +118,7 @@ void ASGLobbyPlayerController::InitializeLocalPlayerLobbyUI()
 				FSGPlayerLobbyInfo MyInfo;
 				FString FinalClientName = TEXT("UnknownClient");
 
-				int32 RealClientID = 0;
-				RealClientID = GPlayInEditorID; // 0, 1, 2, 3...
+				int32 RealClientID = GPlayInEditorID;
 
 				// 2. 서버인지 클라이언트인지에 따라 이름 포맷 결정
 				if (GetWorld() && GetWorld()->GetNetMode() == NM_Client)
@@ -162,13 +154,9 @@ void ASGLobbyPlayerController::InitializeLocalPlayerLobbyUI()
 void ASGLobbyPlayerController::SaveDataToSubsystem()
 {
 	FString PCName = GetNameSafe(this);
-	UE_LOG(LogTemp, Log, TEXT("[LobbyPC - SaveStart] %s 가 데이터 백업을 시작합니다."), *PCName);
-
-	// 1. 내 PlayerState 가져오기 및 검증 로그
 	ASGLobbyPlayerState* LobbyPS = GetPlayerState<ASGLobbyPlayerState>();
 	if (!LobbyPS)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[LobbyPC - SaveFailed] %s 의 PlayerState를 찾을 수 없습니다!"), *PCName);
 		return;
 	}
 
@@ -181,25 +169,17 @@ void ASGLobbyPlayerController::SaveDataToSubsystem()
 		return;
 	}
 
-	// 3. UniqueId 유효성 확인 및 로그
 	FUniqueNetIdRepl UniqueId = LobbyPS->GetUniqueId();
 	if (!UniqueId.IsValid())
 	{
-		UE_LOG(LogTemp, Error, TEXT("[LobbyPC - SaveFailed] %s 의 UniqueId가 유효하지 않습니다!"), *PCName);
 		return;
 	}
 
-	// 4. 구조체에 데이터 채우기
 	FPlayerBackupData DataToSave;
 	DataToSave.PlayerName = LobbyPS->CustomPlayerName.IsEmpty() ? LobbyPS->GetPlayerName() : LobbyPS->CustomPlayerName;
 	DataToSave.PlayerTeam = LobbyPS->GetTeamTag();
 	DataToSave.Score = 0; 
 
-	// 데이터가 어떻게 가공되었는지 최종 확인 로그
-	UE_LOG(LogTemp, Warning, TEXT("[LobbyPC - PackData] %s -> 백업 준비 완료 [Name: %s | Team: %s]"), 
-		*PCName, *DataToSave.PlayerName, *DataToSave.PlayerTeam.ToString());
-
-	// 5. 서브시스템에 세이브 (서브시스템 내부 로그가 이어서 출력됩니다)
 	DataSubsystem->SavePlayerData(UniqueId, DataToSave);
 }
 void ASGLobbyPlayerController::Server_SetReady_Implementation(bool bNewReadyState)
