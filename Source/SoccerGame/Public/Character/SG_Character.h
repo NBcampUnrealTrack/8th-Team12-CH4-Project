@@ -79,6 +79,19 @@ protected:
 	
 	virtual void PossessedBy(AController* NewConroller) override;
 	
+	//-------------------------------- Character Stats --------------------------------//
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GAS|Stats")
+	float CharacterMaxHp = 100.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GAS|Stats")
+	float CharacterMaxStamina = 100.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GAS|Stats")
+	float CharacterKickPower = 600.0f;
+
+	// 스탯 초기화 함수
+	void InitializeDefaultAttributes();
+	
 private:	
 	virtual void Tick(float DeltaTime) override;
 	
@@ -108,6 +121,10 @@ protected:
 	// 에디터에서 할당할 발차기 GA 클래스 타입
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GAS")
 	TSubclassOf<class UGameplayAbility> KickAbilityClass;
+	
+	// 에디터에서 할당할 Kick React GA 클래스 타입
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GAS")
+	TSubclassOf<class UGameplayAbility> KickReactAbilityClass;
 	
 	//-------------------------------- Drop Kick --------------------------------//
 	// DropKick 버튼
@@ -167,6 +184,26 @@ private:
 	// 래그돌 해제 후 애니메이션 종료 시 이동 복구용 콜백
 	UFUNCTION()
 	void OnGetUpMontageEnded(UAnimMontage* Montage, bool bInterrupted);
+	
+protected:
+	// 드롭킥 피격 시 공중으로 떠오르는 비율 (BP에서 조절)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ragdoll|Stats")
+	float RagdollUpwardForceRatio = 1.0f;
+
+	// 드롭킥 피격 시 날아가는 힘 배율 (BP에서 조절)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ragdoll|Stats")
+	float RagdollKickPowerMultiplier = 4.0f;
+	
+	// 래그돌 복구 후 회복할 HP 비율 (0.3f = 30% 회복, 1.0f = 풀피 회복, BP에서 조절)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ragdoll|Stats")
+	float RagdollRecoveryHpRatio = 1.0f;
+	
+public:
+	UFUNCTION()
+	void RecoveryHpRatio();
+	
+	FORCEINLINE float GetRagdollUpwardForceRatio() const { return RagdollUpwardForceRatio; }
+	FORCEINLINE float GetRagdollKickPowerMultiplier() const { return RagdollKickPowerMultiplier; }
 	
 protected:
 	// SlotComponent
