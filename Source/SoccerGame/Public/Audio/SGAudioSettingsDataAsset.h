@@ -27,12 +27,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Audio|Sounds")
 	TObjectPtr<USoundBase> InGameCrowd;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Audio|Volume", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Audio|Volume", meta = (ClampMin = "0.0", ClampMax = "2.0", UIMin = "0.0", UIMax = "2.0"))
 	float MainMenuBGMVolume = 0.7f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Audio|Volume", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Audio|Volume", meta = (ClampMin = "0.0", ClampMax = "2.0", UIMin = "0.0", UIMax = "2.0"))
 	float InGameBGMVolume = 0.4f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Audio|Volume", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Audio|Volume", meta = (ClampMin = "0.0", ClampMax = "2.0", UIMin = "0.0", UIMax = "2.0"))
 	float InGameCrowdVolume = 0.3f;
 };

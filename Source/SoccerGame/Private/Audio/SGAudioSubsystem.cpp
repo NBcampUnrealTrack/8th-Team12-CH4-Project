@@ -19,7 +19,7 @@ namespace SGAudio
 	const FName MainMenuMapName(TEXT("SG_MainMenu"));
 	const FName LobbyMapName(TEXT("SG_LobbyLevel"));
 	const FName GameplayMapName(TEXT("PlayBase"));
-	const TCHAR* AudioSettingsPath = TEXT("/Game/SoccerGame/Audio/Settings/DA_AudioSettings.DA_AudioSettings");
+	const TCHAR* AudioSettingsPath = TEXT("/Game/SoccerGame/Audio/Settings/DataAsset/DA_AudioSettings.DA_AudioSettings");
 	constexpr float BGMFadeInDuration = 1.0f;
 	constexpr float BGMFadeOutDuration = 0.5f;
 	constexpr float CrowdFadeInDuration = 2.0f;
