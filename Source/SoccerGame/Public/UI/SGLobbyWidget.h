@@ -41,7 +41,8 @@ class SOCCERGAME_API USGLobbyWidget : public UUserWidget
 	
 protected:
 	virtual void NativeConstruct() override;
-	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
+	virtual void NativeDestruct() override;
+
 	
 #pragma region UMG Binding
 public:
@@ -94,14 +95,16 @@ protected:
 	// Ready 후 Start Timer
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UTextBlock> Text_StartTimer;
+	
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UButton> Button_ChangeUserName;
+
+	
+	
 #pragma endregion
 	
 #pragma region Player
 protected:
-	
-	UPROPERTY()
-	int32 LocalPlayerIndex = 0;
-	
 	// PlayerSlot 위젯 클래스 변수
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lobby")
 	TSubclassOf<USGPlayerSlotWidget> PlayerSlotWidgetClass;
@@ -138,5 +141,8 @@ protected:
 	// 슬롯 클릭되었을 때 실행될 함수
 	UFUNCTION()
 	void HandleSlotClicked(FGameplayTag RequestedTeamTag);
+	
+	UFUNCTION()
+	void OnClickedChangeUsernameButton();
 	
 };

@@ -11,6 +11,8 @@
 
 struct FSGPlayerLobbyInfo;
 class UUserWidget;
+class USGLobbyWidget;
+class USGChangeUsernameWidget;
 /**
  * 
  */
@@ -30,6 +32,7 @@ public:
 	UFUNCTION(Server, Reliable, WithValidation)
 	void RequestChangeTeam(FGameplayTag NewTeam);
 	
+	UFUNCTION(Client, Reliable)
 	void Client_UpdateLobbyUI(const TArray<FSGPlayerLobbyInfo>& InPlayerInfos);
 	
 	void TimeUIUpdate(int32 NewTime);
@@ -40,14 +43,32 @@ public:
 	
 	// 데이터 저장용
 	void SaveDataToSubsystem();
+	
+	void RequestChangeUsername(const FString& NewUsername);
+	
+	UFUNCTION(BlueprintCallable, Category = "Lobby|Username")
+	void OpenChangeUsernameWidget();
+
+	UFUNCTION(BlueprintCallable, Category = "Lobby|Username")
+	void CloseChangeUsernameWidget();
+
 protected:
 	// [Server RPC] 준비 상태 변경 요청
 	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_SetReady(bool bNewReadyState);
 	
+	UFUNCTION(Server, Reliable)
+	void Server_ChangeUsername(const FString& NewUsername);
+	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "ASUIPlayerController")
-	TSubclassOf<UUserWidget> UILobbyWidgetClass;
+	TSubclassOf<UUserWidget> LobbyWidgetClass;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "ASUIPlayerController")
-    TObjectPtr<UUserWidget> UIWidgetInstance;
+    TObjectPtr<UUserWidget> LobbyWidgetInstance;
+	
+	UPROPERTY(EditDefaultsOnly,BlueprintReadOnly,Category = "UI|Username")
+	TSubclassOf<UUserWidget>ChangeUsernameWidgetClass;
+
+	UPROPERTY()
+	TObjectPtr<UUserWidget>ChangeUsernameWidgetInstance;
 };

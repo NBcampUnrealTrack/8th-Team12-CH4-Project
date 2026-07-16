@@ -8,6 +8,17 @@ void ASGMainMenuPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 	
+	UE_LOG(
+		LogTemp,
+		Error,
+		TEXT(
+			"[MainMenuPC BeginPlay] PC=%s World=%s Map=%s NetMode=%d"
+		),
+		*GetNameSafe(this),
+		*GetNameSafe(GetWorld()),
+		*GetWorld()->GetMapName(),
+		static_cast<int32>(GetNetMode())
+	);	
 	if (IsLocalController() && MainMenuWidgetClass != nullptr)
 	{
 		MainMenuWidgetInstance = CreateWidget<UUserWidget>(this, MainMenuWidgetClass);
