@@ -188,6 +188,10 @@ void UGAS_SG_CharacterAttributeSet::PostGameplayEffectExecute(const struct FGame
 				{
 					Data.Target.ExecuteGameplayCue(FGameplayTag::RequestGameplayTag(FName("GameplayCue.Character.Hit.DropKick")), CueParams);
 				}
+				else
+				{
+					Data.Target.ExecuteGameplayCue(FGameplayTag::RequestGameplayTag(FName("GameplayCue.Character.Hit.Kick")), CueParams);
+				}
 			}
 		}
 	}

@@ -281,7 +281,7 @@ void UGA_SG_Kick::OnEnemyHitReceived(FGameplayEventData Payload)
     if (NewHandle.IsValid())
     {
         FGameplayTag KickTag = FGameplayTag::RequestGameplayTag(FName("Character.Skill.Kick"));
-        NewHandle.Data.Get()->DynamicAssetTags.AddTag(KickTag);
+        NewHandle.Data.Get()->AddDynamicAssetTag(KickTag);
         
         MyASC->ApplyGameplayEffectSpecToTarget(*NewHandle.Data.Get(), TargetASC);
     }

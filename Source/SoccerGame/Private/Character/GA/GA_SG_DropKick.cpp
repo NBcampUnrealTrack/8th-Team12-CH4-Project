@@ -240,7 +240,7 @@ void UGA_SG_DropKick::ApplyDamageToTarget(AActor* HitEnemy, const FGameplayEvent
     if (NewHandle.IsValid())
     {
         FGameplayTag DropKickTag = FGameplayTag::RequestGameplayTag(FName("Character.Skill.DropKick"));
-        NewHandle.Data.Get()->DynamicAssetTags.AddTag(DropKickTag);
+        NewHandle.Data.Get()->AddDynamicAssetTag(DropKickTag);
         
         MyASC->ApplyGameplayEffectSpecToTarget(*NewHandle.Data.Get(), TargetASC);
     }
