@@ -6,6 +6,7 @@
 #include "Net/UnrealNetwork.h"
 #include "NativeGameplayTags.h"
 #include "Character/SG_Character.h"
+#include "Kismet/GameplayStatics.h"
 
 // 공격 종류 및 피격 태그 정의
 UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Attack_DropKick, "Character.Skill.DropKick");
@@ -88,37 +89,46 @@ void UGAS_SG_CharacterAttributeSet::PostGameplayEffectExecute(const struct FGame
 	{
 		const float LocalDamageDone = GetDamage();
 		SetDamage(0.f); // 계산 완료 후 초기화
+		
+		AActor* TargetActor = Data.Target.GetAvatarActor();
+		FGameplayCueParameters CueParams;
+		if (TargetActor)
+		{
+			CueParams.Location = TargetActor->GetActorLocation();
+			CueParams.Instigator = Data.EffectSpec.GetEffectContext().GetEffectCauser();
+			CueParams.EffectCauser = Data.EffectSpec.GetEffectContext().GetEffectCauser();
+			CueParams.TargetAttachComponent = TargetActor->GetRootComponent(); 
+		}
+		Data.Target.ExecuteGameplayCue(FGameplayTag::RequestGameplayTag(FName("GameplayCue.Character.Voice.Hit")), CueParams);
 
 		if (LocalDamageDone > 0.f)
 		{
 			// 현재 HP 감산
 			const float NewHp = FMath::Clamp(GetHp() - LocalDamageDone, 0.f, GetMaxHp());
 			SetHp(NewHp);
-			UE_LOG(LogTemp, Warning, TEXT("피 닳음"));
+			
+			// GE 스펙 내의 모든 Asset Tag 및 Captured Tag 긁어옴
+			FGameplayTagContainer CombinedTags;
+			// GE 블루프린트 Asset Tags
+			Data.EffectSpec.GetAllAssetTags(CombinedTags);
+			// Captured Source Tags
+			if (const FGameplayTagContainer* SourceTags = Data.EffectSpec.CapturedSourceTags.GetAggregatedTags())
+			{
+				CombinedTags.AppendTags(*SourceTags);
+			}
+			// 디버그
+			// UE_LOG(LogTemp, Warning, TEXT("감지된 전체 태그 목록: %s"), *CombinedTags.ToString());
+
+			// GE의 TAG로 식별
+			const FGameplayTag DropKickTag = FGameplayTag::RequestGameplayTag(FName("Character.Skill.DropKick"));
+			const bool bIsDropKick = CombinedTags.HasTag(DropKickTag);
 
 			// HP가 0 이하(그로기)
 			if (GetHp() <= 0.f)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("피 0됐음"));
-				AActor* TargetActor = Data.Target.GetAvatarActor();
+				TargetActor = Data.Target.GetAvatarActor();
 				ASG_Character* TargetCharacter = Cast<ASG_Character>(TargetActor);
 				
-				// GE 스펙 내의 모든 Asset Tag 및 Captured Tag 긁어옴
-				FGameplayTagContainer CombinedTags;
-				// GE 블루프린트 Asset Tags
-				Data.EffectSpec.GetAllAssetTags(CombinedTags);
-				// Captured Source Tags
-				if (const FGameplayTagContainer* SourceTags = Data.EffectSpec.CapturedSourceTags.GetAggregatedTags())
-				{
-					CombinedTags.AppendTags(*SourceTags);
-				}
-				// 디버그
-				// UE_LOG(LogTemp, Warning, TEXT("감지된 전체 태그 목록: %s"), *CombinedTags.ToString());
-
-				// GE의 TAG로 식별
-				const FGameplayTag DropKickTag = FGameplayTag::RequestGameplayTag(FName("Character.Skill.DropKick"));
-				const bool bIsDropKick = CombinedTags.HasTag(DropKickTag);
-
 				if (bIsDropKick)
 				{
 					// 드롭킥으로 HP가 0 -> 래그돌
@@ -147,10 +157,14 @@ void UGAS_SG_CharacterAttributeSet::PostGameplayEffectExecute(const struct FGame
 						FVector HitLocation = TargetActor->GetActorLocation();
                         
 						TargetCharacter->MulticastEnableRagdoll(HitImpulse, TargetActor->GetActorLocation());
+						
+						Data.Target.ExecuteGameplayCue(FGameplayTag::RequestGameplayTag(FName("GameplayCue.Character.Hit.DropKick.Death")), CueParams);
 					}
 				}
 				else
 				{
+					Data.Target.ExecuteGameplayCue(FGameplayTag::RequestGameplayTag(FName("GameplayCue.Character.Hit.Kick")), CueParams);
+					
 					UE_LOG(LogTemp, Warning, TEXT("일반 킥 사망 감지! HitReact 이벤트를 보냅니다. Target: %s"), *TargetActor->GetName());
 					// 일반 킥으로 HP가 0 -> 그로기 이벤트(GameplayEvent)
 					FGameplayEventData Payload;
@@ -166,6 +180,13 @@ void UGAS_SG_CharacterAttributeSet::PostGameplayEffectExecute(const struct FGame
 						AbilityTags.AddTag(TAG_HitReact_Kick);
 						TargetASC->TryActivateAbilitiesByTag(AbilityTags);
 					}
+				}
+			}
+			else
+			{
+				if (bIsDropKick)
+				{
+					Data.Target.ExecuteGameplayCue(FGameplayTag::RequestGameplayTag(FName("GameplayCue.Character.Hit.DropKick")), CueParams);
 				}
 			}
 		}

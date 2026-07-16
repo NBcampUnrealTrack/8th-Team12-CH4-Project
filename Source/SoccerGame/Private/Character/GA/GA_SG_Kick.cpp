@@ -10,6 +10,8 @@
 #include "AbilitySystemGlobals.h"
 #include "AbilitySystemInterface.h"
 #include "Character/SG_SoccerBall.h"
+#include "Kismet/GameplayStatics.h"
+#include "Character/SG_Character.h"
 
 UGA_SG_Kick::UGA_SG_Kick()
 {
@@ -205,6 +207,12 @@ void UGA_SG_Kick::FindAndPushBall()
                             BallMesh->AddImpulse(ImpulseVector, NAME_None, true);
                         }
                     }
+                }
+                
+                // Sound 재생
+                if (BallKickSound)
+                {
+                    UGameplayStatics::PlaySoundAtLocation(this, BallKickSound, SoccerBall->GetActorLocation());
                 }
             }
         }

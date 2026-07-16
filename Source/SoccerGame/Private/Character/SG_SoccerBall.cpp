@@ -5,6 +5,7 @@
 #include "HAL/PlatformStackWalk.h"
 #include "Components/StaticMeshComponent.h"
 #include "Net/UnrealNetwork.h"
+#include "Kismet/GameplayStatics.h"
 
 ASG_SoccerBall::ASG_SoccerBall()
 {
@@ -327,14 +328,23 @@ void ASG_SoccerBall::OnBallHit(
     {
         // 즉시 Owner 부여
         SetBallOwner(TouchingPawn);
+    }
+    
+    if (BounceSound && ImpactForce > MinBounceImpactForce)
+    {
+        // 충격량에 따라 볼륨 감쇄 (0.2 ~ 1.0)
+        float Volume = FMath::Clamp(ImpactForce / 2000.f, 0.2f, 1.0f);
         
-        // if (GEngine)
-        // {
-        //     GEngine->AddOnScreenDebugMessage(
-        //         2, 2.0f, FColor::Yellow,
-        //         FString::Printf(TEXT("새로운 Owner : %s, ImpactForce : %f"), *TouchingPawn->GetName(), ImpactForce)
-        //     );
-        // }
+        // 충격량에 따른 약간의 피치 변화 (0.9 ~ 1.1)
+        float Pitch = FMath::RandRange(0.9f, 1.1f);
+
+        UGameplayStatics::PlaySoundAtLocation(
+            this, 
+            BounceSound, 
+            Hit.ImpactPoint, 
+            Volume, 
+            Pitch
+        );
     }
 }
 
