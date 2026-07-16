@@ -297,7 +297,7 @@ void ASGProjectileBase::OnProjectileHit(UPrimitiveComponent* HitComponent, AActo
 	OnProjectileHitTarget.Broadcast(this, OtherActor);
 	
 	if (bHitPawn){
-		// 플레이어 타격 여부는 서버 Hit 판정에서만 확정되므로, 이 시점에 모든 클라이언트로 사운드 재생을 전달
+		// 플레이어 타격 시점에 모든 클라이언트로 사운드 재생을 전달
 		MulticastPlayHitTargetSound(GetActorLocation());
 	}
 	
@@ -308,7 +308,7 @@ void ASGProjectileBase::MulticastPlayHitTargetSound_Implementation(FVector Sound
 {
 	if (GetNetMode() == NM_DedicatedServer || HitTargetSound == nullptr) return;
 	
-	// Spanner처럼 플레이어 타격 시에만 필요한 사운드 재생
+	// 플레이어 타격 시 사운드 재생
 	UGameplayStatics::PlaySoundAtLocation(this, HitTargetSound, SoundLocation);
 }
 
