@@ -9,6 +9,7 @@
 #include "Item/SGItemSlotComponent.h"
 #include "Item/Data/SGItemDefinition.h"
 #include "Item/Visual/SGRandomItemGrantVisualComponent.h"
+#include "Kismet/GameplayStatics.h"
 
 // Sets default values
 ASGRandomItemGrantActor::ASGRandomItemGrantActor(): bGranted(false)
@@ -61,25 +62,24 @@ void ASGRandomItemGrantActor::OnCollisionBeginOverlap(UPrimitiveComponent* Overl
 		Collision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	}
 	
-	MulticastPickupEffect(GetActorLocation());
+	MulticastPickup(GetActorLocation());
 	
 	OnRandomItemGranted.Broadcast();
 	Destroy();
 }
 
-void ASGRandomItemGrantActor::MulticastPickupEffect_Implementation(FVector EffectLocation)
+void ASGRandomItemGrantActor::MulticastPickup_Implementation(FVector ActorLocation)
 {
-	if (PickupEffect == nullptr || GetNetMode() == NM_DedicatedServer) return;
+	if (GetNetMode() == NM_DedicatedServer) return;
 	
-	UE_LOG(LogTemp, Warning,
-		TEXT("[ItemPickupVFX] Actor=%s NetMode=%d PickupEffect=%s Location=%s"),
-		*GetName(),
-		(int32)GetNetMode(),
-		*GetNameSafe(PickupEffect),
-		*EffectLocation.ToString());
+	if (PickupEffect != nullptr){
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+        		GetWorld(), PickupEffect, ActorLocation, GetActorRotation());	
+	}
 	
-	UNiagaraFunctionLibrary::SpawnSystemAtLocation(
-		GetWorld(), PickupEffect, EffectLocation, GetActorRotation());
+	if(PickupSound != nullptr){
+		UGameplayStatics::PlaySoundAtLocation(this, PickupSound, ActorLocation);
+	}
 }
 
 USGItemDefinition* ASGRandomItemGrantActor::GetRandomItem()

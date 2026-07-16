@@ -75,6 +75,9 @@ void UGA_SGSpawnObstacle::ExecuteItemAbility(float TimeHeld)
 		World->SpawnActor<ASGObstacleBase>(ObstacleClass, SpawnLocation, SpawnRotation, SpawnParams);
 	
 	const bool bSpawnFailed = !IsValid(SpawnedObstacle);
+	if (!bSpawnFailed){
+		SpawnedObstacle->PlaySpawnSound();
+	}
 	
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, bSpawnFailed, bSpawnFailed);
 }

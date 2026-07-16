@@ -4,6 +4,7 @@
 #include "Item/Preview/SGProjectileBase.h"
 
 #include "NiagaraFunctionLibrary.h"
+#include "Components/AudioComponent.h"
 #include "Components/SphereComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
@@ -18,7 +19,7 @@ ASGProjectileBase::ASGProjectileBase() :
 	ThrowHeightOffset(0.f), 
 	bPreview(false),
 	bDestroyOnSurface(true),
-	Bounciness(0.35f),
+	Bounciness(0.35f),	
 	EffectScale(1.f)
 {
 	// Tick 사용, 초깃값 비활성화
@@ -76,17 +77,31 @@ void ASGProjectileBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 				UGameplayStatics::SpawnEmitterAtLocation(
 					GetWorld(), FinishedEffect, GetActorLocation(), GetActorRotation(), FVector(EffectScale));	
 			}
+			
+			if (FinishedSound != nullptr){
+				UGameplayStatics::PlaySoundAtLocation(this, FinishedSound, GetActorLocation());
+			}
 		}
 		
 		OnProjectileFinished.Broadcast(this);
 	}
 	
+	if (IsValid(FlightLoopAudioComponent)){
+		FlightLoopAudioComponent->Stop();
+		FlightLoopAudioComponent = nullptr;
+	}
 	Super::EndPlay(EndPlayReason);
 }
 
 void ASGProjectileBase::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+	
+	if (IsValid(MeshComponent) && GetLifeSpan() > 0.f &&LifeTime > KINDA_SMALL_NUMBER){
+		const float Alpha = FMath::Clamp(GetGameTimeSinceCreation() / LifeTime, 0.f, 1.f);
+		const float ChargeAmount = FMath::Lerp(-0.5f, 2.f, Alpha);
+		MeshComponent->SetScalarParameterValueOnMaterials(TEXT("ExplosionChargeAmount"), ChargeAmount);
+	}
 	
 	if (!bPreview) return;
 	
@@ -109,6 +124,7 @@ void ASGProjectileBase::GetLifetimeReplicatedProps(TArray<class FLifetimePropert
 void ASGProjectileBase::InitializeCosmeticProjectile(const FVector& StartLocation, const FVector& LaunchVelocity)
 {
 	bPreview = true;
+	PrimaryActorTick.SetTickFunctionEnable(true);
 	
 	// 복제 비활성화
 	SetReplicates(false);
@@ -131,6 +147,11 @@ void ASGProjectileBase::InitializeCosmeticProjectile(const FVector& StartLocatio
 	// Velocity 적용 및 Movement 활성화
 	ProjectileMovement->Velocity = LaunchVelocity;
 	ProjectileMovement->Activate(true);
+	
+	if (FlightLoopSound != nullptr){
+		FlightLoopAudioComponent = UGameplayStatics::SpawnSoundAttached(
+			FlightLoopSound, GetRootComponent());
+	}
 }
 
 void ASGProjectileBase::InitializePreview(AActor* InPlayerActor, float InTargetDistance, float InThrowSpeed,
@@ -274,7 +295,21 @@ void ASGProjectileBase::OnProjectileHit(UPrimitiveComponent* HitComponent, AActo
 	if (!bHitPawn && !bDestroyOnSurface) return;
 	
 	OnProjectileHitTarget.Broadcast(this, OtherActor);
+	
+	if (bHitPawn){
+		// 플레이어 타격 시점에 모든 클라이언트로 사운드 재생을 전달
+		MulticastPlayHitTargetSound(GetActorLocation());
+	}
+	
 	Destroy();
+}
+
+void ASGProjectileBase::MulticastPlayHitTargetSound_Implementation(FVector SoundLocation)
+{
+	if (GetNetMode() == NM_DedicatedServer || HitTargetSound == nullptr) return;
+	
+	// 플레이어 타격 시 사운드 재생
+	UGameplayStatics::PlaySoundAtLocation(this, HitTargetSound, SoundLocation);
 }
 
 void ASGProjectileBase::OnRep_CosmeticLaunchData()
