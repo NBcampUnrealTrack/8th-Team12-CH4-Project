@@ -6,6 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "SGProjectileBase.generated.h"
 
+class UNiagaraSystem;
 class UProjectileMovementComponent;
 class USphereComponent;
 
@@ -129,9 +130,13 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Projectile|Bounce")
 	float Bounciness;
 	
+	// Particle System
 	UPROPERTY(EditAnywhere, Category = "Projectile|VFX")
 	TObjectPtr<UParticleSystem> FinishedEffect;
 	
 	UPROPERTY(EditAnywhere, Category = "Projectile|VFX")
 	float EffectScale;
+	
+	UPROPERTY(EditAnywhere, Category = "Projectile|VFX")
+	TObjectPtr<UNiagaraSystem> FinishedNiagaraEffect;
 };

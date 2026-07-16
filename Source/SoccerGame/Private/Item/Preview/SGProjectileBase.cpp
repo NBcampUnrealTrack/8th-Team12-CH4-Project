@@ -3,6 +3,7 @@
 
 #include "Item/Preview/SGProjectileBase.h"
 
+#include "NiagaraFunctionLibrary.h"
 #include "Components/SphereComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
@@ -67,9 +68,14 @@ void ASGProjectileBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	}
 	
 	if (!bPreview){
-		if (FinishedEffect != nullptr && GetNetMode() != NM_DedicatedServer){
-			UGameplayStatics::SpawnEmitterAtLocation(
-				GetWorld(), FinishedEffect, GetActorLocation(), GetActorRotation(), FVector(EffectScale));
+		if (GetNetMode() != NM_DedicatedServer){
+			if (FinishedNiagaraEffect != nullptr){
+				UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+					GetWorld(), FinishedNiagaraEffect, GetActorLocation(), GetActorRotation(), FVector(EffectScale));
+			}else if (FinishedEffect != nullptr){
+				UGameplayStatics::SpawnEmitterAtLocation(
+					GetWorld(), FinishedEffect, GetActorLocation(), GetActorRotation(), FVector(EffectScale));	
+			}
 		}
 		
 		OnProjectileFinished.Broadcast(this);
