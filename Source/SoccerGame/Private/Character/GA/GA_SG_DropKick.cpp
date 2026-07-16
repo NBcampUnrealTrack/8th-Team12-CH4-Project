@@ -9,6 +9,7 @@
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "AbilitySystemGlobals.h"
 #include "AbilitySystemInterface.h"
+#include "Character/SG_Character.h"
 
 UGA_SG_DropKick::UGA_SG_DropKick()
 {
@@ -16,7 +17,38 @@ UGA_SG_DropKick::UGA_SG_DropKick()
     bReplicateInputDirectly = true;
 }
 
-void UGA_SG_DropKick::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
+bool UGA_SG_DropKick::CanActivateAbility(
+    const FGameplayAbilitySpecHandle Handle,
+    const FGameplayAbilityActorInfo* ActorInfo, 
+    const FGameplayTagContainer* SourceTags,
+    const FGameplayTagContainer* TargetTags,
+    FGameplayTagContainer* OptionalRelevantTags) const
+{
+    if (!ActorInfo || !ActorInfo->AbilitySystemComponent.IsValid())
+    {
+        return false;
+    }
+
+    UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get();
+    FGameplayTag ImmunityTag = FGameplayTag::RequestGameplayTag(FName("State.Immunity"));
+    
+    bool bHasImmunity = ASC->HasMatchingGameplayTag(ImmunityTag);
+    // UE_LOG(LogTemp, Log, TEXT("피격자가 무적 : %s"), bHasImmunity ? TEXT("TRUE") : TEXT("FALSE"));
+
+    if (bHasImmunity)
+    {
+        // UE_LOG(LogTemp, Warning, TEXT("피격자가 무적이라서 드롭킥 발동x"));
+        return false;
+    }
+    
+    return Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags);
+}
+
+void UGA_SG_DropKick::ActivateAbility(
+    const FGameplayAbilitySpecHandle Handle, 
+    const FGameplayAbilityActorInfo* ActorInfo, 
+    const FGameplayAbilityActivationInfo ActivationInfo, 
+    const FGameplayEventData* TriggerEventData)
 {
     Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
@@ -25,6 +57,29 @@ void UGA_SG_DropKick::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
         EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
         return;
     }
+    
+    ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
+    if (!Character)
+    {
+        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+        return;
+    }
+     
+    // 현재 캐릭터의 수평 방향(Yaw)과 카메라/컨트롤러의 수평 방향(Yaw) 추출
+    const float CurrentActorYaw = Character->GetActorRotation().Yaw;
+    const float CameraYaw = Character->GetControlRotation().Yaw;
+
+    // 두 방향 사이의 최단 각도 차이 계산 (-180 ~ 180 도 범위로 반환)
+    const float DeltaYaw = FRotator::NormalizeAxis(CameraYaw - CurrentActorYaw);
+
+    // 각도 차이를 최대 -30도 ~ +30도 사이로 제한 (Clamp)
+    const float ClampedDeltaYaw = FMath::Clamp(DeltaYaw, -60.0f, 60.0f);
+
+    // 캐릭터 정면 기준 제한된 각도만큼 회전된 최종 Yaw 적용
+    const float FinalTargetYaw = FRotator::NormalizeAxis(CurrentActorYaw + ClampedDeltaYaw);
+    const FRotator TargetRotation(0.0f, FinalTargetYaw, 0.0f);
+
+    Character->SetActorRotation(TargetRotation);
 
     // 시작 시 중복 타격 배열 초기화
     AlreadyHitActors.Empty();
@@ -66,7 +121,11 @@ void UGA_SG_DropKick::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
     }
 }
 
-void UGA_SG_DropKick::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
+void UGA_SG_DropKick::EndAbility(
+    const FGameplayAbilitySpecHandle Handle, 
+    const FGameplayAbilityActorInfo* ActorInfo,
+    const FGameplayAbilityActivationInfo ActivationInfo, 
+    bool bReplicateEndAbility, bool bWasCancelled)
 {
     AlreadyHitActors.Empty();
     
@@ -81,7 +140,7 @@ void UGA_SG_DropKick::OnGameplayEventReceived(FGameplayEventData Payload)
     {
         return;
     }
-    UE_LOG(LogTemp, Log, TEXT("드롭킥 충돌 감지된 액터: %s"), *HitTarget->GetName());
+    // UE_LOG(LogTemp, Log, TEXT("드롭킥 충돌 감지된 액터: %s"), *HitTarget->GetName());
 
     // 이미 맞은놈은 제외
     if (AlreadyHitActors.Contains(HitTarget))
@@ -116,24 +175,24 @@ void UGA_SG_DropKick::PushBall(AActor* BallActor)
     UStaticMeshComponent* BallMesh = Cast<UStaticMeshComponent>(BallActor->GetRootComponent());
     if (BallMesh && BallMesh->IsSimulatingPhysics())
     {
-        float DropKickPower = 2500.f;
+        float DropKickPower = 0.f;
         UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
         if (ASC)
         {
             const UGAS_SG_CharacterAttributeSet* AttributeSet = ASC->GetSet<UGAS_SG_CharacterAttributeSet>();
             if (AttributeSet)
             {
-                DropKickPower = AttributeSet->GetKickPower() * 2.f;
+                DropKickPower = AttributeSet->GetKickPower() * KickPowerMultiplier;
             }
         }
 
         // 캐릭터가 날아가는 방향 기반으로 강하게 밀어내기
         FVector PushDirection = (BallActor->GetActorLocation() - Character->GetActorLocation()).GetSafeNormal();
-        PushDirection.Z += 1.0f;
+        PushDirection.Z += UpwardForceRatio;
         PushDirection = PushDirection.GetSafeNormal();
 
         BallMesh->AddImpulse(PushDirection * DropKickPower, NAME_None, true);
-        UE_LOG(LogTemp, Log, TEXT("쥰내 센 드롭킥 파워: %f"), DropKickPower);
+        // UE_LOG(LogTemp, Log, TEXT("쥰내 센 드롭킥 파워: %f"), DropKickPower);
     }
 }
 
@@ -160,8 +219,13 @@ void UGA_SG_DropKick::ApplyDamageToTarget(AActor* HitEnemy, const FGameplayEvent
     {
         return;
     }
-
-    UE_LOG(LogTemp, Warning, TEXT("%s에게 드롭킥 날리기 성공"), *HitEnemy->GetName());
+    
+    // 무적상태 검사
+    FGameplayTag ImmunityTag = FGameplayTag::RequestGameplayTag(FName("State.Immunity"));
+    if (TargetASC->HasMatchingGameplayTag(ImmunityTag))
+    {
+        return;
+    }
 
     FGameplayEffectContextHandle EffectContext = MyASC->MakeEffectContext();
     EffectContext.AddSourceObject(this);
@@ -169,6 +233,9 @@ void UGA_SG_DropKick::ApplyDamageToTarget(AActor* HitEnemy, const FGameplayEvent
     FGameplayEffectSpecHandle NewHandle = MyASC->MakeOutgoingSpec(DamageEffectClass, 1.0f, EffectContext);
     if (NewHandle.IsValid())
     {
+        FGameplayTag DropKickTag = FGameplayTag::RequestGameplayTag(FName("Character.Skill.DropKick"));
+        NewHandle.Data.Get()->DynamicAssetTags.AddTag(DropKickTag);
+        
         MyASC->ApplyGameplayEffectSpecToTarget(*NewHandle.Data.Get(), TargetASC);
     }
 }

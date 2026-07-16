@@ -79,12 +79,24 @@ protected:
 	
 	virtual void PossessedBy(AController* NewConroller) override;
 	
+	//-------------------------------- Character Stats --------------------------------//
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GAS|Stats")
+	float CharacterMaxHp = 100.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GAS|Stats")
+	float CharacterMaxStamina = 100.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GAS|Stats")
+	float CharacterKickPower = 600.0f;
+
+	// 스탯 초기화 함수
+	void InitializeDefaultAttributes();
+	
 private:	
 	virtual void Tick(float DeltaTime) override;
 	
 	//-------------------------------- Ability Input  --------------------------------//
 	void AbilityInputPressed(int32 InputID);
-	void AbilityInputReleased(int32 InputID);
 	
 	// 기본 Ability를 부여하는 함수
 	void GiveDefaultAbilities();
@@ -92,6 +104,9 @@ private:
 	// Item Slot Input
 	void UseItemPressed();
 	void UseItemReleased();
+	
+	// Item Rotation 입력
+	void ItemRotation(const FInputActionValue& Value);
 	
 protected:
 	//-------------------------------- Kick --------------------------------//
@@ -106,6 +121,10 @@ protected:
 	// 에디터에서 할당할 발차기 GA 클래스 타입
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GAS")
 	TSubclassOf<class UGameplayAbility> KickAbilityClass;
+	
+	// 에디터에서 할당할 Kick React GA 클래스 타입
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GAS")
+	TSubclassOf<class UGameplayAbility> KickReactAbilityClass;
 	
 	//-------------------------------- Drop Kick --------------------------------//
 	// DropKick 버튼
@@ -122,6 +141,70 @@ protected:
 	// 클라이언트에서 폰이 플레이어 스테이트를 리플리케이션 받았을 때 호출되는 함수
 	virtual void OnRep_PlayerState() override;
 	
+public:
+	//-------------------------------- Ragdoll --------------------------------//
+	// 래그돌 실행
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastEnableRagdoll(FVector HitImpulse, FVector HitLocation);
+
+	void EnableRagdoll(FVector HitImpulse, FVector HitLocation);
+	
+	// 래그돌 해제
+	// 서버에서 래그돌 해제 타이머 종료 시 호출
+	void ServerDisableRagdoll();
+
+	// 서버가 계산한 위치/회전/방향을 모든 클라이언트에 멀티캐스트
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastDisableRagdoll(FVector TargetLocation, FRotator TargetRotation, bool bIsFaceDown);
+
+protected:
+	// 실제 래그돌 해제 및 복구 로직
+	void DisableRagdollInternal(FVector TargetLocation, FRotator TargetRotation, bool bIsFaceDown);
+
+	// 물리 끄기 직전 포즈 캡처
+	void CacheRagdollPoseSnapshot();
+	
+	// --- 래그돌 해제 후 일어나는 애니메이션 몽타주 ---
+	// 엎드려서 일어나는 몽타주 (Face Down)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ragdoll|Animation")
+	TObjectPtr<UAnimMontage> GetUpFrontMontage;
+
+	// 뒤로 자빠져서 일어나는 몽타주 (Face Up)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ragdoll|Animation")
+	TObjectPtr<UAnimMontage> GetUpBackMontage;
+
+	// Ragdoll 복구 상태(ABP에서 사용)
+	UPROPERTY(BlueprintReadOnly, Category = "Ragdoll")
+	bool bIsRecoveringFromRagdoll = false;
+	
+private:
+	// 엎드려 있는지 확인하는 함수
+	bool IsRagdollFaceDown() const;
+
+	// 래그돌 해제 후 애니메이션 종료 시 이동 복구용 콜백
+	UFUNCTION()
+	void OnGetUpMontageEnded(UAnimMontage* Montage, bool bInterrupted);
+	
+protected:
+	// 드롭킥 피격 시 공중으로 떠오르는 비율 (BP에서 조절)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ragdoll|Stats")
+	float RagdollUpwardForceRatio = 1.0f;
+
+	// 드롭킥 피격 시 날아가는 힘 배율 (BP에서 조절)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ragdoll|Stats")
+	float RagdollKickPowerMultiplier = 4.0f;
+	
+	// 래그돌 복구 후 회복할 HP 비율 (0.3f = 30% 회복, 1.0f = 풀피 회복, BP에서 조절)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ragdoll|Stats")
+	float RagdollRecoveryHpRatio = 1.0f;
+	
+public:
+	UFUNCTION()
+	void RecoveryHpRatio();
+	
+	FORCEINLINE float GetRagdollUpwardForceRatio() const { return RagdollUpwardForceRatio; }
+	FORCEINLINE float GetRagdollKickPowerMultiplier() const { return RagdollKickPowerMultiplier; }
+	
 protected:
 	// SlotComponent
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ItemSlot")
@@ -129,6 +212,10 @@ protected:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
 	UInputAction* UseItemAction;
+	
+	// Item Rotation 입력
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
+	UInputAction* ItemRotationAction;
 	
 private:
 	UPROPERTY()

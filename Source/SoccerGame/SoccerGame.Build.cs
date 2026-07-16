@@ -12,7 +12,11 @@ public class SoccerGame : ModuleRules
 		{
 			"Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput",
 			"GameplayAbilities", "GameplayTags", "GameplayTasks",
-			"UMG", "Slate", "SlateCore"
+			"UMG", "Slate", "SlateCore",
+			// Multiplay
+			"OnlineSubsystem",
+			"OnlineSubsystemSteam",
+			"OnlineSubsystemUtils"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  });

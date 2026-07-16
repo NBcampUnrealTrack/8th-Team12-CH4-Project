@@ -14,9 +14,27 @@ class SOCCERGAME_API UGA_SG_DropKick : public UGameplayAbility
 public:
 	UGA_SG_DropKick();
 	
-	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
+	virtual bool CanActivateAbility(
+		const FGameplayAbilitySpecHandle Handle, 
+		const FGameplayAbilityActorInfo* ActorInfo, 
+		const FGameplayTagContainer* SourceTags = nullptr, 
+		const FGameplayTagContainer* TargetTags = nullptr, 
+		FGameplayTagContainer* OptionalRelevantTags = nullptr
+	) const override;
 	
-	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
+	virtual void ActivateAbility(
+		const FGameplayAbilitySpecHandle Handle, 
+		const FGameplayAbilityActorInfo* ActorInfo, 
+		const FGameplayAbilityActivationInfo ActivationInfo,
+		const FGameplayEventData* TriggerEventData
+		) override;
+	
+	virtual void EndAbility(
+		const FGameplayAbilitySpecHandle Handle,
+		const FGameplayAbilityActorInfo* ActorInfo, 
+		const FGameplayAbilityActivationInfo ActivationInfo,
+		bool bReplicateEndAbility, bool bWasCancelled
+		) override;
 
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ability|Animation")
@@ -42,4 +60,15 @@ private:
 	// 중복 타격 방지 액터 리스트
 	UPROPERTY()
 	TArray<TObjectPtr<AActor>> AlreadyHitActors;
+	
+public:
+	// ---------------------- DropKick 축구공 파워 배율, Z축 파워 변수 ---------------------- //
+	// 드롭킥 파워 배율 (기본값: 2.0f)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "KickPowerSetting")
+	float KickPowerMultiplier = 2.0f;
+
+	// 공이 위로 뜨는 Z축 보정 비율 (기본값: 1.0f)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "KickPowerSetting")
+	float UpwardForceRatio = 1.0f;
+	
 };
