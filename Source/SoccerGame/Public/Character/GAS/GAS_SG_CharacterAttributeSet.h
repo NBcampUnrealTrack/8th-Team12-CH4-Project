@@ -48,7 +48,12 @@ public:
 	FGameplayAttributeData MaxStamina;
 	ATTRIBUTE_ACCESSORS(UGAS_SG_CharacterAttributeSet, MaxStamina);
 	
-	// 변수 값을 바꿀때 사용할 함수들 (추후에 구체화 예정!)
+	// 데미지 계산 전용 메타 속성, 복제X
+	UPROPERTY(BlueprintReadOnly, Category = "Attributes")
+	FGameplayAttributeData Damage;
+	ATTRIBUTE_ACCESSORS(UGAS_SG_CharacterAttributeSet, Damage);
+	
+	// 변수 값을 바꿀때 사용할 함수들
 	virtual bool PreGameplayEffectExecute(struct FGameplayEffectModCallbackData &Data) override;
 	virtual void PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue) override;
 	virtual void PostAttributeChange(const FGameplayAttribute& Attribute, float OldValue, float NewValue) override;
