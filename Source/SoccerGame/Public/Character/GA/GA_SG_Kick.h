@@ -59,6 +59,10 @@ protected:
 	UFUNCTION()
 	void OnGameplayEventReceived(FGameplayEventData Payload);
 	
+	// Sound
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ability|Sound")
+	TObjectPtr<USoundBase> BallKickSound;
+	
 private:
 	// 연타/중복 실행 방지 플래그
 	bool bIsKickInProgress = false;

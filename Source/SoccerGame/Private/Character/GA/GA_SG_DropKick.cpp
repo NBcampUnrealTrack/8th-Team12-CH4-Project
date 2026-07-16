@@ -9,6 +9,7 @@
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "AbilitySystemGlobals.h"
 #include "AbilitySystemInterface.h"
+#include "Kismet/GameplayStatics.h"
 #include "Character/SG_Character.h"
 
 UGA_SG_DropKick::UGA_SG_DropKick()
@@ -58,7 +59,7 @@ void UGA_SG_DropKick::ActivateAbility(
         return;
     }
     
-    ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
+    ASG_Character* Character = Cast<ASG_Character>(GetAvatarActorFromActorInfo());
     if (!Character)
     {
         EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
@@ -194,6 +195,11 @@ void UGA_SG_DropKick::PushBall(AActor* BallActor)
         BallMesh->AddImpulse(PushDirection * DropKickPower, NAME_None, true);
         // UE_LOG(LogTemp, Log, TEXT("쥰내 센 드롭킥 파워: %f"), DropKickPower);
     }
+    // Sound 재생
+    if (BallKickSound)
+    {
+        UGameplayStatics::PlaySoundAtLocation(this, BallKickSound, BallActor->GetActorLocation());
+    }
 }
 
 void UGA_SG_DropKick::ApplyDamageToTarget(AActor* HitEnemy, const FGameplayEventData& Payload)
@@ -234,7 +240,7 @@ void UGA_SG_DropKick::ApplyDamageToTarget(AActor* HitEnemy, const FGameplayEvent
     if (NewHandle.IsValid())
     {
         FGameplayTag DropKickTag = FGameplayTag::RequestGameplayTag(FName("Character.Skill.DropKick"));
-        NewHandle.Data.Get()->DynamicAssetTags.AddTag(DropKickTag);
+        NewHandle.Data.Get()->AddDynamicAssetTag(DropKickTag);
         
         MyASC->ApplyGameplayEffectSpecToTarget(*NewHandle.Data.Get(), TargetASC);
     }

@@ -10,6 +10,8 @@
 #include "AbilitySystemGlobals.h"
 #include "AbilitySystemInterface.h"
 #include "Character/SG_SoccerBall.h"
+#include "Kismet/GameplayStatics.h"
+#include "Character/SG_Character.h"
 
 UGA_SG_Kick::UGA_SG_Kick()
 {
@@ -206,6 +208,12 @@ void UGA_SG_Kick::FindAndPushBall()
                         }
                     }
                 }
+                
+                // Sound 재생
+                if (BallKickSound)
+                {
+                    UGameplayStatics::PlaySoundAtLocation(this, BallKickSound, SoccerBall->GetActorLocation());
+                }
             }
         }
     }
@@ -273,7 +281,7 @@ void UGA_SG_Kick::OnEnemyHitReceived(FGameplayEventData Payload)
     if (NewHandle.IsValid())
     {
         FGameplayTag KickTag = FGameplayTag::RequestGameplayTag(FName("Character.Skill.Kick"));
-        NewHandle.Data.Get()->DynamicAssetTags.AddTag(KickTag);
+        NewHandle.Data.Get()->AddDynamicAssetTag(KickTag);
         
         MyASC->ApplyGameplayEffectSpecToTarget(*NewHandle.Data.Get(), TargetASC);
     }

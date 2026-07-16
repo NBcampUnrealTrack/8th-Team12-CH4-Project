@@ -15,7 +15,10 @@ UGA_SG_HitReact::UGA_SG_HitReact()
 	AbilityTriggers.Add(TriggerData);
 	
 	const FGameplayTag ImmunityTag = FGameplayTag::RequestGameplayTag(FName("State.Immunity"));
-	AbilityTags.AddTag(ImmunityTag);
+	
+	FGameplayTagContainer TagContainer;
+	TagContainer.AddTag(ImmunityTag);
+	SetAssetTags(TagContainer);
 }
 
 void UGA_SG_HitReact::ActivateAbility(
