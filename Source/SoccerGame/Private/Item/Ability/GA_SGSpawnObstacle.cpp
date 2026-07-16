@@ -6,8 +6,8 @@
 #include "Item/Preview/SGObstacleBase.h"
 
 UGA_SGSpawnObstacle::UGA_SGSpawnObstacle() :
-	SpawnForwardDistance(500.f),
 	PreviewOpacity(0.35f),
+	SpawnForwardDistance(500.f),
 	RotationStep(15.f),
 	ObstacleYawOffset(0.f)
 {
