@@ -16,6 +16,10 @@ ASGLobbyGameMode::ASGLobbyGameMode()
 	PlayerControllerClass = ASGLobbyPlayerController::StaticClass();
 	PlayerStateClass = ASGLobbyPlayerState::StaticClass();
 	GameStateClass = ASGLobbyGameState::StaticClass();
+	
+	// 로비에서 Pawn을 생성하지 않을 경우
+	DefaultPawnClass = nullptr;
+	bStartPlayersAsSpectators = true;
 }
 
 void ASGLobbyGameMode::BeginPlay()
@@ -37,10 +41,10 @@ void ASGLobbyGameMode::CheckReadyState()
 		APlayerController* PC = It->Get();
 		if (PC)
 		{
-			CurrentPlayers++;
 			ASGLobbyPlayerState* SG_PlayerState = PC->GetPlayerState<ASGLobbyPlayerState>();
 			if (SG_PlayerState && SG_PlayerState->IsReady())
 			{
+				CurrentPlayers++;
 				if (SG_PlayerState->CurrentTeamTag == FGameplayTag::RequestGameplayTag(FName("Team.Red")))
 				{
 					RedTeam++;
@@ -55,7 +59,7 @@ void ASGLobbyGameMode::CheckReadyState()
 	
 	// Total Player 가 아닌 BlueTeam,RedTeam 수가 같아야 하고 
 	// 둘다 레디 상태이어야 하며
-	if (RedTeam == BlueTeam && BlueTeam > 0  && GetNumPlayers() == CurrentPlayers)
+	if (RedTeam == BlueTeam && BlueTeam > 0  && CurrentPlayers == (RedTeam + BlueTeam))
 	{
 		// 모든 조건 충족 (Ready 확인 로직 완료 -> 시작 카운트다운 가동)
 		if (!GetWorldTimerManager().IsTimerActive(CountdownTimerHandle))
@@ -255,6 +259,8 @@ void ASGLobbyGameMode::TransitionToGameLevel()
 
 void ASGLobbyGameMode::NotifyAllPlayers(const FString& Message)
 {
+	// [방어 코드 1] GameMode(this) 자체가 아직 월드에 유효하게 살아있는지 먼저 확인
+	if (!IsValid(this) || !GetWorld()) return;
 	// 월드 내의 모든 플레이어 컨트롤러를 순회하며 메시지를 전달합니다.
 	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
 	{
