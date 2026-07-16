@@ -24,15 +24,6 @@ bool UGA_SG_DropKick::CanActivateAbility(
     const FGameplayTagContainer* TargetTags,
     FGameplayTagContainer* OptionalRelevantTags) const
 {
-    // // Immunity면 return
-    // UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get();
-    // FGameplayTag ImmunityTag = FGameplayTag::RequestGameplayTag(FName("State.Immunity"));
-    // if (ASC->HasMatchingGameplayTag(ImmunityTag))
-    // {
-    //     UE_LOG(LogTemp, Warning, TEXT("무적상태라 드롭킥 X"));
-    //     return false;
-    // }
-    
     if (!ActorInfo || !ActorInfo->AbilitySystemComponent.IsValid())
     {
         return false;
@@ -66,6 +57,29 @@ void UGA_SG_DropKick::ActivateAbility(
         EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
         return;
     }
+    
+    ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
+    if (!Character)
+    {
+        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+        return;
+    }
+     
+    // 현재 캐릭터의 수평 방향(Yaw)과 카메라/컨트롤러의 수평 방향(Yaw) 추출
+    const float CurrentActorYaw = Character->GetActorRotation().Yaw;
+    const float CameraYaw = Character->GetControlRotation().Yaw;
+
+    // 두 방향 사이의 최단 각도 차이 계산 (-180 ~ 180 도 범위로 반환)
+    const float DeltaYaw = FRotator::NormalizeAxis(CameraYaw - CurrentActorYaw);
+
+    // 각도 차이를 최대 -30도 ~ +30도 사이로 제한 (Clamp)
+    const float ClampedDeltaYaw = FMath::Clamp(DeltaYaw, -60.0f, 60.0f);
+
+    // 캐릭터 정면 기준 제한된 각도만큼 회전된 최종 Yaw 적용
+    const float FinalTargetYaw = FRotator::NormalizeAxis(CurrentActorYaw + ClampedDeltaYaw);
+    const FRotator TargetRotation(0.0f, FinalTargetYaw, 0.0f);
+
+    Character->SetActorRotation(TargetRotation);
 
     // 시작 시 중복 타격 배열 초기화
     AlreadyHitActors.Empty();
@@ -210,32 +224,8 @@ void UGA_SG_DropKick::ApplyDamageToTarget(AActor* HitEnemy, const FGameplayEvent
     FGameplayTag ImmunityTag = FGameplayTag::RequestGameplayTag(FName("State.Immunity"));
     if (TargetASC->HasMatchingGameplayTag(ImmunityTag))
     {
-        // UE_LOG(LogTemp, Warning, TEXT("%s 상대방이 무적상태이므로 드롭킥 피격을 무시"), *HitEnemy->GetName());
         return;
     }
-    
-    HitEnemy = const_cast<AActor*>(Payload.Target.Get());
-    ACharacter* Attacker = Cast<ACharacter>(GetAvatarActorFromActorInfo());
-
-    if (ASG_Character* VictimCharacter = Cast<ASG_Character>(HitEnemy))
-    {
-        // 공격 방향 계산 (공격자 -> 피격자 방향)
-        FVector LaunchDirection = (VictimCharacter->GetActorLocation() - Attacker->GetActorLocation()).GetSafeNormal();
-        
-        // 드롭킥 각도 보정
-        LaunchDirection.Z += RagdollUpwardForceRatio; 
-        LaunchDirection = LaunchDirection.GetSafeNormal();
-
-        // 충격량
-        float DropKickPower = 2500.0f * RagdollKickPowerMultiplier;
-        FVector HitImpulse = LaunchDirection * DropKickPower;
-        FVector HitLocation = VictimCharacter->GetActorLocation();
-
-        // 멀티캐스트로 피격자 래그돌 실행
-        VictimCharacter->MulticastEnableRagdoll(HitImpulse, HitLocation);
-    }
-
-    // UE_LOG(LogTemp, Warning, TEXT("%s에게 드롭킥 날리기 성공"), *HitEnemy->GetName());
 
     FGameplayEffectContextHandle EffectContext = MyASC->MakeEffectContext();
     EffectContext.AddSourceObject(this);
@@ -243,6 +233,9 @@ void UGA_SG_DropKick::ApplyDamageToTarget(AActor* HitEnemy, const FGameplayEvent
     FGameplayEffectSpecHandle NewHandle = MyASC->MakeOutgoingSpec(DamageEffectClass, 1.0f, EffectContext);
     if (NewHandle.IsValid())
     {
+        FGameplayTag DropKickTag = FGameplayTag::RequestGameplayTag(FName("Character.Skill.DropKick"));
+        NewHandle.Data.Get()->DynamicAssetTags.AddTag(DropKickTag);
+        
         MyASC->ApplyGameplayEffectSpecToTarget(*NewHandle.Data.Get(), TargetASC);
     }
 }

@@ -6,6 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "SGRandomItemGrantActor.generated.h"
 
+class UNiagaraSystem;
 class USGItemDefinition;
 class UBoxComponent;
 class USceneComponent;
@@ -28,6 +29,9 @@ private:
 		UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComponent, 
 		int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 	
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPickupEffect(FVector EffectLocation);
+	
 	USGItemDefinition* GetRandomItem();
 
 public:
@@ -46,6 +50,9 @@ private:
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Item|Visual", meta=(AllowPrivateAccess="true"))
 	TObjectPtr<USGRandomItemGrantVisualComponent> VisualComponent;
+	
+	UPROPERTY(EditAnywhere, Category = "Item")
+	TObjectPtr<UNiagaraSystem> PickupEffect;
 	
 	bool bGranted;
 };

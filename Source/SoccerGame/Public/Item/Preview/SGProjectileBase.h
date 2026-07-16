@@ -6,6 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "SGProjectileBase.generated.h"
 
+class UNiagaraSystem;
 class UProjectileMovementComponent;
 class USphereComponent;
 
@@ -120,4 +121,22 @@ private:
 	
 	// Preview 여부
 	bool bPreview;
+	
+	// 바닥, 벽 충돌 처리 여부
+	UPROPERTY(EditAnywhere, Category = "Projectile")
+	bool bDestroyOnSurface;
+	
+	// 튕기는 정도
+	UPROPERTY(EditAnywhere, Category = "Projectile|Bounce")
+	float Bounciness;
+	
+	// Particle System
+	UPROPERTY(EditAnywhere, Category = "Projectile|VFX")
+	TObjectPtr<UParticleSystem> FinishedEffect;
+	
+	UPROPERTY(EditAnywhere, Category = "Projectile|VFX")
+	float EffectScale;
+	
+	UPROPERTY(EditAnywhere, Category = "Projectile|VFX")
+	TObjectPtr<UNiagaraSystem> FinishedNiagaraEffect;
 };

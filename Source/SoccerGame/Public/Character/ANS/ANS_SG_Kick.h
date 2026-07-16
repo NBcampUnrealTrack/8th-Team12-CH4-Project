@@ -6,9 +6,6 @@
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "ANS_SG_Kick.generated.h"
 
-/**
- * 
- */
 UCLASS()
 class SOCCERGAME_API UANS_SG_Kick : public UAnimNotifyState
 {
@@ -18,7 +15,6 @@ public:
 	UANS_SG_Kick();
 	
 	virtual void NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference) override;
-	
 	virtual void NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float FrameDeltaTime, const FAnimNotifyEventReference& EventReference) override;
 	
 protected:

@@ -172,6 +172,20 @@ void ASG_Character::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 	}
 }
 
+void ASG_Character::InitializeDefaultAttributes()
+{
+	if (AttributeSet)
+	{
+		AttributeSet->InitMaxHp(CharacterMaxHp);
+		AttributeSet->InitHp(CharacterMaxHp);
+        
+		AttributeSet->InitMaxStamina(CharacterMaxStamina);
+		AttributeSet->InitStamina(CharacterMaxStamina);
+        
+		AttributeSet->InitKickPower(CharacterKickPower);
+	}
+}
+
 void ASG_Character::PossessedBy(AController* NewConroller)
 {
 	Super::PossessedBy(NewConroller);
@@ -179,6 +193,7 @@ void ASG_Character::PossessedBy(AController* NewConroller)
 	if (AbilitySystemComponent)
 	{
 		AbilitySystemComponent->InitAbilityActorInfo(this, this);
+		InitializeDefaultAttributes();
 		GiveDefaultAbilities(); 
 	}
 }
@@ -191,6 +206,12 @@ void ASG_Character::Tick(float DeltaTime)
 
 void ASG_Character::Move(const FInputActionValue& Value)
 {
+	if (AbilitySystemComponent && AbilitySystemComponent->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(FName("State.Immunity"))))
+	{
+		// 무적 상태(HitReact 발동 혹은 래그돌 후 일어나는 경우)일 땐 움직이지 못하게 한다.
+		return;
+	}
+	
 	FVector2D MovementVector = Value.Get<FVector2D>();
 
 	if (Controller != nullptr)
@@ -260,6 +281,13 @@ void ASG_Character::GiveDefaultAbilities()
 		
 		AbilitySystemComponent->GiveAbility(DropKickSpec);
 	}
+	
+	if (KickReactAbilityClass)
+	{
+		FGameplayAbilitySpec KickReactSpec(KickReactAbilityClass);
+		
+		AbilitySystemComponent->GiveAbility(KickReactSpec);
+	}
 }
 	
 void ASG_Character::UseItemPressed()
@@ -298,6 +326,7 @@ void ASG_Character::OnRep_PlayerState()
 	if (AbilitySystemComponent)
 	{
 		AbilitySystemComponent->InitAbilityActorInfo(this, this);
+		InitializeDefaultAttributes();
 		
 		// PlayerState에서 팀 태그를 가져와 내 GAS 태그로 등록
 		if (ASGMainPlayerState* TargetPS = GetPlayerState<ASGMainPlayerState>())
@@ -330,7 +359,9 @@ void ASG_Character::OnStaminaAttributeChanged(const FOnAttributeChangeData& Data
 	OnStaminaChanged.Broadcast(CurrentStamina, MaxStamina, StaminaPercent);
 }
 
+// ---------------------------------------------------------------------------------------------- //
 // --------------------------------------- Ragdoll System --------------------------------------- //
+// ---------------------------------------------------------------------------------------------- //
 
 void ASG_Character::MulticastEnableRagdoll_Implementation(FVector HitImpulse, FVector HitLocation)
 {
@@ -552,5 +583,20 @@ void ASG_Character::OnGetUpMontageEnded(UAnimMontage* Montage, bool bInterrupted
 		FGameplayTag ImmunityTag = FGameplayTag::RequestGameplayTag(FName("State.Immunity"));
 		AbilitySystemComponent->RemoveLooseGameplayTag(ImmunityTag);
 		// UE_LOG(LogTemp, Warning, TEXT("[%s] OnGetUpMontageEnded: State.Immunity 태그 제거 완료"), *GetName());
+		RecoveryHpRatio();
+	}
+}
+
+void ASG_Character::RecoveryHpRatio()
+{
+	if (HasAuthority())
+	{
+		if (UGAS_SG_CharacterAttributeSet* SG_AttributeSet = const_cast<UGAS_SG_CharacterAttributeSet*>(AbilitySystemComponent->GetSet<UGAS_SG_CharacterAttributeSet>()))
+		{
+			float MaxHp = SG_AttributeSet->GetMaxHp();
+			float RecoverHp = MaxHp * RagdollRecoveryHpRatio;
+
+			SG_AttributeSet->SetHp(RecoverHp);
+		}
 	}
 }

@@ -3,6 +3,7 @@
 
 #include "Item/SGRandomItemGrantActor.h"
 
+#include "NiagaraFunctionLibrary.h"
 #include "Components/BoxComponent.h"
 #include "Components/SceneComponent.h"
 #include "Item/SGItemSlotComponent.h"
@@ -52,18 +53,33 @@ void ASGRandomItemGrantActor::OnCollisionBeginOverlap(UPrimitiveComponent* Overl
 	if (!ItemSlotComponent->AddItem(Item)) return;
 	
 	bGranted = true;
-	if (IsValid(OverlappedComponent))
-	{
+	if (IsValid(OverlappedComponent)){
 		OverlappedComponent->SetGenerateOverlapEvents(false);
 		OverlappedComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	}
-	else if (IsValid(Collision))
-	{
+	}else if (IsValid(Collision)){
 		Collision->SetGenerateOverlapEvents(false);
 		Collision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	}
+	
+	MulticastPickupEffect(GetActorLocation());
+	
 	OnRandomItemGranted.Broadcast();
 	Destroy();
+}
+
+void ASGRandomItemGrantActor::MulticastPickupEffect_Implementation(FVector EffectLocation)
+{
+	if (PickupEffect == nullptr || GetNetMode() == NM_DedicatedServer) return;
+	
+	UE_LOG(LogTemp, Warning,
+		TEXT("[ItemPickupVFX] Actor=%s NetMode=%d PickupEffect=%s Location=%s"),
+		*GetName(),
+		(int32)GetNetMode(),
+		*GetNameSafe(PickupEffect),
+		*EffectLocation.ToString());
+	
+	UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+		GetWorld(), PickupEffect, EffectLocation, GetActorRotation());
 }
 
 USGItemDefinition* ASGRandomItemGrantActor::GetRandomItem()
