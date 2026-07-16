@@ -124,4 +124,14 @@ private:
 	float PredictionTime = 0.03f;
 	UPROPERTY(EditAnywhere, Category="Network")
 	float SnapDistance = 300.f;
+	
+protected:
+	// --------------------------------------- Sound --------------------------------------- //
+	// 튕기는 소리
+	UPROPERTY(EditAnywhere, Category = "Sound")
+	TObjectPtr<USoundBase> BounceSound;
+
+	// 소리가 나는 최소 충격량
+	UPROPERTY(EditAnywhere, Category = "Sound")
+	float MinBounceImpactForce = 200.f;
 };
