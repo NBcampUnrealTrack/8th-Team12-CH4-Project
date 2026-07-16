@@ -18,7 +18,7 @@ ASGProjectileBase::ASGProjectileBase() :
 	ThrowHeightOffset(0.f), 
 	bPreview(false),
 	bDestroyOnSurface(true),
-	Bounciness(0.35f),
+	Bounciness(0.35f),	
 	EffectScale(1.f)
 {
 	// Tick 사용, 초깃값 비활성화
@@ -88,6 +88,12 @@ void ASGProjectileBase::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 	
+	if (IsValid(MeshComponent) && GetLifeSpan() > 0.f &&LifeTime > KINDA_SMALL_NUMBER){
+		const float Alpha = FMath::Clamp(GetGameTimeSinceCreation() / LifeTime, 0.f, 1.f);
+		const float ChargeAmount = FMath::Lerp(-0.5f, 2.f, Alpha);
+		MeshComponent->SetScalarParameterValueOnMaterials(TEXT("ExplosionChargeAmount"), ChargeAmount);
+	}
+	
 	if (!bPreview) return;
 	
 	FVector StartLocation, LaunchVelocity;
@@ -109,6 +115,7 @@ void ASGProjectileBase::GetLifetimeReplicatedProps(TArray<class FLifetimePropert
 void ASGProjectileBase::InitializeCosmeticProjectile(const FVector& StartLocation, const FVector& LaunchVelocity)
 {
 	bPreview = true;
+	PrimaryActorTick.SetTickFunctionEnable(true);
 	
 	// 복제 비활성화
 	SetReplicates(false);

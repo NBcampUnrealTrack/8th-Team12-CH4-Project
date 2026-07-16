@@ -137,6 +137,7 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Projectile|VFX")
 	float EffectScale;
 	
+	// NiagataSystem
 	UPROPERTY(EditAnywhere, Category = "Projectile|VFX")
 	TObjectPtr<UNiagaraSystem> FinishedNiagaraEffect;
 };
