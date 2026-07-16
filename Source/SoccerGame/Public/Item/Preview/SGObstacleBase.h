@@ -23,9 +23,14 @@ public:
 	void InitializePreview(AActor* InPlayerActor, float InForwardDistance, float InPreviewOpacity);
 	
 	void SetPreviewYawOffset(float InYawOffset);
+	
+	void PlaySpawnSound();
 
 private:
 	void UpdatePreviewTransform();
+	
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastPlaySpawnSound(FVector SoundLocation);
 
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Obstacle")
@@ -36,6 +41,9 @@ protected:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Obstacle")
 	float LifeTime;
+	
+	UPROPERTY(EditAnywhere, Category = "Obstacle|Sound")
+	TObjectPtr<USoundBase> SpawnSound;
 	
 private:
 	UPROPERTY()
