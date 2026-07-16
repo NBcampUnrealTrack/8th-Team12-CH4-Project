@@ -4,6 +4,7 @@
 #include "Item/Preview/SGProjectileBase.h"
 
 #include "NiagaraFunctionLibrary.h"
+#include "Components/AudioComponent.h"
 #include "Components/SphereComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
@@ -76,11 +77,19 @@ void ASGProjectileBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 				UGameplayStatics::SpawnEmitterAtLocation(
 					GetWorld(), FinishedEffect, GetActorLocation(), GetActorRotation(), FVector(EffectScale));	
 			}
+			
+			if (FinishedSound != nullptr){
+				UGameplayStatics::PlaySoundAtLocation(this, FinishedSound, GetActorLocation());
+			}
 		}
 		
 		OnProjectileFinished.Broadcast(this);
 	}
 	
+	if (IsValid(FlightLoopAudioComponent)){
+		FlightLoopAudioComponent->Stop();
+		FlightLoopAudioComponent = nullptr;
+	}
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -138,6 +147,11 @@ void ASGProjectileBase::InitializeCosmeticProjectile(const FVector& StartLocatio
 	// Velocity 적용 및 Movement 활성화
 	ProjectileMovement->Velocity = LaunchVelocity;
 	ProjectileMovement->Activate(true);
+	
+	if (FlightLoopSound != nullptr){
+		FlightLoopAudioComponent = UGameplayStatics::SpawnSoundAttached(
+			FlightLoopSound, GetRootComponent());
+	}
 }
 
 void ASGProjectileBase::InitializePreview(AActor* InPlayerActor, float InTargetDistance, float InThrowSpeed,

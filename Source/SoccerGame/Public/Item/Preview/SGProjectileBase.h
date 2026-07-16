@@ -140,4 +140,13 @@ private:
 	// NiagataSystem
 	UPROPERTY(EditAnywhere, Category = "Projectile|VFX")
 	TObjectPtr<UNiagaraSystem> FinishedNiagaraEffect;
+	
+	UPROPERTY(EditAnywhere, Category = "Projectile|Sound")
+	TObjectPtr<USoundBase> FinishedSound;
+	
+	UPROPERTY(EditAnywhere, Category = "Projectile|Sound")
+	TObjectPtr<USoundBase> FlightLoopSound;
+	
+	UPROPERTY()
+	TObjectPtr<UAudioComponent> FlightLoopAudioComponent;
 };
