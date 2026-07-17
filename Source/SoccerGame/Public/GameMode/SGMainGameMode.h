@@ -33,8 +33,11 @@ public:
 	float TransitionToResultDelay = 5.0f;
 	FTimerHandle ResultTransitionTimerHandle;
 	
+	void ReturnToMainMenu();
+	
 	// 규칙 함수 
 protected:
+	
 	virtual void BeginPlay() override;
 
 	// 초기 로딩 진입 및 프레임워크 검증 루프 
@@ -53,11 +56,18 @@ protected:
 	// 잠시 보류  게임 종료해서 결과 Level 로 넘어가는 걸로 수정 
 	void RestartRound();
 	
+	
+	void RespawnAllPlayers();
 	//// 플레이어 데이터 저장 이동 시키는 함수 
 	//void StartResultTransition();
 
-	// Level 이동 함수 
-	void TransitionToResultLevel();
+	void SetAllPlayersGameInputEnabled(bool bEnableInput);
+	
+	void UpdateAllPlayerScoreWidget();
+	
+	UPROPERTY(EditDefaultsOnly,BlueprintReadOnly,Category = "Level")
+	FString MainMenuLevelPath =TEXT("/Game/SoccerGame/Maps/System/SG_MainMenu");
+	bool bIsReturningToMainMenu = false;
 
 protected:
 	// 타이틀 룰 규칙
@@ -65,8 +75,11 @@ protected:
 	const float UpdateStartTime = 5.0f;
 	float CurrentLoadingTime = 0.0f;
 	
+	UPROPERTY(EditDefaultsOnly, Category = "Game|Loading")
+	int32 LoadingDuration = 3;
+	
 	UPROPERTY(EditDefaultsOnly, Category = "SG_Rules")
-	int32 TotalMatchTime = 300;
+	int32 TotalMatchTime = 4;
 	UPROPERTY(EditDefaultsOnly, Category = "SG_Rules")
 	int32 ScoreToWin = 5;
 	
@@ -83,9 +96,11 @@ protected:
 	UPROPERTY(Transient)
 	AActor* SpawnedBall;
 
+	// 게임 진행 시간
 	FTimerHandle MatchTimerHandle;
 	// 로딩 진행 상황을 체크할 타이머 핸들
 	FTimerHandle LoadingCheckTimerHandle;
+	// 게임 재시작 Timer
 	FTimerHandle RoundRestartTimerHandle;
 	
 	TMap<AController*, ASGPlayerStart*> AssignedInitialPlayerStarts;

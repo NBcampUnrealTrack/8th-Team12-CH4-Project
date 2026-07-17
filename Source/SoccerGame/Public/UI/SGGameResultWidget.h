@@ -18,7 +18,7 @@ class SOCCERGAME_API USGGameResultWidget : public UUserWidget
 	
 protected:
 	virtual void NativeConstruct() override;
-	
+	virtual void NativeDestruct() override;
 #pragma region UMG Binding
 	
 	UPROPERTY(meta = (BindWidget))
