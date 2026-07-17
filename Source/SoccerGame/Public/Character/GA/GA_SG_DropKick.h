@@ -55,6 +55,10 @@ protected:
 	// 날아가는 동안(드롭킥) 매 프레임 호출될 콜백 함수
 	UFUNCTION()
 	void OnGameplayEventReceived(FGameplayEventData Payload);
+	
+	// Sound
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ability|Sound")
+	TObjectPtr<USoundBase> BallKickSound;
 
 private:
 	// 중복 타격 방지 액터 리스트
