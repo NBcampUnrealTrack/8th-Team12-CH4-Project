@@ -3,6 +3,7 @@
 
 #include "Item/Ability/GA_SGItemBase.h"
 
+#include "AbilitySystemComponent.h"
 #include "Abilities/Tasks/AbilityTask_WaitInputRelease.h"
 
 UGA_SGItemBase::UGA_SGItemBase()
@@ -43,6 +44,15 @@ void UGA_SGItemBase::HandleLocalInputReleased(float TimeHeld)
 	// 필요한 경우 구현
 }
 
+bool UGA_SGItemBase::CanExecuteItemAbility() const
+{
+	const UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+	if (!IsValid(ASC)) return false;
+	
+	FGameplayTagContainer RelevantTags;
+	return DoesAbilitySatisfyTagRequirements(*ASC, nullptr, nullptr, &RelevantTags);
+}
+
 void UGA_SGItemBase::OnInputReleased(float TimeHeld)
 {
 	if (CurrentActorInfo == nullptr || !CurrentActorInfo->AvatarActor.IsValid()){
@@ -53,6 +63,12 @@ void UGA_SGItemBase::OnInputReleased(float TimeHeld)
 	// Local 인 경우 호출
 	if (CurrentActorInfo->IsLocallyControlled()){
 		HandleLocalInputReleased(TimeHeld);	
+	}
+	
+	// 사용 가능 상태인지 확인
+	if (!CanExecuteItemAbility()){
+		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
+		return;
 	}
 	
 	// 서버가 아니라면 종료
