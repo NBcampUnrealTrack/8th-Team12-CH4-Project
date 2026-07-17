@@ -6,16 +6,20 @@
 #include "Components/TextBlock.h"
 #include "GameState/SGMainGameState.h"
 #include "Kismet/GameplayStatics.h"
+#include "PlayerController/SGMainPlayerController.h"
+
 
 void USGGameResultWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 	
 	// 버튼 클릭 이벤트 연결
-	if (Button_ExitGame)
+	if (IsValid(Button_ExitGame))
 	{
+		Button_ExitGame->OnClicked.RemoveDynamic(this,&USGGameResultWidget::OnExitGameClicked);
 		Button_ExitGame->OnClicked.AddDynamic(this, &USGGameResultWidget::OnExitGameClicked);
 	}
+	
 	if (Button_Rematch)
 	{
 		Button_Rematch->OnClicked.AddDynamic(this, &USGGameResultWidget::OnRematchClicked);
@@ -37,7 +41,7 @@ void USGGameResultWidget::NativeConstruct()
 			Text_RedTeamScore->SetText(FText::AsNumber(FinalRedTeamScore));
 		}
 		
-		if (Text_WinMessage)
+		if (IsValid(Text_WinMessage))
 		{
 			if (FinalRedTeamScore > FinalBlueTeamScore)
 			{
@@ -60,10 +64,31 @@ void USGGameResultWidget::NativeConstruct()
 	}
 }
 
+void USGGameResultWidget::NativeDestruct()
+{
+	if (IsValid(Button_ExitGame))
+	{
+		Button_ExitGame->OnClicked.RemoveDynamic(
+			this,
+			&USGGameResultWidget::OnExitGameClicked
+		);
+	}
+	Super::NativeDestruct();
+}
+
 void USGGameResultWidget::OnExitGameClicked()
 {
-	// 메인화면으로 이동하는 로직
-	UGameplayStatics::OpenLevel(this, FName("SG_MainMenu"));
+	ASGMainPlayerController* MainPlayerController =Cast<ASGMainPlayerController>(GetOwningPlayer());
+	
+	if (!IsValid(MainPlayerController))
+	{
+		return;
+	}
+	if (IsValid(Button_ExitGame))
+	{
+		Button_ExitGame->SetIsEnabled(false);
+	}
+	MainPlayerController->RequestReturnToMainMenu();
 }
 
 void USGGameResultWidget::OnRematchClicked()
