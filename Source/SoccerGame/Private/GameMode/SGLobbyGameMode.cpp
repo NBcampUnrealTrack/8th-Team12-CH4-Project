@@ -56,9 +56,11 @@ void ASGLobbyGameMode::CheckReadyState()
 		}
 	}
 	
-	// Total Player 가 아닌 BlueTeam,RedTeam 수가 같아야 하고 
-	// 둘다 레디 상태이어야 하며
-	if (RedTeam == BlueTeam && BlueTeam > 0  && CurrentPlayers == (RedTeam + BlueTeam))
+	const bool bCanStartCountdown = bStartWithAnyReadyPlayerForTesting
+		? CurrentPlayers > 0
+		: RedTeam == BlueTeam && BlueTeam > 0 && CurrentPlayers == (RedTeam + BlueTeam);
+
+	if (bCanStartCountdown)
 	{
 		// 모든 조건 충족 (Ready 확인 로직 완료 -> 시작 카운트다운 가동)
 		if (!GetWorldTimerManager().IsTimerActive(CountdownTimerHandle))
