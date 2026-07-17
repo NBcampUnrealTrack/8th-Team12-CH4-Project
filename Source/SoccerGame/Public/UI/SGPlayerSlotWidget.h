@@ -56,10 +56,18 @@ protected:
 	
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UButton> Button_SlotClick;
+
 	
 private:
 	// 팀 타입에 따른 배경색 반환 함수 시그니처
 	FLinearColor GetTeamColor(FGameplayTag InTeamTag) const;
+	
+	// 버튼 스타일
+	UPROPERTY(EditAnywhere, Category = "Style")
+	FButtonStyle BlueButtonStyle;
+	
+	UPROPERTY(EditAnywhere, Category = "Style")
+	FButtonStyle RedButtonStyle;
 	
 	UFUNCTION()
 	void OnButtonClicked();
