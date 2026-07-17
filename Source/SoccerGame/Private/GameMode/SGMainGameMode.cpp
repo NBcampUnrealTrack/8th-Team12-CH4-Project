@@ -22,6 +22,25 @@ ASGMainGameMode::ASGMainGameMode()
     GameStateClass = ASGMainGameState::StaticClass();
 }
 
+UClass* ASGMainGameMode::GetDefaultPawnClassForController_Implementation(AController* InController)
+{
+	if (InController)
+	{
+		if (const ASGMainPlayerState* MainPS = InController->GetPlayerState<ASGMainPlayerState>())
+		{
+			if (const TSubclassOf<ACharacter>* CharacterClass = CharacterCatalog.Find(MainPS->SelectedCharacterTag))
+			{
+				if (*CharacterClass)
+				{
+					return CharacterClass->Get();
+				}
+			}
+		}
+	}
+
+	return Super::GetDefaultPawnClassForController_Implementation(InController);
+}
+
 void ASGMainGameMode::BeginPlay()
 {
    UE_LOG(LogTemp, Warning,

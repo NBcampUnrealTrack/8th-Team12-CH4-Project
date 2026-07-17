@@ -173,6 +173,36 @@ void ASGLobbyGameMode::ProcessChangeTeamRequest(APlayerController* TargetPC, con
 	
 }
 
+void ASGLobbyGameMode::ProcessChangeCharacterRequest(APlayerController* TargetPC, const FGameplayTag& RequestedCharacterTag)
+{
+	if (!TargetPC || !RequestedCharacterTag.IsValid())
+	{
+		return;
+	}
+
+	ASGLobbyPlayerState* TargetPS = TargetPC->GetPlayerState<ASGLobbyPlayerState>();
+	if (!TargetPS || !IsCharacterTagCompatibleWithTeam(RequestedCharacterTag, TargetPS->GetTeamTag()))
+	{
+		return;
+	}
+
+	TargetPS->SetSelectedCharacterInternal(RequestedCharacterTag);
+}
+
+bool ASGLobbyGameMode::IsCharacterTagCompatibleWithTeam(const FGameplayTag& CharacterTag, const FGameplayTag& TeamTag) const
+{
+	const FGameplayTag BlueTeamTag = FGameplayTag::RequestGameplayTag(FName("Team.Blue"));
+	const FGameplayTag RedTeamTag = FGameplayTag::RequestGameplayTag(FName("Team.Red"));
+
+	if (TeamTag != BlueTeamTag && TeamTag != RedTeamTag)
+	{
+		return false;
+	}
+
+	const FString ExpectedPrefix = FString::Printf(TEXT("Character.%s."), *TeamTag.ToString());
+	return CharacterTag.ToString().StartsWith(ExpectedPrefix);
+}
+
 void ASGLobbyGameMode::StartCountdown()
 {
 	bIsCountdownActive = true;

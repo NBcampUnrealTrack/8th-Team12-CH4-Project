@@ -104,6 +104,7 @@ void ASGMainPlayerController::LoadPlayerData()
     {
         MainPS->CustomPlayerName = LoadedData.PlayerName;
         MainPS->CurrentTeamTag = LoadedData.PlayerTeam;
+		MainPS->SelectedCharacterTag = LoadedData.SelectedCharacterTag;
         MainPS->PlayerScore = LoadedData.Score;
 
         MainPS->ForceNetUpdate();

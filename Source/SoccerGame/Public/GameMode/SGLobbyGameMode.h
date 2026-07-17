@@ -27,6 +27,7 @@ public:
 	void OnPlayerReadyChanged();
 	
 	void ProcessChangeTeamRequest(APlayerController* TargetPC, const FGameplayTag& RequestedTeamTag);
+	void ProcessChangeCharacterRequest(APlayerController* TargetPC, const FGameplayTag& RequestedCharacterTag);
 	
 protected:
 	virtual void BeginPlay() override;
@@ -35,6 +36,7 @@ protected:
 	void CheckReadyState();
 private:
 	int32 GetTeamCount(const FGameplayTag& TeamTag) const;
+	bool IsCharacterTagCompatibleWithTeam(const FGameplayTag& CharacterTag, const FGameplayTag& TeamTag) const;
 	
 	// 카운트다운을 시작하는 함수
 	void StartCountdown();

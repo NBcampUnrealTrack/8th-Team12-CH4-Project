@@ -19,6 +19,7 @@ void ASGMainPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
     DOREPLIFETIME(ASGMainPlayerState, CustomPlayerName);
     DOREPLIFETIME(ASGMainPlayerState, CurrentTeamTag);
     DOREPLIFETIME(ASGMainPlayerState, PlayerScore);
+	DOREPLIFETIME(ASGMainPlayerState, SelectedCharacterTag);
 }
 
 void ASGMainPlayerState::BeginPlay()
@@ -41,6 +42,7 @@ void ASGMainPlayerState::CopyProperties(APlayerState* NewPlayerState)
         NewPS->CustomPlayerName = this->CustomPlayerName;
         NewPS->CurrentTeamTag = this->CurrentTeamTag;
         NewPS->PlayerScore = this->PlayerScore;
+		NewPS->SelectedCharacterTag = this->SelectedCharacterTag;
 
         UE_LOG(LogTemp, Warning, TEXT("[PS_Debug] CopyProperties() 완료 (사본 데이터) -> [이름: %s | 팀: %s | 스코어: %d]"),
             *NewPS->CustomPlayerName, *NewPS->CurrentTeamTag.ToString(), NewPS->PlayerScore);
@@ -61,6 +63,7 @@ void ASGMainPlayerState::EndPlay(const EEndPlayReason::Type EndPlayReason)
                 FPlayerBackupData DataToSave;
                 DataToSave.PlayerName = this->CustomPlayerName;
                 DataToSave.PlayerTeam = this->CurrentTeamTag;
+				DataToSave.SelectedCharacterTag = this->SelectedCharacterTag;
                 DataToSave.Score = this->PlayerScore;
 
                 UE_LOG(LogTemp, Log, TEXT("[PS_Debug] 백업 데이터 내용 -> [이름: %s | 팀: %s | 스코어: %d]"), 

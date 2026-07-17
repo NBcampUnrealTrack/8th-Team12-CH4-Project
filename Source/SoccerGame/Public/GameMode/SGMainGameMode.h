@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
+#include "GameFramework/Character.h"
 #include "GameplayTagContainer.h"
 #include "SGMainGameMode.generated.h"
 
@@ -21,6 +22,7 @@ public:
 	
 	// 플레이어 팀에 맞는 PlayerStart 선택
 	virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
+	virtual UClass* GetDefaultPawnClassForController_Implementation(AController* InController) override;
 	void OnGoalScored(FGameplayTag GoalTeamTag);
 	
 	//UPROPERTY(EditDefaultsOnly, Category = "SG_Rules")
@@ -73,6 +75,9 @@ protected:
 	
 	UPROPERTY(EditDefaultsOnly, Category = "SG_Spawning")
 	FGameplayTag WinTeamTag = FGameplayTag::RequestGameplayTag(FName("Match.Result.Draw"));
+
+	UPROPERTY(EditDefaultsOnly, Category = "SG_Spawning|Character")
+	TMap<FGameplayTag, TSubclassOf<ACharacter>> CharacterCatalog;
 
 	// --- 내부 관리용 변수 ---
 	UPROPERTY(Transient)
