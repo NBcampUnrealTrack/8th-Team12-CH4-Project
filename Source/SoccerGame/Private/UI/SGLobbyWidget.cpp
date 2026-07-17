@@ -173,6 +173,8 @@ void USGLobbyWidget::SetPlayerInfos(const TArray<FSGPlayerLobbyInfo>& InPlayerIn
 	
 	RefreshLobby();
 	UpdateReadyButtonText();
+	
+	RefreshCharacterSelection();
 }
 
 void USGLobbyWidget::RefreshLobby()
@@ -406,7 +408,7 @@ void USGLobbyWidget::OnNextButtonClicked()
 		Image_Character->SetBrushFromTexture(FilteredList[CurrentIndex]->Thumbnail);
 	}
 	
-	GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Green, TEXT("[SGLobbyWidget] Thumbnail Updated!"));
+	// GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Green, TEXT("[SGLobbyWidget] Thumbnail Updated!"));
 	
 }
 
@@ -448,12 +450,26 @@ void USGLobbyWidget::RefreshCharacterSelection()
 		Image_Character->SetVisibility(bIsWaiting ? ESlateVisibility::Hidden : ESlateVisibility::Visible);
 	}
 	
-	TArray<USGCharacterDataAsset*> FilteredList = GetFilteredCharacterList();
-	
-	if (Image_Character && FilteredList.IsValidIndex(CurrentIndex))
+	if (!bIsWaiting)
 	{
-		Image_Character->SetBrushFromTexture(FilteredList[CurrentIndex]->Thumbnail);
+		TArray<USGCharacterDataAsset*> FilteredList = GetFilteredCharacterList();
+	
+		if (FilteredList.Num() > 0)
+		{
+			if (CurrentIndex >= FilteredList.Num())
+			{
+				CurrentIndex = 0;
+			}
+			
+			if (Image_Character && FilteredList.IsValidIndex(CurrentIndex))
+			{
+				Image_Character->SetBrushFromTexture(FilteredList[CurrentIndex]->Thumbnail);
+			}
+		}
+		
 	}
+	
+	
 }
 
 
