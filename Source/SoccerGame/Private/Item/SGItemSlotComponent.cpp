@@ -116,6 +116,10 @@ void USGItemSlotComponent::UseItemReleased()
 			AbilityHandle,
 			ActivationPredictionKey); 
 	
+	FGameplayTagContainer ReleasedTags;
+	if (!AbilitySpec->Ability->DoesAbilitySatisfyTagRequirements(
+		*AbilitySystemComponent, nullptr, nullptr, &ReleasedTags)) return;
+
 	PendingConsumeAbilityHandle = AbilityHandle;
 	
 	// 아이템은 서버에서 소모처리

@@ -26,6 +26,7 @@ protected:
 		const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 	
 	virtual void HandleLocalInputReleased(float TimeHeld);
+	virtual bool CanExecuteItemAbility() const;
 	virtual void ExecuteItemAbility(float TimeHeld);
 	
 private:
