@@ -233,4 +233,24 @@ public:
 protected:
 	// 스태미나 변경 감지 함수
 	void OnStaminaAttributeChanged(const struct FOnAttributeChangeData& Data);
+	
+	
+public:
+	//-------------------------------- Sound --------------------------------//
+	// 랜덤 Attack Sound 가져오기
+	UFUNCTION(BlueprintCallable, Category = "Sound")
+	USoundBase* GetRandomAttackVoiceSound() const;
+	
+	// 랜덤 Hurt(Hit) Sound 가져오기
+	UFUNCTION(BlueprintCallable, Category = "Sound")
+	USoundBase* GetRandomHitVoiceSound() const;
+	
+protected:
+	// Attack Sound
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sound|Voice")
+	TArray<TObjectPtr<USoundBase>> AttackVoiceSounds;
+
+	// Hurt(Hit) Sound
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sound|Voice")
+	TArray<TObjectPtr<USoundBase>> HitVoiceSounds;
 };

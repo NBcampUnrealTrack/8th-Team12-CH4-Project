@@ -61,31 +61,109 @@ void USGLobbyWidget::NativeConstruct()
 	
 	if (ReadyButton)
 	{
+		ReadyButton->OnClicked.RemoveDynamic(this,&USGLobbyWidget::OnReadyButtonClicked);
 		ReadyButton->OnClicked.AddDynamic(this, &USGLobbyWidget::OnReadyButtonClicked);
 	}
+	if (IsValid(Button_ChangeUserName))
+	{
+		Button_ChangeUserName->OnClicked.RemoveDynamic(this,&USGLobbyWidget::OnClickedChangeUsernameButton);
+
+		Button_ChangeUserName->OnClicked.AddDynamic(this,&USGLobbyWidget::OnClickedChangeUsernameButton);
+	}
 	
+	if (IsValid(Text_StartTimer))
+	{
+		Text_StartTimer->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	
+	if (IsValid(Button_ChangeUserName))
+	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("[LobbyWidget] Button_ChangeUserName 바인딩 성공")
+		);
+
+		Button_ChangeUserName->OnClicked.RemoveDynamic(
+			this,
+			&USGLobbyWidget::OnClickedChangeUsernameButton
+		);
+
+		Button_ChangeUserName->OnClicked.AddDynamic(
+			this,
+			&USGLobbyWidget::OnClickedChangeUsernameButton
+		);
+	}
+	else
+	{
+		UE_LOG(
+			LogTemp,
+			Error,
+			TEXT("[LobbyWidget] Button_ChangeUserName 바인딩 실패")
+		);
+	}
 }
 
-void USGLobbyWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+void USGLobbyWidget::NativeDestruct()
 {
-	Super::NativeTick(MyGeometry, InDeltaTime);
-	
-	// GameState에서 받아온 타이머 SetText
-	if (ASGLobbyGameState* GS = Cast<ASGLobbyGameState>(UGameplayStatics::GetGameState(this)))
+
+	UE_LOG(
+		LogTemp,
+		Error,
+		TEXT(
+			"[LobbyWidget Construct] "
+			"Widget=%s, Class=%s, OwningPlayer=%s, Map=%s"
+		),
+		*GetNameSafe(this),
+		*GetNameSafe(GetClass()),
+		*GetNameSafe(GetOwningPlayer()),
+		GetWorld()
+			? *GetWorld()->GetMapName()
+			: TEXT("None")
+	);
+	if (IsValid(ReadyButton))
 	{
-		if (Text_StartTimer)
+		ReadyButton->OnClicked.RemoveDynamic(
+			this,
+			&USGLobbyWidget::OnReadyButtonClicked
+		);
+	}
+	if (IsValid(Button_ChangeUserName))
+	{
+		Button_ChangeUserName->OnClicked.RemoveDynamic(
+			this,
+			&USGLobbyWidget::OnClickedChangeUsernameButton
+		);
+	}
+
+
+	for (USGPlayerSlotWidget* BlueSlot :
+		 BlueTeamSlots)
+	{
+		if (IsValid(BlueSlot))
 		{
-			if (GS->ReplicatedCountdownTime >= 0)
-			{
-				Text_StartTimer->SetVisibility(ESlateVisibility::Visible);
-				Text_StartTimer->SetText(FText::AsNumber(GS->ReplicatedCountdownTime));
-			}
-			else
-			{
-				Text_StartTimer->SetVisibility(ESlateVisibility::Hidden);
-			}
+			BlueSlot->OnSlotClicked.RemoveDynamic(this,&USGLobbyWidget::HandleSlotClicked);
 		}
 	}
+
+	for (USGPlayerSlotWidget* RedSlot :
+		 RedTeamSlots)
+	{
+		if (IsValid(RedSlot))
+		{
+			RedSlot->OnSlotClicked.RemoveDynamic(this,&USGLobbyWidget::HandleSlotClicked);
+		}
+	}
+
+	for (USGPlayerSlotWidget* WaitingSlot :
+		 WaitingSlots)
+	{
+		if (IsValid(WaitingSlot))
+		{
+			WaitingSlot->OnSlotClicked.RemoveDynamic(this,&USGLobbyWidget::HandleSlotClicked);
+		}
+	}
+	Super::NativeDestruct();
 }
 
 void USGLobbyWidget::SetPlayerInfos(const TArray<FSGPlayerLobbyInfo>& InPlayerInfos)
@@ -153,20 +231,11 @@ void USGLobbyWidget::RefreshLobby()
 
 void USGLobbyWidget::OnReadyButtonClicked()
 {
+	ASGLobbyPlayerController* LobbyPC =GetOwningPlayer<ASGLobbyPlayerController>();
 	// LocalPlayerIndex 유효성 검사
-	if (!PlayerInfos.IsValidIndex(LocalPlayerIndex)) return;
-	
-	// 오너와 관계없이 현재 내 화면 인스턴스의 진짜 로컬 컨트롤러 강제 참조
-	ASGLobbyPlayerController* LobbyPC = nullptr;
-	if (GEngine && GetWorld())
+	if (!IsValid(LobbyPC))
 	{
-		LobbyPC = Cast<ASGLobbyPlayerController>(GEngine->GetFirstLocalPlayerController(GetWorld()));
-	}
-    
-	if (LobbyPC)
-	{
-		// 내 컨트롤러를 통해 서버에 레디 상태 토글 요청전달
-		LobbyPC->SellectReady();
+		return;
 	}
 	
 	// 선택한 캐릭터 전달
@@ -178,17 +247,27 @@ void USGLobbyWidget::OnReadyButtonClicked()
 			// TODO: 선택된 캐릭터 전송하는 함수 호출
 		}
 	}
+	LobbyPC->SellectReady();
 }
 
 void USGLobbyWidget::UpdateReadyButtonText()
 {
-	if (!Text_ReadyButton) return;
+	if (!Text_ReadyButton)
+	{
+		return;
+	}
 	
 	APlayerController* LocalPC = GetOwningPlayer();
-	if (!LocalPC) return;
+	if (!LocalPC)
+	{
+		return;
+	}
 	
 	ASGLobbyPlayerState* MyPlayerState = Cast<ASGLobbyPlayerState>(LocalPC->PlayerState);
-	if (!MyPlayerState) return;
+	if (!MyPlayerState)
+	{
+		return;
+	}
 	
 	if (MyPlayerState->bIsReady == false)
 	{
@@ -203,7 +282,10 @@ void USGLobbyWidget::UpdateReadyButtonText()
 void USGLobbyWidget::UpdateCountdownText(int32 NewTime)
 {
 	// [확인] meta = (BindWidget) 덕분에 에디터의 Text_StartTimer 가 이 포인터에 자동 연동되어 있습니다.
-	if (!Text_StartTimer) return;
+	if (!IsValid(Text_StartTimer))
+	{
+		return;
+	}
 
 	// 1. 카운트다운이 취소되었거나 끝난 경우 (-1 이하 혹은 0초 도달 시)
 	if (NewTime <= 0 || NewTime == -1)
@@ -215,7 +297,7 @@ void USGLobbyWidget::UpdateCountdownText(int32 NewTime)
 	{
 		// 숨겨져 있었다면 다시 화면에 보이도록 설정합니다.
 		Text_StartTimer->SetVisibility(ESlateVisibility::Visible);
-
+		
 		// 출력하고 싶은 텍스트 포맷 생성
 		FString CountdownString = FString::Printf(TEXT("게임 시작까지 %d..."), NewTime);
         
@@ -226,25 +308,18 @@ void USGLobbyWidget::UpdateCountdownText(int32 NewTime)
 
 void USGLobbyWidget::HandleSlotClicked(FGameplayTag RequestedTeamTag)
 {
-	if (APlayerController* PC = GEngine ? GEngine->GetFirstLocalPlayerController(GetWorld()) : nullptr)
+	if (!RequestedTeamTag.IsValid())
 	{
-		if (ULocalPlayer* LP = PC->GetLocalPlayer())
-		{
-			// 이 위젯이 떠 있는 화면의 진짜 로컬 플레이어 ID (보통 단일 PC 멀티플레이 테스트(PIE)에서는 0, 1, 2, 3 번으로 매핑됨)
-			LocalPlayerIndex = LP->GetControllerId();
-		}
+		return;
 	}
-	
-	if (!PlayerInfos.IsValidIndex(LocalPlayerIndex)) return;
-	//if (PlayerInfos[LocalPlayerIndex].TeamTag == RequestedTeamTag) return;
-	
-	// 위젯을 소유한 플레이어 컨트롤러 가져오기
-	ASGLobbyPlayerController* LobbyPC = Cast<ASGLobbyPlayerController>(GetOwningPlayer());
-	if (LobbyPC)
+	ASGLobbyPlayerController* LobbyPlayerController =
+		GetOwningPlayer<ASGLobbyPlayerController>();
+
+	if (!IsValid(LobbyPlayerController))
 	{
-		// 내 컨트롤러를 통해 서버에 팀 변경 요청 전달
-		LobbyPC->RequestChangeTeam(RequestedTeamTag);
+		return;
 	}
+	LobbyPlayerController->RequestChangeTeam(RequestedTeamTag);
 }
 
 void USGLobbyWidget::UpdateThumbnail()
@@ -279,10 +354,39 @@ void USGLobbyWidget::OnPrevButtonClicked()
 {
 	if (CharacterList.Num() == 0) return;
 	
-	CurrentIndex = (CurrentIndex - 1) % CharacterList.Num();
+	CurrentIndex = (CurrentIndex - 1 + CharacterList.Num()) % CharacterList.Num();
 	UpdateThumbnail();
 }
-	
 
 
+void USGLobbyWidget::OnClickedChangeUsernameButton()
+{
+	ASGLobbyPlayerController* LobbyPC =
+		Cast<ASGLobbyPlayerController>(GetOwningPlayer());
 
+	if (!LobbyPC)
+	{
+		UE_LOG(
+			LogTemp,
+			Error,
+			TEXT(
+				"[LobbyWidget] LobbyPlayerController가 없습니다. "
+				"OwningPlayer=%s Class=%s"
+			),
+			*GetNameSafe(GetOwningPlayer()),
+			GetOwningPlayer()
+				? *GetOwningPlayer()->GetClass()->GetName()
+				: TEXT("None")
+		);
+
+		return;
+	}
+
+	UE_LOG(
+		LogTemp,
+		Log,
+		TEXT("[LobbyWidget] 이름 변경 버튼 클릭")
+	);
+
+	LobbyPC->OpenChangeUsernameWidget();
+}

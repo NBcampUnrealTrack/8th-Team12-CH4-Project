@@ -5,6 +5,7 @@
 #include "GameFramework/PlayerState.h"
 #include "Blueprint/UserWidget.h"
 #include "SoccerGame/Public/UI/SGLobbyWidget.h"
+#include "SoccerGame/Public/UI/SGChangeUsernameWidget.h"
 #include "GameMode/SGLobbyGameMode.h"
 #include "PlayerState/SGLobbyPlayerState.h"
 #include "SoccerGame/Public/Instance/SGPlayerGameInstanceSubsystem.h"
@@ -12,52 +13,79 @@
 void ASGLobbyPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
+	UE_LOG(
+		LogTemp,
+		Error,
+		TEXT(
+			"[LobbyPC BeginPlay] PC=%s World=%s Map=%s NetMode=%d"
+		),
+		*GetNameSafe(this),
+		*GetNameSafe(GetWorld()),
+		*GetWorld()->GetMapName(),
+		static_cast<int32>(GetNetMode())
+	);
+
 	if (!IsLocalController())
 	{
 		return; 
 	}
-	if (UILobbyWidgetClass == nullptr)
+	if (!IsValid(LobbyWidgetClass))
 	{
 		UE_LOG(LogTemp, Error, TEXT("UIWidgetClass 없음."));
+		return;
 	}
+	LobbyWidgetInstance = CreateWidget<UUserWidget>(this, LobbyWidgetClass);
 	
-	if (IsValid(UILobbyWidgetClass))
+	if (!IsValid(LobbyWidgetInstance))
 	{
-		UIWidgetInstance = CreateWidget<UUserWidget>(this, UILobbyWidgetClass); 
-		if (IsValid(UIWidgetInstance))
-		{
-			UIWidgetInstance->AddToViewport();
+		UE_LOG(
+			LogTemp,
+			Error,
+			TEXT("[LobbyPC] 로비 위젯 생성에 실패했습니다.")
+		);
 
-			FInputModeUIOnly Mode;
-			Mode.SetWidgetToFocus(UIWidgetInstance->GetCachedWidget());
-			SetInputMode(Mode);
-
-			bShowMouseCursor = true;
-		}
+		return;
 	}
+
+	LobbyWidgetInstance->AddToViewport();
+	FInputModeUIOnly Mode;
+	
+	//Mode.SetWidgetToFocus(LobbyWidgetInstance->GetCachedWidget());
+	SetInputMode(Mode);
+	bShowMouseCursor = true;
+	
 	InitializeLocalPlayerLobbyUI();
 }
 
 void ASGLobbyPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	if (UIWidgetInstance && IsLocalController())
+	if (IsLocalController())
 	{
-		UIWidgetInstance->RemoveFromParent();
-		UIWidgetInstance = nullptr;
+		if (LobbyWidgetInstance && IsLocalController())
+		{
+			LobbyWidgetInstance->RemoveFromParent();
+			LobbyWidgetInstance = nullptr;
+		}
+		if (IsValid(ChangeUsernameWidgetInstance))
+		{
+			ChangeUsernameWidgetInstance->RemoveFromParent();
+			ChangeUsernameWidgetInstance = nullptr;
+		}
 	}
 	Super::EndPlay(EndPlayReason);
 }
 
 void ASGLobbyPlayerController::SellectReady()
 {
-	ASGLobbyPlayerState* MyPlayerState = GetPlayerState<ASGLobbyPlayerState>();
-	if (MyPlayerState)
+	ASGLobbyPlayerState* LobbyPlayerState  = GetPlayerState<ASGLobbyPlayerState>();
+	if (!IsValid(LobbyPlayerState))
 	{
-		// 내 현재 레디 상태를 반전(토글)시켜서 서버 RPC로 전송
-		bool bTargetReady = !MyPlayerState->IsReady();
-		Server_SetReady(bTargetReady);
+		return;
 	}
+	const bool bTargetReady = !LobbyPlayerState->IsReady();
+
+	Server_SetReady(bTargetReady);
 }
 
 void ASGLobbyPlayerController::RequestChangeTeam_Implementation(FGameplayTag NewTeam)
@@ -70,90 +98,116 @@ void ASGLobbyPlayerController::RequestChangeTeam_Implementation(FGameplayTag New
 }
 bool ASGLobbyPlayerController::RequestChangeTeam_Validate(FGameplayTag NewTeam)
 {
-	return true;
+	return NewTeam.IsValid();
 }
-void ASGLobbyPlayerController::Client_UpdateLobbyUI(const TArray<FSGPlayerLobbyInfo>& InPlayerInfos)
+void ASGLobbyPlayerController::Client_UpdateLobbyUI_Implementation(const TArray<FSGPlayerLobbyInfo>& InPlayerInfos)
 {
-	// 컨트롤러가 들고 있는 로비 위젯 인스턴스가 안전하게 존재하는지 확인
-	if (UIWidgetInstance)
+	if (!IsLocalController())
 	{
-		if (USGLobbyWidget* LobbyWidget = Cast<USGLobbyWidget>(UIWidgetInstance))
-		{
-			// 위젯에게 방 전체 인원의 최신 종합 데이터를 넘겨줍니다.
-			LobbyWidget->SetPlayerInfos(InPlayerInfos);
-            
-			// 새로 배치
-			LobbyWidget->RefreshLobby();
-			LobbyWidget->UpdateReadyButtonText();
-		}
+		return;
 	}
+	if (!IsValid(LobbyWidgetInstance))
+	{
+		return;
+	}
+	USGLobbyWidget* LobbyWidget = Cast<USGLobbyWidget>(LobbyWidgetInstance);
+	LobbyWidget->SetPlayerInfos(InPlayerInfos);
 }
+
 void ASGLobbyPlayerController::TimeUIUpdate(int32 NewTime)
 {
-	// 본인 클래스의 멤버 변수이므로 안전하게 접근 가능!
-	if (UIWidgetInstance)
+	if (!IsLocalController())
 	{
-		if (USGLobbyWidget* LobbyWidget = Cast<USGLobbyWidget>(UIWidgetInstance))
-		{
-			// 선택지 A 적용: 위젯의 카운트다운 전용 함수를 안전하게 호출
-			LobbyWidget->UpdateCountdownText(NewTime);
-            
-			UE_LOG(LogTemp, Log, TEXT("[LobbyPC] 위젯 카운트다운 텍스트 업데이트 성공: %d초"), NewTime);
-		}
+		return;
 	}
+
+	if (!IsValid(LobbyWidgetInstance))
+	{
+		return;
+	}
+	// 본인 클래스의 멤버 변수이므로 안전하게 접근 가능!
+	if (USGLobbyWidget* LobbyWidget = Cast<USGLobbyWidget>(LobbyWidgetInstance))
+	{
+		// 선택지 A 적용: 위젯의 카운트다운 전용 함수를 안전하게 호출
+		LobbyWidget->UpdateCountdownText(NewTime);
+            
+		UE_LOG(LogTemp, Log, TEXT("[LobbyPC] 위젯 카운트다운 텍스트 업데이트 성공: %d초"), NewTime);
+	}
+
 }
 
 void ASGLobbyPlayerController::InitializeLocalPlayerLobbyUI()
 {
-	//현재 화면에 생성되어 있는 로비 위젯 인스턴스가 있는지 확인
-	if (UIWidgetInstance)
+	if (!IsLocalController())
 	{
-		if (USGLobbyWidget* LobbyWidget = Cast<USGLobbyWidget>(UIWidgetInstance))
-		{
-			// 2. 내 컴퓨터의 PlayerState(서버 초기화 데이터)를 긁어옵니다.
-			if (ASGLobbyPlayerState* MyLobbyPS = GetPlayerState<ASGLobbyPlayerState>())
-			{
-				MyLobbyPS->CurrentTeamTag = FGameplayTag::RequestGameplayTag(FName("Team.Waiting"));
-				// 위젯의 PlayerInfos에 집어넣을 내 정보 구조체 생성
-				FSGPlayerLobbyInfo MyInfo;
-				FString FinalClientName = TEXT("UnknownClient");
-
-				int32 RealClientID = GPlayInEditorID;
-
-				// 2. 서버인지 클라이언트인지에 따라 이름 포맷 결정
-				if (GetWorld() && GetWorld()->GetNetMode() == NM_Client)
-				{
-					// 클라이언트 창들은 "Client 1", "Client 2" 등으로 이름 부여
-					FinalClientName = FString::Printf(TEXT("Client %d"), RealClientID);
-				}
-				else
-				{
-					// 리슨 서버(방장)의 경우 "Host (Server)" 또는 "Client 0" 으로 표현
-					FinalClientName = TEXT("Host (Server)");
-				}
-
-				// PlayerState에도 변경된 이름을 반영해 둡니다 (서버 동기화용)
-				MyLobbyPS->CustomPlayerName = FinalClientName;
-          
-				// 위젯에 전달할 구조체에 최종 Client Name 대입
-				MyInfo.UserName = FinalClientName;
-				// --------------------------------------------------------------------------------
-               
-				MyInfo.TeamTag = MyLobbyPS->CurrentTeamTag;
-				MyInfo.bIsReady = MyLobbyPS->bIsReady;
-
-				LobbyWidget->AddPlayerInfos(MyInfo);
-
-				LobbyWidget->RefreshLobby();
-				LobbyWidget->UpdateReadyButtonText();
-			}
-		}
+		return;
 	}
+	USGLobbyWidget* LobbyWidget = Cast<USGLobbyWidget>(LobbyWidgetInstance);
+	if (!IsValid(LobbyWidgetInstance))
+	{
+		return;
+	}
+	FSGPlayerLobbyInfo MyInfo;
+	ASGLobbyPlayerState* LobbyPlayerState =GetPlayerState<ASGLobbyPlayerState>();
+	if (!IsValid(LobbyPlayerState))
+	{
+		UE_LOG(LogTemp,Warning,TEXT("[LobbyPC] PlayerState가 아직 준비되지 않았습니다."));
+		return;
+	}
+	LobbyWidget->UpdateReadyButtonText();
+
+	
+	
+	//MyInfo.UserName =LobbyPlayerState->CustomPlayerName.IsEmpty()
+	//		? LobbyPlayerState->GetPlayerName()
+	//		: LobbyPlayerState->CustomPlayerName;
+	//
+	//MyInfo.TeamTag =LobbyPlayerState->GetTeamTag();
+	//
+	//MyInfo.bIsReady =LobbyPlayerState->IsReady();
+	//
+	//LobbyWidget->AddPlayerInfos(MyInfo);
+	//LobbyWidget->RefreshLobby();
+	//LobbyWidget->UpdateReadyButtonText();
+	/*
+	//현재 화면에 생성되어 있는 로비 위젯 인스턴스가 있는지 확인
+	ASGLobbyPlayerState* MyLobbyPS = GetPlayerState<ASGLobbyPlayerState>();
+	MyLobbyPS->CurrentTeamTag = FGameplayTag::RequestGameplayTag(FName("Team.Waiting"));
+	// 위젯의 PlayerInfos에 집어넣을 내 정보 구조체 생성
+	FSGPlayerLobbyInfo MyInfo;
+	FString FinalClientName = TEXT("UnknownClient");
+
+	int32 RealClientID = GPlayInEditorID;
+
+	// 2. 서버인지 클라이언트인지에 따라 이름 포맷 결정
+	if (GetWorld() && GetWorld()->GetNetMode() == NM_Client)
+	{
+		// 클라이언트 창들은 "Client 1", "Client 2" 등으로 이름 부여
+		FinalClientName = FString::Printf(TEXT("Client %d"), RealClientID);
+	}
+	else
+	{
+		// 리슨 서버(방장)의 경우 "Host (Server)" 또는 "Client 0" 으로 표현
+		FinalClientName = TEXT("Host (Server)");
+	}
+
+	// PlayerState에도 변경된 이름을 반영해 둡니다 (서버 동기화용)
+	MyLobbyPS->CustomPlayerName = FinalClientName;
+	MyInfo.UserName = FinalClientName;
+	MyInfo.TeamTag = MyLobbyPS->CurrentTeamTag;
+	MyInfo.bIsReady = MyLobbyPS->bIsReady;
+
+	LobbyWidget->AddPlayerInfos(MyInfo);
+
+	LobbyWidget->RefreshLobby();
+	LobbyWidget->UpdateReadyButtonText();
+	 */
+	
 }
 
 void ASGLobbyPlayerController::SaveDataToSubsystem()
 {
-	FString PCName = GetNameSafe(this);
+	const FString PCName = GetNameSafe(this);
 	ASGLobbyPlayerState* LobbyPS = GetPlayerState<ASGLobbyPlayerState>();
 	if (!LobbyPS)
 	{
@@ -165,7 +219,6 @@ void ASGLobbyPlayerController::SaveDataToSubsystem()
 	USGPlayerGameInstanceSubsystem* DataSubsystem = GI ? GI->GetSubsystem<USGPlayerGameInstanceSubsystem>() : nullptr;
 	if (!DataSubsystem)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[LobbyPC - SaveFailed] %s 가 GameInstanceSubsystem에 접근할 수 없습니다!"), *PCName);
 		return;
 	}
 
@@ -176,12 +229,103 @@ void ASGLobbyPlayerController::SaveDataToSubsystem()
 	}
 
 	FPlayerBackupData DataToSave;
-	DataToSave.PlayerName = LobbyPS->CustomPlayerName.IsEmpty() ? LobbyPS->GetPlayerName() : LobbyPS->CustomPlayerName;
+	DataToSave.PlayerName = LobbyPS->CustomPlayerName.IsEmpty() ? 
+		LobbyPS->GetPlayerName() : LobbyPS->CustomPlayerName;
 	DataToSave.PlayerTeam = LobbyPS->GetTeamTag();
 	DataToSave.Score = 0; 
 
 	DataSubsystem->SavePlayerData(UniqueId, DataToSave);
 }
+
+void ASGLobbyPlayerController::RequestChangeUsername(const FString& NewUsername)
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	Server_ChangeUsername(NewUsername);
+}
+
+void ASGLobbyPlayerController::OpenChangeUsernameWidget()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	if (!IsValid(ChangeUsernameWidgetClass))
+	{
+		UE_LOG(LogTemp,Error,TEXT("[LobbyPC] ChangeUsernameWidgetClass가 설정되지 않았습니다."));
+		return;
+	}
+
+	if (IsValid(ChangeUsernameWidgetInstance))
+	{
+		if (!ChangeUsernameWidgetInstance->IsInViewport())
+		{
+			ChangeUsernameWidgetInstance->AddToViewport(10);
+		}
+
+		return;
+	}
+
+	ChangeUsernameWidgetInstance =CreateWidget<USGChangeUsernameWidget>(
+		this,ChangeUsernameWidgetClass);
+
+	if (!IsValid(ChangeUsernameWidgetInstance))
+	{
+		UE_LOG(LogTemp,Error,TEXT("[LobbyPC] 이름 변경 위젯 생성 실패"));
+
+		return;
+	}
+
+	// 로비 메인 UI보다 앞에 표시합니다.
+	// 매직넙허 수정 확인
+	ChangeUsernameWidgetInstance->AddToViewport(10);
+	FInputModeUIOnly InputMode;
+	SetInputMode(InputMode);
+	bShowMouseCursor = true;
+}
+void ASGLobbyPlayerController::CloseChangeUsernameWidget()
+{
+	if (IsValid(ChangeUsernameWidgetInstance))
+	{
+		ChangeUsernameWidgetInstance->RemoveFromParent();
+		ChangeUsernameWidgetInstance = nullptr;
+	}
+
+	FInputModeUIOnly InputMode;
+	SetInputMode(InputMode);
+
+	bShowMouseCursor = true;
+
+}
+
+void ASGLobbyPlayerController::Server_ChangeUsername_Implementation(const FString& NewUsername)
+{
+	const FString TrimmedUsername =NewUsername.TrimStartAndEnd();
+
+	if (TrimmedUsername.Len() < 2 ||TrimmedUsername.Len() > 16)
+	{
+		UE_LOG(LogTemp,Warning,TEXT("[LobbyPC][Server] 유효하지 않은 이름 요청: %s"),
+			*TrimmedUsername);
+
+		return;
+	}
+
+	ASGLobbyPlayerState* LobbyPlayerState =GetPlayerState<ASGLobbyPlayerState>();
+	if (!IsValid(LobbyPlayerState))
+	{
+		return;
+	}
+
+	// 실제 PlayerState 이름 변경
+	LobbyPlayerState->SetCustomPlayerName(TrimmedUsername);
+
+	UE_LOG(LogTemp,Log,TEXT("[LobbyPC][Server] 이름 변경 완료: %s"),*TrimmedUsername);
+}
+
 void ASGLobbyPlayerController::Server_SetReady_Implementation(bool bNewReadyState)
 {
 	ASGLobbyPlayerState* SG_PlayerState = GetPlayerState<ASGLobbyPlayerState>();

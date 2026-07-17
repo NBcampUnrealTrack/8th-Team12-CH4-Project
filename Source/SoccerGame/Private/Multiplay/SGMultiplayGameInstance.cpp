@@ -259,9 +259,6 @@ void USGMultiplayGameInstance::FindServers()
 		SessionSearch = MakeShareable(new FOnlineSessionSearch());
 		SessionSearch->MaxSearchResults = 10000;
 		
-		// =========================================================================
-		// ★ [수정] 검색 시에도 LAN환경인지 스팀인지 자동 판별하여 매칭 처리
-		// =========================================================================
 		IOnlineSubsystem* OSS = IOnlineSubsystem::Get();
 
 		bool bIsLAN = true;

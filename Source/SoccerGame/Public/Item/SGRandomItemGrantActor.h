@@ -30,7 +30,7 @@ private:
 		int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 	
 	UFUNCTION(NetMulticast, Reliable)
-	void MulticastPickupEffect(FVector EffectLocation);
+	void MulticastPickup(FVector ActorLocation);
 	
 	USGItemDefinition* GetRandomItem();
 
@@ -53,6 +53,9 @@ private:
 	
 	UPROPERTY(EditAnywhere, Category = "Item")
 	TObjectPtr<UNiagaraSystem> PickupEffect;
+	
+	UPROPERTY(EditAnywhere, Category = "Item")
+	TObjectPtr<USoundBase> PickupSound; 
 	
 	bool bGranted;
 };

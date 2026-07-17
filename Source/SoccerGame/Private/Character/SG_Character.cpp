@@ -600,3 +600,24 @@ void ASG_Character::RecoveryHpRatio()
 		}
 	}
 }
+
+USoundBase* ASG_Character::GetRandomAttackVoiceSound() const
+{
+	if (AttackVoiceSounds.Num() == 0)
+	{
+		return nullptr;
+	}
+	
+	int32 RandomIndex = FMath::RandRange(0, AttackVoiceSounds.Num() - 1);
+	return AttackVoiceSounds[RandomIndex];
+}
+
+USoundBase* ASG_Character::GetRandomHitVoiceSound() const
+{
+	if (HitVoiceSounds.Num() == 0)
+	{
+		return nullptr;
+	}
+	int32 RandomIndex = FMath::RandRange(0, HitVoiceSounds.Num() - 1);
+	return HitVoiceSounds[RandomIndex];
+}

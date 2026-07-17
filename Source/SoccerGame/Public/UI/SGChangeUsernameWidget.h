@@ -9,9 +9,46 @@
 /**
  * 
  */
+
+class UButton;
+class UEditableTextBox;
 UCLASS()
 class SOCCERGAME_API USGChangeUsernameWidget : public UUserWidget
 {
 	GENERATED_BODY()
 	
+protected:
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+
+private:
+	/**
+	 * 블루프린트 위젯 이름과 정확히 일치해야 합니다.
+	 */
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UEditableTextBox> EditableText_Input;
+
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UButton> Button_Ok;
+
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UButton> Button_Cancel;
+
+private:
+	UFUNCTION()
+	void OnClickedOkButton();
+
+	UFUNCTION()
+	void OnClickedCancelButton();
+
+	UFUNCTION()
+	void OnUsernameTextCommitted(
+		const FText& Text,
+		ETextCommit::Type CommitMethod
+	);
+
+private:
+	bool IsValidUsername(const FString& Username) const;
+
+	void ApplyUsername(const FString& NewUsername);
 };
