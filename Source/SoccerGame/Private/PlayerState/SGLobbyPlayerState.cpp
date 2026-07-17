@@ -24,6 +24,7 @@ void ASGLobbyPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 	DOREPLIFETIME(ASGLobbyPlayerState, CurrentTeamTag);
 	DOREPLIFETIME(ASGLobbyPlayerState, LobbyScore);
 	DOREPLIFETIME(ASGLobbyPlayerState, bIsReady);
+	DOREPLIFETIME_CONDITION(ASGLobbyPlayerState, SelectedCharacterTag, COND_OwnerOnly);
 }
 
 void ASGLobbyPlayerState::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -84,6 +85,17 @@ void ASGLobbyPlayerState::SetTeamInternal(const FGameplayTag& SelectTeamTag)
 	}
 }
 
+void ASGLobbyPlayerState::SetSelectedCharacterInternal(const FGameplayTag& NewCharacterTag)
+{
+	if (!HasAuthority() || SelectedCharacterTag == NewCharacterTag)
+	{
+		return;
+	}
+
+	SelectedCharacterTag = NewCharacterTag;
+	ForceNetUpdate();
+}
+
 
 void ASGLobbyPlayerState::OnRep_IsReady()
 {
@@ -140,6 +152,7 @@ void ASGLobbyPlayerState::CopyProperties(APlayerState* NewPlayerState)
 			MainPlayerState->CurrentTeamTag = this->CurrentTeamTag;
 			MainPlayerState->PlayerScore = this->LobbyScore;
 			MainPlayerState->CustomPlayerName = this->CustomPlayerName;
+			MainPlayerState->SelectedCharacterTag = this->SelectedCharacterTag;
             
 			UE_LOG(LogTemp, Log, TEXT("SGLobbyPlayerState: CopyProperties 성공 [이름: %s]"), *CustomPlayerName);
 		}

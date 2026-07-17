@@ -234,22 +234,37 @@ void USGLobbyWidget::RefreshLobby()
 
 void USGLobbyWidget::OnReadyButtonClicked()
 {
-	ASGLobbyPlayerController* LobbyPC =GetOwningPlayer<ASGLobbyPlayerController>();
-	// LocalPlayerIndex 유효성 검사
+	ASGLobbyPlayerController* LobbyPC = GetOwningPlayer<ASGLobbyPlayerController>();
 	if (!IsValid(LobbyPC))
 	{
 		return;
 	}
-	
-	// 선택한 캐릭터 전달
-	if (CharacterList.IsValidIndex(CurrentIndex))
+
+	ASGLobbyPlayerState* LobbyPS = LobbyPC->GetPlayerState<ASGLobbyPlayerState>();
+	if (!IsValid(LobbyPS))
 	{
-		FGameplayTag SelectedCharacterTag = CharacterList[CurrentIndex]->CharacterTag;
-		if (LobbyPC)
-		{
-			// TODO: 선택된 캐릭터 전송하는 함수 호출
-		}
+		return;
 	}
+
+	// Cancel이 아니라 Ready 상태로 전환할 때만 선택한 캐릭터를 서버에 전달합니다.
+	const bool bWillBecomeReady = !LobbyPS->IsReady();
+	if (bWillBecomeReady)
+	{
+		const TArray<USGCharacterDataAsset*> FilteredList = GetFilteredCharacterList();
+		if (!FilteredList.IsValidIndex(CurrentIndex) || !IsValid(FilteredList[CurrentIndex]))
+		{
+			return;
+		}
+
+		const FGameplayTag SelectedCharacterTag = FilteredList[CurrentIndex]->CharacterTag;
+		if (!SelectedCharacterTag.IsValid())
+		{
+			return;
+		}
+
+		LobbyPC->RequestChangeCharacter(SelectedCharacterTag);
+	}
+
 	LobbyPC->SellectReady();
 }
 
