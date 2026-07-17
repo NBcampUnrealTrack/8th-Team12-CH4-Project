@@ -5,10 +5,76 @@
 #include "GameState/SGMainGameState.h"
 #include "Blueprint/UserWidget.h"
 #include "UI/SGInGameWidget.h"
+#include "UI/SGGameResultWidget.h"
+#include "GameMode/SGMainGameMode.h"
 #include "SoccerGame/Public/Instance/SGPlayerGameInstanceSubsystem.h"
 #include "SoccerGame/Public/PlayerState/SGMainPlayerState.h" // PlayerState 검증을 위해 추가
 
 
+void ASGMainPlayerController::Client_ShowResultUI_Implementation()
+{
+    if (!IsLocalController())
+    {
+        return;
+    }
+    if (!GameResultWidgetClass)
+    {
+        return;
+    }
+    if (!IsValid(GameResultWidgetInstance))
+    {
+        GameResultWidgetInstance =CreateWidget<USGGameResultWidget>(this,GameResultWidgetClass);
+    }
+    if (!IsValid(GameResultWidgetInstance))
+    {
+        UE_LOG(LogTemp,Error,TEXT("[MainPlayerController] 결과 UI 생성 실패"));
+        return;
+    }
+
+    if (!GameResultWidgetInstance->IsInViewport())
+    {
+        GameResultWidgetInstance->AddToViewport(100);
+    }
+
+    FInputModeUIOnly InputMode;
+
+    InputMode.SetWidgetToFocus(GameResultWidgetInstance->TakeWidget());
+    InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+    SetInputMode(InputMode);
+
+    bShowMouseCursor = true;
+}
+
+void ASGMainPlayerController::RequestReturnToMainMenu()
+{
+    Server_RequestReturnToMainMenu();
+
+}
+
+void ASGMainPlayerController::Server_RequestReturnToMainMenu_Implementation()
+{
+    if (!HasAuthority())
+    {
+        return;
+    }
+
+
+    UWorld* World = GetWorld();
+
+    if (!IsValid(World))
+    {
+        return;
+    }
+
+    ASGMainGameMode* MainGameMode =World->GetAuthGameMode<ASGMainGameMode>();
+    if (!IsValid(MainGameMode))
+    {
+        return ;
+    }
+
+
+    MainGameMode->ReturnToMainMenu();
+}
 
 void ASGMainPlayerController::BeginPlay()
 {
@@ -48,10 +114,10 @@ void ASGMainPlayerController::AcknowledgePossession(APawn* P)
 
     if (IsLocalController())
     {
-        if (IsValid(UIMainGameWidgetClass) == true)
+        if (IsValid(UIMainGameWidgetClass))
         {
             UIMainGameWidgetInstance = CreateWidget<USGInGameWidget>(this, UIMainGameWidgetClass); 
-            if (IsValid(UIMainGameWidgetInstance) == true)
+            if (IsValid(UIMainGameWidgetInstance))
             {
                 UIMainGameWidgetInstance->AddToViewport();
 			
@@ -63,12 +129,6 @@ void ASGMainPlayerController::AcknowledgePossession(APawn* P)
             }
         }
     }
-    UE_LOG(LogTemp, Warning,
-       TEXT("[MainPC] AcknowledgePossession: %s / Pawn=%s / IsLocal=%d"),
-       *GetNameSafe(this),
-       *GetNameSafe(P),
-       IsLocalController());
-    
     ApplyGameInputMode();
 }
 void ASGMainPlayerController::LoadPlayerData()
@@ -110,8 +170,7 @@ void ASGMainPlayerController::LoadPlayerData()
         GetWorldTimerManager().ClearTimer(LoadDataTimerHandle); 
     }
 }
-
-void ASGMainPlayerController::UpdateScoreWidget(int32 BlueTeam,int32 RedTeam)
+void ASGMainPlayerController::UpdateScoreWidget_Implementation(int32 BlueTeam, int32 RedTeam)
 {
     FString NetRole = HasAuthority() ? TEXT("SERVER") : TEXT("CLIENT");
 
@@ -128,10 +187,32 @@ void ASGMainPlayerController::UpdateScoreWidget(int32 BlueTeam,int32 RedTeam)
     {
         UIMainGameWidgetInstance->UpdateScores(BlueTeam, RedTeam);
     }
-   
+}
+void ASGMainPlayerController::Client_SetGameInputEnabled_Implementation(bool bEnableInput)
+{
+    ApplyGameInputEnabled(bEnableInput);
 }
 
-
+void ASGMainPlayerController::ApplyGameInputEnabled(bool bEnableInput)
+{
+    if (!IsLocalController())
+    {
+        return;
+    }
+    // false가 전달되면 입력을 무시하도록 설정합니다.
+    SetIgnoreMoveInput(!bEnableInput);
+    SetIgnoreLookInput(!bEnableInput);
+    if (bEnableInput)
+    {
+        bShowMouseCursor = false;
+    }
+    else
+    {
+        bShowMouseCursor = false;
+    }
+    SetInputMode(FInputModeGameOnly());
+    
+}
 void ASGMainPlayerController::UpdateTimerWidget_Implementation(int32 NewTime)
 {
     // 로컬 클라이언트(실제 모니터가 있는 화면)에서만 실행되도록 안전장치
