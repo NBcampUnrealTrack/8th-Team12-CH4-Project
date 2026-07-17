@@ -373,8 +373,6 @@ TArray<USGCharacterDataAsset*> USGLobbyWidget::GetFilteredCharacterList()
 			FString CharTagString = Character->CharacterTag.ToString();
 			// FString TeamPart = CharTagString.Replace(TEXT("Character."), TEXT(""));
 			
-			GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, FString::Printf(TEXT("Filter Check: MyTeamTagString(%s) vs CharTagString(%s)"), *MyTeamTagString, *CharTagString));
-			
 			if (CharTagString.Contains(MyTeamTagString))
 			{
 				FilteredList.Add(Character);
@@ -447,7 +445,7 @@ void USGLobbyWidget::RefreshCharacterSelection()
 	if (Image_Character)
 	{
 		// Waiting 상태가 아닐 때만 캐릭터 이미지 보여주기.
-		Image_Character->SetRenderOpacity(bIsWaiting ? 0.0f : 1.0f);
+		Image_Character->SetVisibility(bIsWaiting ? ESlateVisibility::Hidden : ESlateVisibility::Visible);
 	}
 	
 	TArray<USGCharacterDataAsset*> FilteredList = GetFilteredCharacterList();
