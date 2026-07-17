@@ -104,7 +104,6 @@ void USGLobbyWidget::NativeConstruct()
 
 void USGLobbyWidget::NativeDestruct()
 {
-	Super::NativeConstruct();
 
 	UE_LOG(
 		LogTemp,
@@ -162,8 +161,7 @@ void USGLobbyWidget::NativeDestruct()
 			WaitingSlot->OnSlotClicked.RemoveDynamic(this,&USGLobbyWidget::HandleSlotClicked);
 		}
 	}
-
-	
+	Super::NativeDestruct();
 }
 
 void USGLobbyWidget::SetPlayerInfos(const TArray<FSGPlayerLobbyInfo>& InPlayerInfos)
