@@ -21,12 +21,13 @@ public:
 	// 멀티플레이 동기화를 위한 변수 등록 함수
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
+	void CopyProperties(APlayerState* NewPlayerState);
 protected:
 	// 레벨 이동으로 파괴 시 호출 (데이터 백업)
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 public:
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Lobby Settings")
+	UPROPERTY(ReplicatedUsing = OnRep_CustomPlayerName, BlueprintReadOnly, Category = "Lobby Settings")
 	FString CustomPlayerName = TEXT("UnknownPlayer");
 
 	UPROPERTY(ReplicatedUsing = OnRep_ChangeTeam, BlueprintReadOnly,Category = "Lobby Settings")
@@ -42,10 +43,13 @@ public:
 	// Getter 함수들
 	FGameplayTag GetTeamTag() const { return CurrentTeamTag; }
 	bool IsReady() const { return bIsReady; }
+	const FString& GetCustomPlayerName() const{return CustomPlayerName;}
 
 	// 서버에서 데이터를 직접 바꿀 때 사용할 함수들
 	void SetReadyState(bool bNewReadyState);
 	void SetTeamInternal(const FGameplayTag& SelectTeamTag);
+	void SetCustomPlayerName(const FString& NewPlayerName);
+
 protected:
 
 	// 이름이 서버로부터 동기화되었을 때 클라이언트에서 실행될 함수
@@ -59,5 +63,5 @@ protected:
 	UFUNCTION()
 	void OnRep_ChangeTeam();
 	
-	void CopyProperties(APlayerState* NewPlayerState);
+	
 };

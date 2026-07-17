@@ -23,6 +23,14 @@ public:
 	virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
 	void OnGoalScored(FGameplayTag GoalTeamTag);
 	
+	//UPROPERTY(EditDefaultsOnly, Category = "SG_Rules")
+	//FString ResultLevelPath = TEXT("/Game/SoccerGame/Maps/");
+	
+	// 세레머니 타임 
+	UPROPERTY(EditDefaultsOnly, Category = "SG_Rules")
+	float TransitionToResultDelay = 5.0f;
+	FTimerHandle ResultTransitionTimerHandle;
+	
 	// 규칙 함수 
 protected:
 	virtual void BeginPlay() override;
@@ -38,7 +46,16 @@ protected:
 	void SpawnNewBall();
 	
 	void EndMatch();
+	bool EndScoreMatch();
+	void WinTeamCheck();
+	// 잠시 보류  게임 종료해서 결과 Level 로 넘어가는 걸로 수정 
 	void RestartRound();
+	
+	//// 플레이어 데이터 저장 이동 시키는 함수 
+	//void StartResultTransition();
+
+	// Level 이동 함수 
+	void TransitionToResultLevel();
 
 protected:
 	// 타이틀 룰 규칙
@@ -51,9 +68,11 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "SG_Rules")
 	int32 ScoreToWin = 5;
 	
-	
 	UPROPERTY(EditDefaultsOnly, Category = "SG_Spawning")
 	TSubclassOf<AActor> BallClass;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "SG_Spawning")
+	FGameplayTag WinTeamTag = FGameplayTag::RequestGameplayTag(FName("Match.Result.Draw"));
 
 	// --- 내부 관리용 변수 ---
 	UPROPERTY(Transient)

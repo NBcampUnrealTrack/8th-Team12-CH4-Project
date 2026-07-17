@@ -75,6 +75,10 @@ private:
 	
 	void SpawnCosmeticProjectile();
 	
+	// 서버에서만 알 수 있는 플레이어 타격 사운드를 모든 클라이언트에 재생
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastPlayHitTargetSound(FVector SoundLocation);
+	
 public:
 	// 델리게이트
 	UPROPERTY()
@@ -137,6 +141,20 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Projectile|VFX")
 	float EffectScale;
 	
+	// NiagataSystem
 	UPROPERTY(EditAnywhere, Category = "Projectile|VFX")
 	TObjectPtr<UNiagaraSystem> FinishedNiagaraEffect;
+	
+	UPROPERTY(EditAnywhere, Category = "Projectile|Sound")
+	TObjectPtr<USoundBase> FinishedSound;
+	
+	// 플레이어에게 직접 맞았을 때만 재생되는 사운드
+	UPROPERTY(EditAnywhere, Category = "Projectile|Sound")
+	TObjectPtr<USoundBase> HitTargetSound;
+	
+	UPROPERTY(EditAnywhere, Category = "Projectile|Sound")
+	TObjectPtr<USoundBase> FlightLoopSound;
+	
+	UPROPERTY()
+	TObjectPtr<UAudioComponent> FlightLoopAudioComponent;
 };

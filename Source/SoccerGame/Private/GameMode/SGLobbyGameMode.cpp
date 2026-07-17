@@ -30,7 +30,6 @@ void ASGLobbyGameMode::BeginPlay()
 
 void ASGLobbyGameMode::CheckReadyState()
 {
-	
 	int32 RedTeam =  0;
 	int32 BlueTeam =  0;
 	int32 CurrentPlayers = 0;

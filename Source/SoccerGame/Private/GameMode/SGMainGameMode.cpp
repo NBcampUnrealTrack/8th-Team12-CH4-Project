@@ -166,8 +166,10 @@ void ASGMainGameMode::UpdateMatchTime()
        if (SG_GameState->CurrentGameTime <= 0.0f)
        {
           SG_GameState->CurrentGameTime = 0.0f;
-          UE_LOG(LogTemp, Warning, TEXT("[Debug_State] 경기 시간 종료 조건 충족"));
           GetWorldTimerManager().ClearTimer(MatchTimerHandle);
+          UE_LOG(LogTemp, Warning, TEXT("[Debug_State] 경기 시간 종료 조건 충족"));
+          
+          EndMatch();
           
           //EndMatch();
        }
@@ -183,10 +185,7 @@ void ASGMainGameMode::OnGoalScored(FGameplayTag GoalTeamTag)
    static int32 Count = 0;
    Count++;
 
-   UE_LOG(LogTemp, Warning,
-       TEXT("OnGoalScored %d : %s"),
-       Count,
-       *GoalTeamTag.ToString());
+   UE_LOG(LogTemp, Warning,TEXT("OnGoalScored %d : %s"),Count,*GoalTeamTag.ToString());
    ASGMainGameState* SG_GameState = GetGameState<ASGMainGameState>();
    if (!SG_GameState)
    {
@@ -209,32 +208,21 @@ void ASGMainGameMode::OnGoalScored(FGameplayTag GoalTeamTag)
    else if (GoalTeamTag == FGameplayTag::RequestGameplayTag(FName("Team.Blue")))
    {
       SG_GameState->RedTeamScore++;
-      //SG_GameState->OnRep_UpdateScore();
    }
 	
-   //{
-   //   if (ASGMainPlayerController* PC = Cast<ASGMainPlayerController>(It->Get()))
-   //   {
-   //      PC->UpdateScoreWidget( SG_GameState->BlueTeamScore,SG_GameState->RedTeamScore);
-   //   }
-   //}
-   // 공 제거
    if (IsValid(SpawnedBall))
    {
       SpawnedBall->Destroy();
       SpawnedBall = nullptr;
    }
-	
+   SpawnNewBall();
    // 승리 조건 체크
-   const bool bRedTeamWon = SG_GameState->RedTeamScore >= ScoreToWin;
-   const bool bBlueTeamWon = SG_GameState->BlueTeamScore >= ScoreToWin;
-	
-   if (bRedTeamWon || bBlueTeamWon)
+   if (!EndScoreMatch())
    {
-      EndMatch();
-      return;
+      return ;
    }
-	
+   EndMatch();
+   
    // RestartRound 이전 시간 딜레이
    GetWorldTimerManager().SetTimer(
       RoundRestartTimerHandle,
@@ -294,7 +282,7 @@ void ASGMainGameMode::SpawnNewBall()
             -1, 
             5.0f, 
             FColor::Green, 
-            FString::Printf(TEXT("⚽ 새로운 공이 스폰되었습니다! 위치: %s"), *SpawnedBall->GetActorLocation().ToString()));
+            FString::Printf(TEXT(" 새로운 공이 스폰되었습니다! 위치: %s"), *SpawnedBall->GetActorLocation().ToString()));
 }
 
 AActor* ASGMainGameMode::ChoosePlayerStart_Implementation(AController* Player)
@@ -387,10 +375,57 @@ void ASGMainGameMode::HandleSeamlessTravelPlayer(AController*& Controller)
 }
 void ASGMainGameMode::EndMatch()
 {
-  
-   
+   WinTeamCheck();
+   // 종료시간 타임 오버
+   // 시간 오버 로직 하고  
+   // 골 관련 로직은 따로 작성하자
+   GetWorldTimerManager().SetTimer(
+        ResultTransitionTimerHandle,
+        this,
+        &ASGMainGameMode::TransitionToResultLevel,
+        TransitionToResultDelay,
+        false
+    );
 }
 
+bool ASGMainGameMode::EndScoreMatch()
+{
+   ASGMainGameState* SG_GameState = GetGameState<ASGMainGameState>();
+   if (SG_GameState == nullptr)
+   {
+      return false;
+   }
+   // 스코어 체크해서 확인
+   
+   if (SG_GameState->BlueTeamScore >= ScoreToWin || SG_GameState->RedTeamScore >= ScoreToWin )
+      return true;
+   return false;
+}
+void ASGMainGameMode::WinTeamCheck()
+{
+   ASGMainGameState* SG_GameState = GetGameState<ASGMainGameState>();
+   if (SG_GameState == nullptr)
+   {
+      return ;
+   }
+   if (SG_GameState->BlueTeamScore >= ScoreToWin)
+   {
+      WinTeamTag = FGameplayTag::RequestGameplayTag(FName("Match.Result.BlueTeamWin"));
+   }
+   else if (SG_GameState->RedTeamScore >= ScoreToWin)
+   {
+      WinTeamTag = FGameplayTag::RequestGameplayTag(FName("Match.Result.RedTeamWin"));
+   }
+   else
+   {
+      WinTeamTag = FGameplayTag::RequestGameplayTag(FName("Match.Result.Draw"));
+   }
+}
 void ASGMainGameMode::RestartRound()
 {
+}
+
+void ASGMainGameMode::TransitionToResultLevel()
+{
+   //GetWorld()->ServerTravel(ResultLevelPath);
 }

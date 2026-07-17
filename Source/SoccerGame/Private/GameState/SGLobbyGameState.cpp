@@ -32,20 +32,61 @@ void ASGLobbyGameState::OnRep_CountdownTime()
 	{
 		if (ASGLobbyPlayerController* LobbyPC = Cast<ASGLobbyPlayerController>(LocalPC))
 		{
-			// UI가 켜져 있는지 확인하고 업데이트하는 전반적인 전권은 Controller에게 위임!
-			//		LobbyPC->HandleCountdownTimeChanged(ReplicatedCountdownTime);
+			LobbyPC->TimeUIUpdate(ReplicatedCountdownTime);
 		}
 	}
 }
 
 void ASGLobbyGameState::BroadcastLobbyInfo()
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
 	// 현재 방에 있는 모든 플레이어의 최신 정보를 담을 배열 생성
 	TArray<FSGPlayerLobbyInfo> NewPlayerInfos;
+	for (APlayerState* BasePlayerState : PlayerArray)
+	{
+		ASGLobbyPlayerState* LobbyPlayerState =Cast<ASGLobbyPlayerState>(BasePlayerState);
+		if (!IsValid(LobbyPlayerState))
+		{
+			continue;
+		}
 
+		FSGPlayerLobbyInfo PlayerInfo;
+
+		PlayerInfo.UserName =LobbyPlayerState->GetCustomPlayerName().IsEmpty()
+				? LobbyPlayerState->GetPlayerName(): LobbyPlayerState->GetCustomPlayerName();
+
+		PlayerInfo.bIsReady =LobbyPlayerState->IsReady();
+
+		PlayerInfo.TeamTag =LobbyPlayerState->GetTeamTag();
+
+		NewPlayerInfos.Add(PlayerInfo);
+	}
+
+	for (FConstPlayerControllerIterator Iterator =GetWorld()->GetPlayerControllerIterator();Iterator;++Iterator)
+	{
+		ASGLobbyPlayerController* LobbyPlayerController =Cast<ASGLobbyPlayerController>(Iterator->Get());
+
+		if (!IsValid(LobbyPlayerController))
+		{
+			continue;
+		}
+
+		LobbyPlayerController->Client_UpdateLobbyUI(NewPlayerInfos);
+	}
+
+	/*
 	// GameState가 쥐고 있는 대기방 전체 인원 명단 순회
 	for (APlayerState* BasePS : PlayerArray)
 	{
+		ASGLobbyPlayerState* LobbyPS = Cast<ASGLobbyPlayerState>(BasePS);
+		if (!IsValid(BasePS))
+		{
+			continue;
+		}
+		
 		if (ASGLobbyPlayerState* LobbyPS = Cast<ASGLobbyPlayerState>(BasePS))
 		{
 			FSGPlayerLobbyInfo Info;
@@ -72,4 +113,5 @@ void ASGLobbyGameState::BroadcastLobbyInfo()
 			}
 		}
 	}
+	 */
 }
