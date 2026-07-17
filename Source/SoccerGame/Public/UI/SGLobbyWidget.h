@@ -156,7 +156,7 @@ protected:
 	void UpdateThumbnail();
 	
 public:
-	// 블루프린트 버튼에서 호출할 함수
+	// 캐릭터 변경 버튼 클릭 함수
 	UFUNCTION(BlueprintCallable, Category = "Character")
 	void OnNextButtonClicked();
 

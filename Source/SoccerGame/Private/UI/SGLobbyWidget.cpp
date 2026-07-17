@@ -168,6 +168,16 @@ void USGLobbyWidget::OnReadyButtonClicked()
 		// 내 컨트롤러를 통해 서버에 레디 상태 토글 요청전달
 		LobbyPC->SellectReady();
 	}
+	
+	// 선택한 캐릭터 전달
+	if (CharacterList.IsValidIndex(CurrentIndex))
+	{
+		FGameplayTag SelectedCharacterTag = CharacterList[CurrentIndex]->CharacterTag;
+		if (LobbyPC)
+		{
+			// TODO: 선택된 캐릭터 전송하는 함수 호출
+		}
+	}
 }
 
 void USGLobbyWidget::UpdateReadyButtonText()
@@ -262,13 +272,14 @@ void USGLobbyWidget::OnNextButtonClicked()
 	// 인덱스 증가 및 순환
 	CurrentIndex = (CurrentIndex + 1) % CharacterList.Num();
 	UpdateThumbnail();
+	
 }
 
 void USGLobbyWidget::OnPrevButtonClicked()
 {
 	if (CharacterList.Num() == 0) return;
 	
-	CurrentIndex = (CurrentIndex - 1) & CharacterList.Num();
+	CurrentIndex = (CurrentIndex - 1) % CharacterList.Num();
 	UpdateThumbnail();
 }
 	
