@@ -20,6 +20,10 @@ struct FPlayerBackupData
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Backup")
 	FGameplayTag PlayerTeam = FGameplayTag::RequestGameplayTag(FName("Team.Waiting"));
 
+	// 로비에서 선택한 캐릭터
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Backup")
+	FGameplayTag SelectedCharacterTag;
+
 	// 스코어 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Backup")
 	int32 Score = 0; 
@@ -57,4 +61,7 @@ public:
 
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "PlayerState")
 	int32 PlayerScore = 0;
+
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "PlayerState|Character")
+	FGameplayTag SelectedCharacterTag;
 };

@@ -27,6 +27,7 @@ public:
 	void OnPlayerReadyChanged();
 	
 	void ProcessChangeTeamRequest(APlayerController* TargetPC, const FGameplayTag& RequestedTeamTag);
+	void ProcessChangeCharacterRequest(APlayerController* TargetPC, const FGameplayTag& RequestedCharacterTag);
 	
 protected:
 	virtual void BeginPlay() override;
@@ -35,6 +36,7 @@ protected:
 	void CheckReadyState();
 private:
 	int32 GetTeamCount(const FGameplayTag& TeamTag) const;
+	bool IsCharacterTagCompatibleWithTeam(const FGameplayTag& CharacterTag, const FGameplayTag& TeamTag) const;
 	
 	// 카운트다운을 시작하는 함수
 	void StartCountdown();
@@ -54,6 +56,10 @@ private:
 	//void UpdateGameStateCountdown(int32 NewTime);
 	
 private:
+	// 테스트 중에는 한 명이라도 Ready 상태가 되면 게임 시작 카운트다운을 허용합니다.
+	UPROPERTY(EditDefaultsOnly, Category = "Lobby Settings|Testing")
+	bool bStartWithAnyReadyPlayerForTesting = true;
+
     // 게임 시작에 필요한 목표(최대) 인원수 (예: 2명)
     UPROPERTY(EditDefaultsOnly, Category = "Lobby Settings")
     int32 TargetPlayerCount = 2;

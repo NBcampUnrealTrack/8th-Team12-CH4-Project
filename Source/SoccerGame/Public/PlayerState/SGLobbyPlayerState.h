@@ -21,7 +21,7 @@ public:
 	// 멀티플레이 동기화를 위한 변수 등록 함수
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-	void CopyProperties(APlayerState* NewPlayerState);
+	virtual void CopyProperties(APlayerState* NewPlayerState) override;
 protected:
 	// 레벨 이동으로 파괴 시 호출 (데이터 백업)
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -39,15 +39,21 @@ public:
 	// 서버가 이 변수를 바꾸면 온렙 함수가 클라이언트에서 자동 호출됩니다.
 	UPROPERTY(ReplicatedUsing = OnRep_IsReady, BlueprintReadOnly, Category = "SG_Lobby")
 	bool bIsReady = false;
+
+	// 서버가 확정한 캐릭터 선택값. 다른 플레이어에게는 복제하지 않습니다.
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Lobby Settings|Character")
+	FGameplayTag SelectedCharacterTag;
 	
 	// Getter 함수들
 	FGameplayTag GetTeamTag() const { return CurrentTeamTag; }
 	bool IsReady() const { return bIsReady; }
 	const FString& GetCustomPlayerName() const{return CustomPlayerName;}
+	FGameplayTag GetSelectedCharacterTag() const { return SelectedCharacterTag; }
 
 	// 서버에서 데이터를 직접 바꿀 때 사용할 함수들
 	void SetReadyState(bool bNewReadyState);
 	void SetTeamInternal(const FGameplayTag& SelectTeamTag);
+	void SetSelectedCharacterInternal(const FGameplayTag& NewCharacterTag);
 	void SetCustomPlayerName(const FString& NewPlayerName);
 
 protected:
