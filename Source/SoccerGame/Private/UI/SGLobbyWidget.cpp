@@ -7,6 +7,7 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/Image.h"
+#include "Engine/Texture2D.h"
 #include "GameState/SGLobbyGameState.h"
 #include "Kismet/GameplayStatics.h"
 #include "SoccerGame/Public/PlayerController/SGLobbyPlayerController.h"
@@ -269,13 +270,28 @@ void USGLobbyWidget::UpdateReadyButtonText()
 		return;
 	}
 	
+	// 버튼 기존 스타일 껍데기 가져오기
+	FButtonStyle NewStyle = ReadyButton->GetStyle();
+	UTexture2D* TargetTexture = nullptr;
+	
 	if (MyPlayerState->bIsReady == false)
 	{
 		Text_ReadyButton->SetText(FText::FromString("Ready"));	
+		TargetTexture = Image_ReadyButton;
 	}
 	else
 	{
 		Text_ReadyButton->SetText(FText::FromString("Cancel"));
+		TargetTexture = Image_CancleButton;
+	}
+	
+	if (TargetTexture)
+	{
+		NewStyle.Normal.SetResourceObject(TargetTexture);
+		NewStyle.Hovered.SetResourceObject(TargetTexture);
+		NewStyle.Pressed.SetResourceObject(TargetTexture);
+		
+		ReadyButton->SetStyle(NewStyle);
 	}
 }
 
@@ -320,42 +336,111 @@ void USGLobbyWidget::HandleSlotClicked(FGameplayTag RequestedTeamTag)
 		return;
 	}
 	LobbyPlayerController->RequestChangeTeam(RequestedTeamTag);
+	
+	RefreshCharacterSelection();
 }
 
-void USGLobbyWidget::UpdateThumbnail()
+TArray<USGCharacterDataAsset*> USGLobbyWidget::GetFilteredCharacterList()
 {
-	if (!Image_Character || CharacterList.Num() == 0)
+	TArray<USGCharacterDataAsset*> FilteredList;
+	
+	APlayerController* LobbyPC = GetOwningPlayer();
+	ASGLobbyPlayerState* LobbyPS = LobbyPC ? Cast<ASGLobbyPlayerState>(LobbyPC->PlayerState) : nullptr;
+	if (!LobbyPS) return FilteredList;
+	
+	FString MyTeamTagString = LobbyPS->GetTeamTag().GetTagName().ToString();
+	
+	// 필터링
+	for (auto* Character : CharacterList)
 	{
-		if (GEngine)
+		if (Character)
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Red, TEXT("[SGLobbyWidget] 캐릭터 이미지 슬롯이 존재하지 않거나, 캐릭터 에셋 데이터가 존재하지 않습니다!"));
+			FString CharTagString = Character->CharacterTag.ToString();
+			// FString TeamPart = CharTagString.Replace(TEXT("Character."), TEXT(""));
+			
+			GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, FString::Printf(TEXT("Filter Check: MyTeamTagString(%s) vs CharTagString(%s)"), *MyTeamTagString, *CharTagString));
+			
+			if (CharTagString.Contains(MyTeamTagString))
+			{
+				FilteredList.Add(Character);
+			}
 		}
 	}
 	
-	USGCharacterDataAsset* SelectedCharacter = CharacterList[CurrentIndex];
-	
-	if (SelectedCharacter && SelectedCharacter->Thumbnail)
-	{
-		Image_Character->SetBrushFromTexture(SelectedCharacter->Thumbnail);
-	}
+	return FilteredList;
 }
 
 void USGLobbyWidget::OnNextButtonClicked()
 {
-	if (CharacterList.Num() == 0) return;
+	TArray<USGCharacterDataAsset*> FilteredList = GetFilteredCharacterList();
+	
+	if (FilteredList.Num() == 0)
+	{
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Red, TEXT("[SGLobbyWidget] FilteredList가 비어있습니다!"));
+		}
+		return;
+	}
+	
 	
 	// 인덱스 증가 및 순환
-	CurrentIndex = (CurrentIndex + 1) % CharacterList.Num();
-	UpdateThumbnail();
+	CurrentIndex = (CurrentIndex + 1) % FilteredList.Num();
+	
+	// 썸네일 업데이트
+	if (Image_Character && FilteredList.IsValidIndex(CurrentIndex))
+	{
+		Image_Character->SetBrushFromTexture(FilteredList[CurrentIndex]->Thumbnail);
+	}
+	
+	GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Green, TEXT("[SGLobbyWidget] Thumbnail Updated!"));
 	
 }
 
 void USGLobbyWidget::OnPrevButtonClicked()
 {
-	if (CharacterList.Num() == 0) return;
+	TArray<USGCharacterDataAsset*> FilteredList = GetFilteredCharacterList();
+	if (FilteredList.Num() == 0)
+	{
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Red, TEXT("[SGLobbyWidget] FilteredList가 비어있습니다!"));
+		}
+		return;
+	}
 	
-	CurrentIndex = (CurrentIndex - 1 + CharacterList.Num()) % CharacterList.Num();
-	UpdateThumbnail();
+	CurrentIndex = (CurrentIndex - 1 + FilteredList.Num()) % FilteredList.Num();
+	if (Image_Character && FilteredList.IsValidIndex(CurrentIndex))
+	{
+		Image_Character->SetBrushFromTexture(FilteredList[CurrentIndex]->Thumbnail);
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Green, TEXT("[SGLobbyWidget] Thumbnail Updated!"));
+		}
+	}	
+	
+	
+}
+
+void USGLobbyWidget::RefreshCharacterSelection()
+{
+	APlayerController* LobbyPC = GetOwningPlayer();
+	ASGLobbyPlayerState* LobbyPS = LobbyPC ? Cast<ASGLobbyPlayerState>(LobbyPC->PlayerState) : nullptr;
+	if (!LobbyPS) return;
+	
+	bool bIsWaiting = LobbyPS->GetTeamTag().GetTagName().ToString().Contains(TEXT("Waiting"));
+	if (Image_Character)
+	{
+		// Waiting 상태가 아닐 때만 캐릭터 이미지 보여주기.
+		Image_Character->SetRenderOpacity(bIsWaiting ? 0.0f : 1.0f);
+	}
+	
+	TArray<USGCharacterDataAsset*> FilteredList = GetFilteredCharacterList();
+	
+	if (Image_Character && FilteredList.IsValidIndex(CurrentIndex))
+	{
+		Image_Character->SetBrushFromTexture(FilteredList[CurrentIndex]->Thumbnail);
+	}
 }
 
 

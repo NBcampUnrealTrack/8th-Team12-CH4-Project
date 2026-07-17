@@ -11,7 +11,7 @@
  * 
  */
 UCLASS()
-class SOCCERGAME_API USGCharacterDataAsset : public UDataAsset
+class SOCCERGAME_API USGCharacterDataAsset : public UPrimaryDataAsset
 {
 	GENERATED_BODY()
 	
@@ -20,8 +20,8 @@ public:
 	FGameplayTag CharacterTag;
 	
 	UPROPERTY(EditAnywhere, BLueprintReadOnly)
-	ACharacter* Character;
+	TSubclassOf<ACharacter> Character;
 	
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BLueprintReadOnly)
 	UTexture2D* Thumbnail;
 };

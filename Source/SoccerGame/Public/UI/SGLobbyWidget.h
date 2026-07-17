@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "GameplayTagContainer.h"
+#include "Character/SGCharacterDataAsset.h"
 #include "SGLobbyWidget.generated.h"
 
 class UVerticalBox;
@@ -130,12 +131,24 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SetPlayerInfos(const TArray<FSGPlayerLobbyInfo>& InPlayerInfos);
 	
+#pragma region ReadyButton
+	
+protected:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI|Button")
+	class UTexture2D* Image_ReadyButton;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI|Button")
+	class UTexture2D* Image_CancleButton;
+	
+public:
 	// Ready 버튼 클릭 콜백 함수 시그니처
 	UFUNCTION()
 	void OnReadyButtonClicked();
 	
 	// Ready 버튼 텍스트 갱신 함수 시그니처
 	void UpdateReadyButtonText();
+	
+#pragma endregion
 	
 	void UpdateCountdownText(int32 NewTime);
 	
@@ -155,8 +168,8 @@ protected:
 	
 	int32 CurrentIndex = 0;
 	
-	// 캐릭터 이미지 업데이트 함수
-	void UpdateThumbnail();
+	UFUNCTION()
+	TArray<USGCharacterDataAsset*> GetFilteredCharacterList();
 	
 public:
 	// 캐릭터 변경 버튼 클릭 함수
@@ -165,6 +178,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Character")
 	void OnPrevButtonClicked();
+	
+	UFUNCTION(BlueprintCallable)
+	void RefreshCharacterSelection();
 	
 #pragma endregion
 
