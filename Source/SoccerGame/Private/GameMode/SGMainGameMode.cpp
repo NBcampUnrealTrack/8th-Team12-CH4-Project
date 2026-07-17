@@ -12,20 +12,42 @@
 
 ASGMainGameMode::ASGMainGameMode()
 {
-   UE_LOG(LogTemp, Warning,
-      TEXT("★★★★ SGMainGameMode Constructor ★★★★"));
     // GameMode는 오직 서버에만 존재하므로 복제(Replicate)할 필요가 없습니다.
     bReplicates = false;
-
     PlayerControllerClass = ASGMainPlayerController::StaticClass();
     PlayerStateClass = ASGMainPlayerState::StaticClass();
     GameStateClass = ASGMainGameState::StaticClass();
 }
 
+void ASGMainGameMode::ReturnToMainMenu()
+{
+   if (!HasAuthority())
+   {
+      return;
+   }
+
+   UWorld* World = GetWorld();
+   if (!IsValid(World))
+   {
+      return;
+   }
+   if (MainMenuLevelPath.IsEmpty())
+   {
+      UE_LOG(LogTemp,Error,TEXT("[GameMode] MainMenuLevelPath가 비어 있습니다."));
+      return;
+   }
+
+
+   bIsReturningToMainMenu = true;
+
+
+   UE_LOG(LogTemp,Warning,TEXT("[GameMode] 모든 플레이어를 메인 메뉴로 이동합니다: %s"),*MainMenuLevelPath);
+
+   World->ServerTravel(MainMenuLevelPath);
+}
+
 void ASGMainGameMode::BeginPlay()
 {
-   UE_LOG(LogTemp, Warning,
-   TEXT("★★★★ SGMainGameMode BeginPlay ★★★★"));
     Super::BeginPlay();
     // 최초 진입 시 GameState 설정 세팅 및 대기 상태 태그 적용
     if (ASGMainGameState* SG_GameState = GetGameState<ASGMainGameState>())
@@ -40,24 +62,10 @@ void ASGMainGameMode::BeginPlay()
 
 void ASGMainGameMode::StartLoading()
 {
-   UE_LOG(LogTemp, Log, TEXT("[GameMode] === 로딩 및 데이터 검증 시퀀스 시작 (5초) ==="));
    CurrentLoadingTime = 0;
+   
+   SetAllPlayersGameInputEnabled(false);
 
-   // 접속한 모든 플레이어의 입력을 막고 마우스 커서 숨기기
-   /*
-   for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
-   {
-      if (ASGMainPlayerController* PC = Cast<ASGMainPlayerController>(It->Get()))
-      {
-         // 키보드/마우스 이동 입력을 무시하도록 설정
-         //PC->SetInputMode(FInputModeGameOnly());
-         //PC->bShowMouseCursor = false;
-         //PC->SetIgnoreMoveInput(true);
-         //   
-         //PC->ClientMessage(TEXT("로딩 및 팀 데이터 복원 중입니다... 잠시만 기다려주세요."));
-      }
-   }
-   */
 
    GetWorldTimerManager().SetTimer(
        LoadingCheckTimerHandle,
@@ -71,7 +79,7 @@ void ASGMainGameMode::StartLoading()
 void ASGMainGameMode::UpdateLoadingProgress()
 {
    CurrentLoadingTime++;
-   float RemainingTime = 5 - CurrentLoadingTime;
+   float RemainingTime = LoadingDuration - CurrentLoadingTime;
     
    UE_LOG(LogTemp, Warning, TEXT("[GameMode] 로딩 진행 중... (%.0f초 경과 / %.0f초 남음)"), CurrentLoadingTime, RemainingTime);
    int32 UnloadedPlayers = 0;
@@ -85,25 +93,24 @@ void ASGMainGameMode::UpdateLoadingProgress()
          {
             // 팀 태그가 아직 대기(Waiting) 상태이거나 이름이 비어있다면 로딩이 덜 된 것으로 판단
             FGameplayTag WaitingTag = FGameplayTag::RequestGameplayTag(FName("Team.Waiting"));
-            if (MainPS->CustomPlayerName.IsEmpty() || MainPS->CurrentTeamTag == WaitingTag)
+            if (!MainPS)
             {
-               UnloadedPlayers++;
+               ++UnloadedPlayers;
+               continue;
+            }
+
+            if (MainPS->CustomPlayerName.IsEmpty() ||
+                MainPS->CurrentTeamTag == WaitingTag)
+            {
+               ++UnloadedPlayers;
             }
          }
       }
    }
 
-   if (UnloadedPlayers > 0)
-   {
-      UE_LOG(LogTemp, Error, TEXT("[GameMode - Loading Check] 아직 데이터 복원이 안 된 플레이어 수: %d명"), UnloadedPlayers);
-   }
-   else
-   {
-      UE_LOG(LogTemp, Log, TEXT("[GameMode - Loading Check] 모든 플레이어 데이터 복원 확인 완료!"));
-   }
-
-   // 5초가 완료되면 타이머를 끄고 게임을 시작합니다.
-   if (CurrentLoadingTime >= 5)
+  
+   // 3초가 완료되면 타이머를 끄고 게임을 시작합니다.
+   if (CurrentLoadingTime >= LoadingDuration)
    {
       GetWorldTimerManager().ClearTimer(LoadingCheckTimerHandle);
       StartGame();
@@ -114,28 +121,19 @@ void ASGMainGameMode::StartGame()
 {
    UE_LOG(LogTemp, Warning, TEXT("[GameMode] === 5초 대기 종료! 경기 시작! 입력을 활성화합니다. ==="));
 
-   // 제한해두었던 플레이어들의 이동 및 시선 입력을 모두 해제
-   for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
-   {
-      if (ASGMainPlayerController* PC = Cast<ASGMainPlayerController>(It->Get()))
-      {
-         
-         //PC->SetIgnoreMoveInput(false);
-         //PC->SetIgnoreLookInput(false);
-         //// 호루라기 소리 사운드 재생이나 UI 알림을 넣기 좋은 타이밍입니다.
-         //PC->ClientMessage(TEXT("경기 시작!! 움직일 수 있습니다!"));
-      }
-   }
+   SetAllPlayersGameInputEnabled(true);
+
    if (ASGMainGameState* SG_GameState = GetGameState<ASGMainGameState>())
    {
       SG_GameState->CurrentGameTime = TotalMatchTime;
       SG_GameState->RedTeamScore = 0;
       SG_GameState->BlueTeamScore = 0;
+      UpdateAllPlayerScoreWidget();
       //SG_GameState->CurrentMatchStateTag = FGameplayTag::RequestGameplayTag(FName("Match.State.WaitingToStart"));
        
       UE_LOG(LogTemp, Log, TEXT("[Debug_State] GameState 초기화 및 대기 상태 태그 설정 완료"));
    }
-   //SpawnNewBall();
+   SpawnNewBall();
    GetWorldTimerManager().SetTimer(
        MatchTimerHandle,
        this,
@@ -147,7 +145,6 @@ void ASGMainGameMode::StartGame()
 
 void ASGMainGameMode::UpdateMatchTime()
 {
-    UE_LOG(LogTemp, Log, TEXT("[Debug_Call] ASGMainGameMode::UpdateMatchTime() 호출됨"));
 
     ASGMainGameState* SG_GameState = GetGameState<ASGMainGameState>();
     if (SG_GameState)
@@ -159,7 +156,6 @@ void ASGMainGameMode::UpdateMatchTime()
           if (ASGMainPlayerController* PC = Cast<ASGMainPlayerController>(It->Get()))
           {
              PC->UpdateTimerWidget(SG_GameState->CurrentGameTime);
-             //SpawnNewBall();
           }
        }
        
@@ -167,11 +163,7 @@ void ASGMainGameMode::UpdateMatchTime()
        {
           SG_GameState->CurrentGameTime = 0.0f;
           GetWorldTimerManager().ClearTimer(MatchTimerHandle);
-          UE_LOG(LogTemp, Warning, TEXT("[Debug_State] 경기 시간 종료 조건 충족"));
-          
           EndMatch();
-          
-          //EndMatch();
        }
     }
 }
@@ -200,15 +192,13 @@ void ASGMainGameMode::OnGoalScored(FGameplayTag GoalTeamTag)
    if (GoalTeamTag == FGameplayTag::RequestGameplayTag(FName("Team.Red")))
    {
       SG_GameState->BlueTeamScore++;
-      //SG_GameState->OnRep_UpdateScore();
-      GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Red,
-         FString::Printf(TEXT("Goal! RedTeamScore: %d"), SG_GameState->RedTeamScore));
    }
-   // !bIsRedTeamGoal : Blue팀의 득점일 때
    else if (GoalTeamTag == FGameplayTag::RequestGameplayTag(FName("Team.Blue")))
    {
       SG_GameState->RedTeamScore++;
    }
+   
+   UpdateAllPlayerScoreWidget();
 	
    if (IsValid(SpawnedBall))
    {
@@ -216,13 +206,16 @@ void ASGMainGameMode::OnGoalScored(FGameplayTag GoalTeamTag)
       SpawnedBall = nullptr;
    }
    SpawnNewBall();
+   //Player리스폰 추가 
    // 승리 조건 체크
+   
    if (!EndScoreMatch())
    {
       return ;
    }
    EndMatch();
    
+   /*
    // RestartRound 이전 시간 딜레이
    GetWorldTimerManager().SetTimer(
       RoundRestartTimerHandle,
@@ -231,6 +224,7 @@ void ASGMainGameMode::OnGoalScored(FGameplayTag GoalTeamTag)
       GoalRestartDelay,
       false
    );
+    */
 }
 
 void ASGMainGameMode::SpawnNewBall()
@@ -287,9 +281,6 @@ void ASGMainGameMode::SpawnNewBall()
 
 AActor* ASGMainGameMode::ChoosePlayerStart_Implementation(AController* Player)
 {
-    // 🌟 호출 확인용 단순 디버그 로그 한 줄
-    UE_LOG(LogTemp, Log, TEXT("[Debug_Call] ASGMainGameMode::ChoosePlayerStart_Implementation() 호출됨"));
-
     if (!Player)
     {
        return Super::ChoosePlayerStart_Implementation(Player);
@@ -373,19 +364,44 @@ void ASGMainGameMode::HandleSeamlessTravelPlayer(AController*& Controller)
        PC->DisableInput(PC); 
     }
 }
+
 void ASGMainGameMode::EndMatch()
 {
+   if (!HasAuthority())
+   {
+      return;
+   }
+
    WinTeamCheck();
-   // 종료시간 타임 오버
-   // 시간 오버 로직 하고  
-   // 골 관련 로직은 따로 작성하자
-   GetWorldTimerManager().SetTimer(
-        ResultTransitionTimerHandle,
-        this,
-        &ASGMainGameMode::TransitionToResultLevel,
-        TransitionToResultDelay,
-        false
-    );
+   GetWorldTimerManager().ClearTimer(MatchTimerHandle);
+   GetWorldTimerManager().ClearTimer(LoadingCheckTimerHandle);
+   GetWorldTimerManager().ClearTimer(RoundRestartTimerHandle);
+   
+   // 모든 플레이어 조작 차단
+   SetAllPlayersGameInputEnabled(false);
+   // 마우스 입력 true
+
+   // SpawnBall  제거 
+   if (IsValid(SpawnedBall))
+   {
+      SpawnedBall->Destroy();
+      SpawnedBall = nullptr;
+   }
+   
+   // 결과 UI 출력
+   
+   for (FConstPlayerControllerIterator It =GetWorld()->GetPlayerControllerIterator();It;++It)
+   {
+      ASGMainPlayerController* MainPC =Cast<ASGMainPlayerController>(It->Get());
+
+      if (!IsValid(MainPC))
+      {
+         continue;
+      }
+
+      MainPC->bShowMouseCursor = true;
+      MainPC->Client_ShowResultUI();
+   }
 }
 
 bool ASGMainGameMode::EndScoreMatch()
@@ -408,11 +424,11 @@ void ASGMainGameMode::WinTeamCheck()
    {
       return ;
    }
-   if (SG_GameState->BlueTeamScore >= ScoreToWin)
+   if (SG_GameState->BlueTeamScore >= ScoreToWin || SG_GameState->BlueTeamScore > SG_GameState->RedTeamScore )
    {
       WinTeamTag = FGameplayTag::RequestGameplayTag(FName("Match.Result.BlueTeamWin"));
    }
-   else if (SG_GameState->RedTeamScore >= ScoreToWin)
+   else if (SG_GameState->RedTeamScore >= ScoreToWin || SG_GameState->RedTeamScore > SG_GameState->BlueTeamScore )
    {
       WinTeamTag = FGameplayTag::RequestGameplayTag(FName("Match.Result.RedTeamWin"));
    }
@@ -425,7 +441,91 @@ void ASGMainGameMode::RestartRound()
 {
 }
 
-void ASGMainGameMode::TransitionToResultLevel()
+void ASGMainGameMode::RespawnAllPlayers()
 {
-   //GetWorld()->ServerTravel(ResultLevelPath);
+   if (!HasAuthority())
+   {
+      return;
+   }
+
+   UWorld* World = GetWorld();
+   if (!IsValid(World))
+   {
+      return;
+   }
+
+   for (FConstPlayerControllerIterator It =World->GetPlayerControllerIterator();It;++It)
+   {
+      AController* Controller = It->Get();
+
+      if (!IsValid(Controller))
+      {
+         continue;
+      }
+
+      APawn* Pawn = Controller->GetPawn();
+
+      if (!IsValid(Pawn))
+      {
+         continue;
+      }
+
+      ASGPlayerStart** FoundStart =AssignedInitialPlayerStarts.Find(Controller);
+
+      if (!FoundStart || !IsValid(*FoundStart))
+      {
+         UE_LOG(
+             LogTemp,
+             Warning,
+             TEXT("[ResetPosition] 배정된 PlayerStart 없음: %s"),
+             *GetNameSafe(Controller)
+         );
+
+         continue;
+      }
+
+      ASGPlayerStart* PlayerStart = *FoundStart;
+
+      Pawn->SetActorLocationAndRotation(PlayerStart->GetActorLocation(),PlayerStart->GetActorRotation(),
+          false,nullptr,ETeleportType::TeleportPhysics);
+   }
+}
+
+
+void ASGMainGameMode::SetAllPlayersGameInputEnabled(bool bEnableInput)
+{
+   UWorld* World = GetWorld();
+   if (!World)
+   {
+      return;
+   }
+
+   for (FConstPlayerControllerIterator It =World->GetPlayerControllerIterator();It;++It)
+   {
+      ASGMainPlayerController* PC =Cast<ASGMainPlayerController>(It->Get());
+
+      if (!IsValid(PC))
+      {
+         continue;
+      }
+      PC->Client_SetGameInputEnabled(bEnableInput);
+   }
+}
+
+void ASGMainGameMode::UpdateAllPlayerScoreWidget()
+{
+   ASGMainGameState* SG_GameState = GetGameState<ASGMainGameState>();
+
+   if (!SG_GameState)
+   {
+      return;
+   }
+
+   for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+   {
+      if (ASGMainPlayerController* PC = Cast<ASGMainPlayerController>(It->Get()))
+      {
+         PC->UpdateScoreWidget(SG_GameState->BlueTeamScore,SG_GameState->RedTeamScore);
+      }
+   }
 }
