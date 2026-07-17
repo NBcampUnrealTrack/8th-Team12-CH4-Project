@@ -11,6 +11,8 @@ class UVerticalBox;
 class USGPlayerSlotWidget;
 class UButton;
 class UTextBlock;
+class UImage;
+class USGCharacterDataAsset;
 
 USTRUCT(BlueprintType)
 struct FSGPlayerLobbyInfo
@@ -43,7 +45,7 @@ protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 	
-#pragma region UMG Binding
+#pragma region Team Slots
 public:
 	// 블루 팀 슬롯 3개 바인딩
 	UPROPERTY(meta =(BindWidget))
@@ -139,4 +141,25 @@ protected:
 	UFUNCTION()
 	void HandleSlotClicked(FGameplayTag RequestedTeamTag);
 	
+#pragma region Select Character
+	
+protected:
+	UPROPERTY(meta = (BindWidget))
+	UImage* Image_Character;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character")
+	TArray<USGCharacterDataAsset*> CharacterList;
+	
+	int32 CurrentIndex = 0;
+	
+	// 캐릭터 이미지 업데이트 함수
+	void UpdateThumbnail();
+	
+public:
+	// 블루프린트 버튼에서 호출할 함수
+	UFUNCTION(BlueprintCallable, Category = "Character")
+	void OnNextButtonClicked();
+
+	UFUNCTION(BlueprintCallable, Category = "Character")
+	void OnPrevButtonClicked();
 };

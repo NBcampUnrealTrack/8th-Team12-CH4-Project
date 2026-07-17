@@ -6,10 +6,12 @@
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
+#include "Components/Image.h"
 #include "GameState/SGLobbyGameState.h"
 #include "Kismet/GameplayStatics.h"
-
 #include "SoccerGame/Public/PlayerController/SGLobbyPlayerController.h"
+#include "Character/SGCharacterDataAsset.h"
+
 
 constexpr int32 MaxPlayers = 6;
 constexpr int32 MaxBLueTeam = 3;
@@ -233,6 +235,41 @@ void USGLobbyWidget::HandleSlotClicked(FGameplayTag RequestedTeamTag)
 		// 내 컨트롤러를 통해 서버에 팀 변경 요청 전달
 		LobbyPC->RequestChangeTeam(RequestedTeamTag);
 	}
+}
+
+void USGLobbyWidget::UpdateThumbnail()
+{
+	if (!Image_Character || CharacterList.Num() == 0)
+	{
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Red, TEXT("[SGLobbyWidget] 캐릭터 이미지 슬롯이 존재하지 않거나, 캐릭터 에셋 데이터가 존재하지 않습니다!"));
+		}
+	}
+	
+	USGCharacterDataAsset* SelectedCharacter = CharacterList[CurrentIndex];
+	
+	if (SelectedCharacter && SelectedCharacter->Thumbnail)
+	{
+		Image_Character->SetBrushFromTexture(SelectedCharacter->Thumbnail);
+	}
+}
+
+void USGLobbyWidget::OnNextButtonClicked()
+{
+	if (CharacterList.Num() == 0) return;
+	
+	// 인덱스 증가 및 순환
+	CurrentIndex = (CurrentIndex + 1) % CharacterList.Num();
+	UpdateThumbnail();
+}
+
+void USGLobbyWidget::OnPrevButtonClicked()
+{
+	if (CharacterList.Num() == 0) return;
+	
+	CurrentIndex = (CurrentIndex - 1) & CharacterList.Num();
+	UpdateThumbnail();
 }
 	
 
