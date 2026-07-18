@@ -26,7 +26,7 @@ private:
 	UButton* GameStartButton;
 	
 	UPROPERTY(meta = (BindWidget))
-	UButton* GameGuidButton;
+	UButton* GameGuideButton;
 	
 	UFUNCTION()
 	void OnGameGuidButtonClicked();

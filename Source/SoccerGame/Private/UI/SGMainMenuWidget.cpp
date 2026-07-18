@@ -28,10 +28,10 @@ void USGMainMenuWidget::NativeConstruct()
 		GameStartButton->OnClicked.AddDynamic(this, &USGMainMenuWidget::OnGameStartButtonClicked);
 	}
 	
-	if (GameGuidButton)
+	if (GameGuideButton)
 	{
-		GameGuidButton->OnClicked.RemoveDynamic(this, &USGMainMenuWidget::OnGameGuidButtonClicked);
-		GameGuidButton->OnClicked.AddDynamic(this, &USGMainMenuWidget::OnGameGuidButtonClicked);
+		GameGuideButton->OnClicked.RemoveDynamic(this, &USGMainMenuWidget::OnGameGuidButtonClicked);
+		GameGuideButton->OnClicked.AddDynamic(this, &USGMainMenuWidget::OnGameGuidButtonClicked);
 	}
 }
 
