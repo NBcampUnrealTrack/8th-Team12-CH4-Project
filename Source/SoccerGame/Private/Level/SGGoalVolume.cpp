@@ -1,10 +1,14 @@
 #include "Level/SGGoalVolume.h"
+#include "NiagaraFunctionLibrary.h"
 #include "Components/BoxComponent.h"
 #include "GameMode/SGMainGameMode.h"
 #include "Kismet/GameplayStatics.h"
 
 ASGGoalVolume::ASGGoalVolume()
 {
+    bReplicates = true;
+    SetReplicateMovement(false);
+    
     PrimaryActorTick.bCanEverTick = false;
 
     GoalTrigger = CreateDefaultSubobject<UBoxComponent>(TEXT("GoalTrigger"));
@@ -95,6 +99,9 @@ void ASGGoalVolume::HandleGoalScored()
         // 득점 팀 확인용 디버그
         //GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("%d")));
     }
+    
+    // 골 VFX
+    MulticastPlayGoalVFX();
 
     // 골 먹힌 직후 트리거 비활성화 되도록 타이머 적용
     GetWorldTimerManager().SetTimer(
@@ -109,4 +116,24 @@ void ASGGoalVolume::HandleGoalScored()
 void ASGGoalVolume::EnableGoal()
 {
     bGoalEnabled = true;
+}
+
+void ASGGoalVolume::MulticastPlayGoalVFX_Implementation()
+{
+    if (!GoalVFX)
+    {
+        return;
+    }
+    
+    UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+        this,
+        GoalVFX,
+        GetActorLocation(),
+        GetActorRotation(),
+        FVector(1),
+        true,
+        true,
+        ENCPoolMethod::AutoRelease,
+        true
+    );
 }
