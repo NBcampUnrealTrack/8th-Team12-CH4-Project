@@ -231,9 +231,19 @@ void UGA_SG_DropKick::ApplyDamageToTarget(AActor* HitEnemy, const FGameplayEvent
     {
         return;
     }
-
+    
     FGameplayEffectContextHandle EffectContext = MyASC->MakeEffectContext();
     EffectContext.AddSourceObject(this);
+
+    // 애님 몽타주 충돌 이벤트로부터 HitResult를 추출해 Context에 바인딩(Hit된 곳에 나이아가라 이펙트를 실행하기 위해)
+    if (Payload.ContextHandle.IsValid())
+    {
+        const FHitResult* InsideHitResult = Payload.ContextHandle.GetHitResult();
+        if (InsideHitResult)
+        {
+            EffectContext.AddHitResult(*InsideHitResult);
+        }
+    }
 
     FGameplayEffectSpecHandle NewHandle = MyASC->MakeOutgoingSpec(DamageEffectClass, 1.0f, EffectContext);
     if (NewHandle.IsValid())

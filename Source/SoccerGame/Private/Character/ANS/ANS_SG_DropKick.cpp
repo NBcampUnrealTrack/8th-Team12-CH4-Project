@@ -6,6 +6,8 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "GameplayTagContainer.h"
+#include "AbilitySystemComponent.h"
+#include "AbilitySystemInterface.h"
 
 UANS_SG_DropKick::UANS_SG_DropKick()
 {
@@ -110,6 +112,17 @@ void UANS_SG_DropKick::NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequenc
 		FGameplayEventData Payload;
 		Payload.Instigator = MyCharacter; // 공격자
 		Payload.Target = HitEnemy;        // 피격자
+		
+		// 공격자의 ASC에서 Context를 만들고, 트레이스로 검출된 HitResult를 넣어준다.(Hit된 곳에 나이아가라 이펙트를 실행하기 위해)
+		if (IAbilitySystemInterface* ASCInterface = Cast<IAbilitySystemInterface>(MyCharacter))
+		{
+			if (UAbilitySystemComponent* MyASC = ASCInterface->GetAbilitySystemComponent())
+			{
+				FGameplayEffectContextHandle ContextHandle = MyASC->MakeEffectContext();
+				ContextHandle.AddHitResult(HitResult); 
+				Payload.ContextHandle = ContextHandle;  
+			}
+		}
 
 		// GAS 내장 라이브러리를 통해 캐릭터 어빌리티 시스템에 무전 송신
 		FGameplayTag HitTag = FGameplayTag::RequestGameplayTag(TEXT("Character.Skill.DropKick"));
