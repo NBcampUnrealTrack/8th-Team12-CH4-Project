@@ -6,10 +6,14 @@
 #include "SoccerGame/Public/PlayerController/SGLobbyPlayerController.h"
 #include "Components/Button.h"
 #include "Components/EditableTextBox.h"
+#include "Components/TextBlock.h"
 
 void USGChangeUsernameWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
+	
+	
+	
 	if (IsValid(Button_Ok))
 	{
 		Button_Ok->OnClicked.AddDynamic(this,&USGChangeUsernameWidget::OnClickedOkButton);
@@ -25,6 +29,15 @@ void USGChangeUsernameWidget::NativeConstruct()
 		EditableText_Input->OnTextCommitted.AddDynamic(this,&USGChangeUsernameWidget::OnUsernameTextCommitted);
 		EditableText_Input->SetKeyboardFocus();
 	}
+	ASGLobbyPlayerController* LobbyPC = Cast<ASGLobbyPlayerController>(GetOwningPlayer());
+	ASGLobbyPlayerState* LobbyPS = Cast<ASGLobbyPlayerState>(LobbyPC->PlayerState);
+	if (IsValid(LobbyPC) && IsValid(LobbyPS))
+	{
+		FString CurrentUsername = LobbyPS->GetCustomPlayerName();
+		FString CurrentUsernameText = FString::Printf(TEXT("Current Username: %s"), *CurrentUsername);
+		Text_CurrentUsername->SetText(FText::FromString(CurrentUsernameText));
+	}
+	
 }
 
 void USGChangeUsernameWidget::NativeDestruct()

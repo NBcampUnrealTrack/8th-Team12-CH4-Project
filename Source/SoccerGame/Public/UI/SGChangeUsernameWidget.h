@@ -11,6 +11,7 @@
  */
 
 class UButton;
+class UTextBlock;
 class UEditableTextBox;
 UCLASS()
 class SOCCERGAME_API USGChangeUsernameWidget : public UUserWidget
@@ -34,6 +35,9 @@ private:
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UButton> Button_Cancel;
 
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UTextBlock> Text_CurrentUsername;
+	
 private:
 	UFUNCTION()
 	void OnClickedOkButton();

@@ -31,10 +31,7 @@ protected:
 	TObjectPtr<UTextBlock> Text_RedTeamScore;
 	
 	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<UButton> Button_ExitGame; 
-	
-	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<UButton> Button_Rematch; 
+	TObjectPtr<UButton> Button_BackToMenu; 
 
 #pragma endregion
 	
@@ -51,8 +48,7 @@ protected:
 #pragma endregion
 protected:
 	UFUNCTION()
-	void OnExitGameClicked();
+	void OnBackToMenuClicked();
 	
-	UFUNCTION()
-	void OnRematchClicked();
+
 };
