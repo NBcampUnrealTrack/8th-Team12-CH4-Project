@@ -214,8 +214,12 @@ public:
 #pragma endregion
 
 private:
+	
 	UFUNCTION()
 	void OnClickedBackToMenuButton();
+	
+	UFUNCTION()
+	void OnClickedBackMainMenuButton();
 	
 	UFUNCTION()
 	void OnClickedChangeUsernameButton();

@@ -109,9 +109,10 @@ void USGAudioSubsystem::PlayBGM(USoundBase* NewBGM, float FadeInDuration, float 
 	}
 
 	CurrentBGM = NewBGM;
+	BGMComponent->SetVolumeMultiplier(CurrentBGMSceneVolume * BGMVolumeMultiplier);
 	BGMComponent->FadeIn(
 		FMath::Max(0.0f, FadeInDuration),
-		CurrentBGMSceneVolume * BGMVolumeMultiplier,
+		1.0f,
 		0.0f);
 }
 
@@ -178,9 +179,10 @@ void USGAudioSubsystem::PlayCrowd(USoundBase* NewCrowd, float FadeInDuration, fl
 	}
 
 	CurrentCrowd = NewCrowd;
+	CrowdComponent->SetVolumeMultiplier(CurrentCrowdSceneVolume * CrowdVolumeMultiplier);
 	CrowdComponent->FadeIn(
 		FMath::Max(0.0f, FadeInDuration),
-		CurrentCrowdSceneVolume * CrowdVolumeMultiplier,
+		1.0f,
 		0.0f);
 }
 

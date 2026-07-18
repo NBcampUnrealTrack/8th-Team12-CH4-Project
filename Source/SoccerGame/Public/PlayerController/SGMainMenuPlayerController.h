@@ -21,8 +21,18 @@ protected:
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
 	TSubclassOf<UUserWidget> MainMenuWidgetClass;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
+	TSubclassOf<UUserWidget> GameGuideWidgetClass;
 	
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void OpenGameGuide();
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void CloseGameGuide();
 private:
 	UPROPERTY()
 	UUserWidget* MainMenuWidgetInstance;
+	
+	UPROPERTY()
+	UUserWidget* GameGuideWidgetInstance;
+
 };

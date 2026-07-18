@@ -76,32 +76,16 @@ void USGLobbyWidget::NativeConstruct()
 	{
 		Text_StartTimer->SetVisibility(ESlateVisibility::Collapsed);
 	}
+	if (IsValid(Button_BackToMenu))
+	{
+		Button_BackToMenu->OnClicked.RemoveDynamic(this,&USGLobbyWidget::OnClickedBackMainMenuButton);
+		Button_BackToMenu->OnClicked.AddDynamic(this,&USGLobbyWidget::OnClickedBackMainMenuButton);
+	}
 	
 	if (IsValid(Button_ChangeUserName))
 	{
-		UE_LOG(
-			LogTemp,
-			Warning,
-			TEXT("[LobbyWidget] Button_ChangeUserName 바인딩 성공")
-		);
-
-		Button_ChangeUserName->OnClicked.RemoveDynamic(
-			this,
-			&USGLobbyWidget::OnClickedChangeUsernameButton
-		);
-
-		Button_ChangeUserName->OnClicked.AddDynamic(
-			this,
-			&USGLobbyWidget::OnClickedChangeUsernameButton
-		);
-	}
-	else
-	{
-		UE_LOG(
-			LogTemp,
-			Error,
-			TEXT("[LobbyWidget] Button_ChangeUserName 바인딩 실패")
-		);
+		Button_ChangeUserName->OnClicked.RemoveDynamic(this,&USGLobbyWidget::OnClickedChangeUsernameButton);
+		Button_ChangeUserName->OnClicked.AddDynamic(this,&USGLobbyWidget::OnClickedChangeUsernameButton);
 	}
 	
 	if (IsValid(Button_BackToMenu))
@@ -113,39 +97,21 @@ void USGLobbyWidget::NativeConstruct()
 
 void USGLobbyWidget::NativeDestruct()
 {
-
-	UE_LOG(
-		LogTemp,
-		Error,
-		TEXT(
-			"[LobbyWidget Construct] "
-			"Widget=%s, Class=%s, OwningPlayer=%s, Map=%s"
-		),
-		*GetNameSafe(this),
-		*GetNameSafe(GetClass()),
-		*GetNameSafe(GetOwningPlayer()),
-		GetWorld()
-			? *GetWorld()->GetMapName()
-			: TEXT("None")
-	);
+	if (IsValid(Button_BackToMenu))
+	{
+		Button_BackToMenu->OnClicked.RemoveDynamic(this,&USGLobbyWidget::OnClickedBackMainMenuButton);
+	}
 	if (IsValid(ReadyButton))
 	{
-		ReadyButton->OnClicked.RemoveDynamic(
-			this,
-			&USGLobbyWidget::OnReadyButtonClicked
-		);
+		ReadyButton->OnClicked.RemoveDynamic(this,&USGLobbyWidget::OnReadyButtonClicked);
 	}
 	if (IsValid(Button_ChangeUserName))
 	{
-		Button_ChangeUserName->OnClicked.RemoveDynamic(
-			this,
-			&USGLobbyWidget::OnClickedChangeUsernameButton
-		);
+		Button_ChangeUserName->OnClicked.RemoveDynamic(this,&USGLobbyWidget::OnClickedChangeUsernameButton);
 	}
 
 
-	for (USGPlayerSlotWidget* BlueSlot :
-		 BlueTeamSlots)
+	for (USGPlayerSlotWidget* BlueSlot :BlueTeamSlots)
 	{
 		if (IsValid(BlueSlot))
 		{
@@ -153,8 +119,7 @@ void USGLobbyWidget::NativeDestruct()
 		}
 	}
 
-	for (USGPlayerSlotWidget* RedSlot :
-		 RedTeamSlots)
+	for (USGPlayerSlotWidget* RedSlot :RedTeamSlots)
 	{
 		if (IsValid(RedSlot))
 		{
@@ -162,8 +127,7 @@ void USGLobbyWidget::NativeDestruct()
 		}
 	}
 
-	for (USGPlayerSlotWidget* WaitingSlot :
-		 WaitingSlots)
+	for (USGPlayerSlotWidget* WaitingSlot :WaitingSlots)
 	{
 		if (IsValid(WaitingSlot))
 		{
@@ -520,6 +484,16 @@ void USGLobbyWidget::OnClickedBackToMenuButton()
 	{
 		// TOOD: SGLobbyPlayerController에서 방 나가는 함수 구현되면 호출
 	}
+}
+
+void USGLobbyWidget::OnClickedBackMainMenuButton()
+{
+	ASGLobbyPlayerController* LobbyPC =GetOwningPlayer<ASGLobbyPlayerController>();
+	if (!IsValid(LobbyPC))
+	{
+		return;
+	}
+	LobbyPC->LeaveLobby();
 }
 
 void USGLobbyWidget::OnClickedChangeUsernameButton()

@@ -2,6 +2,8 @@
 
 
 #include "GameState/SGLobbyGameState.h"
+#include "Audio/SGInGameAudioSubsystem.h"
+#include "Engine/World.h"
 #include "SoccerGame/Public/PlayerController/SGLobbyPlayerController.h"
 #include "SoccerGame/Public/PlayerState/SGLobbyPlayerState.h"
 #include "SoccerGame/Public/UI/SGLobbyWidget.h"
@@ -33,6 +35,23 @@ void ASGLobbyGameState::OnRep_CountdownTime()
 		if (ASGLobbyPlayerController* LobbyPC = Cast<ASGLobbyPlayerController>(LocalPC))
 		{
 			LobbyPC->TimeUIUpdate(ReplicatedCountdownTime);
+		}
+	}
+	if (USGInGameAudioSubsystem* AudioSubsystem = GetWorld()->GetSubsystem<USGInGameAudioSubsystem>())
+	{
+		switch (ReplicatedCountdownTime)
+		{
+		case 3:
+			AudioSubsystem->HandleAudioEvent(ESGInGameAudioEvent::CountdownThree);
+			break;
+		case 2:
+			AudioSubsystem->HandleAudioEvent(ESGInGameAudioEvent::CountdownTwo);
+			break;
+		case 1:
+			AudioSubsystem->HandleAudioEvent(ESGInGameAudioEvent::CountdownFinal);
+			break;
+		default:
+			break;
 		}
 	}
 }
