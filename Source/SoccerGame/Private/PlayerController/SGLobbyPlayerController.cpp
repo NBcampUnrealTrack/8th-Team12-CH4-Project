@@ -282,7 +282,6 @@ void ASGLobbyPlayerController::OpenChangeUsernameWidget()
 		return;
 	}
 
-	// 로비 메인 UI보다 앞에 표시합니다.
 	// 매직넙허 수정 확인
 	ChangeUsernameWidgetInstance->AddToViewport(10);
 	FInputModeUIOnly InputMode;

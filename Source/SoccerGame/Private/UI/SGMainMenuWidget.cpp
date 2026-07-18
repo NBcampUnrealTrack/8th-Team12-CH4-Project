@@ -12,7 +12,7 @@ void USGMainMenuWidget::CloseGameGuide()
 	ASGMainMenuPlayerController* MainMenuPC =GetOwningPlayer<ASGMainMenuPlayerController>();
 	if (IsValid(MainMenuPC))
 	{
-		MainMenuPC->OpenGameGuide();
+		MainMenuPC->CloseGameGuide();
 	}
 }
 
