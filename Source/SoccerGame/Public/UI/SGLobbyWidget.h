@@ -47,7 +47,7 @@ protected:
 	virtual void NativeDestruct() override;
 
 	
-#pragma region Team Slots
+#pragma region Binding
 public:
 	// 블루 팀 슬롯 3개 바인딩
 	UPROPERTY(meta =(BindWidget))
@@ -95,6 +95,9 @@ protected:
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UTextBlock> Text_ReadyButton;
 	
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UButton> Button_BackToMenu;
+	
 	// Ready 후 Start Timer
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UTextBlock> Text_StartTimer;
@@ -131,14 +134,35 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SetPlayerInfos(const TArray<FSGPlayerLobbyInfo>& InPlayerInfos);
 	
+	void UpdateCountdownText(int32 NewTime);
+	
+
+	
+protected:
+	// 슬롯 클릭되었을 때 실행될 함수
+	UFUNCTION()
+	void HandleSlotClicked(FGameplayTag RequestedTeamTag);
+
 #pragma region ReadyButton
 	
 protected:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI|Button")
-	class UTexture2D* Image_ReadyButton;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI|ReadyButton")
+	UTexture2D* Image_Ready_Normal;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI|Button")
-	class UTexture2D* Image_CancleButton;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI|ReadyButton")
+	UTexture2D* Image_Ready_Hover;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI|ReadyButton")
+	UTexture2D* Image_Ready_Pressed;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI|ReadyButton")
+	UTexture2D* Image_Cancel_Normal;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI|ReadyButton")
+	UTexture2D* Image_Cancel_Hover;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI|ReadyButton")
+	UTexture2D* Image_Cancel_Pressed;
 	
 public:
 	// Ready 버튼 클릭 콜백 함수 시그니처
@@ -150,18 +174,17 @@ public:
 	
 #pragma endregion
 	
-	void UpdateCountdownText(int32 NewTime);
-	
-protected:
-	// 슬롯 클릭되었을 때 실행될 함수
-	UFUNCTION()
-	void HandleSlotClicked(FGameplayTag RequestedTeamTag);
-
 #pragma region Select Character
 	
 protected:
 	UPROPERTY(meta = (BindWidget))
 	UImage* Image_Character;
+	
+	UPROPERTY(meta = (BindWidget))
+	UButton* Button_Left;
+	
+	UPROPERTY(meta = (BindWidget))
+	UButton* Button_Right;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character")
 	TArray<USGCharacterDataAsset*> CharacterList;
@@ -184,6 +207,13 @@ public:
 	
 #pragma endregion
 
+#pragma region BackToMainMenu Button
+private:
+	UFUNCTION()
+	void OnClickedBackToMenuButton();
+	
+	
+#pragma endregion
 	UFUNCTION()
 	void OnClickedChangeUsernameButton();
 	

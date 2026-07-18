@@ -103,6 +103,12 @@ void USGLobbyWidget::NativeConstruct()
 			TEXT("[LobbyWidget] Button_ChangeUserName 바인딩 실패")
 		);
 	}
+	
+	if (IsValid(Button_BackToMenu))
+	{
+		Button_BackToMenu->OnClicked.RemoveDynamic(this, &USGLobbyWidget::USGLobbyWidget::OnClickedBackToMenuButton);
+		Button_BackToMenu->OnClicked.AddDynamic(this, &USGLobbyWidget::USGLobbyWidget::OnClickedBackToMenuButton);
+	}
 }
 
 void USGLobbyWidget::NativeDestruct()
@@ -164,6 +170,12 @@ void USGLobbyWidget::NativeDestruct()
 			WaitingSlot->OnSlotClicked.RemoveDynamic(this,&USGLobbyWidget::HandleSlotClicked);
 		}
 	}
+	
+	if (IsValid(Button_BackToMenu))
+	{
+		Button_BackToMenu->OnClicked.RemoveDynamic(this, &USGLobbyWidget::USGLobbyWidget::OnClickedBackToMenuButton);	
+	}
+	
 	Super::NativeDestruct();
 }
 
@@ -289,27 +301,42 @@ void USGLobbyWidget::UpdateReadyButtonText()
 	
 	// 버튼 기존 스타일 껍데기 가져오기
 	FButtonStyle NewStyle = ReadyButton->GetStyle();
-	UTexture2D* TargetTexture = nullptr;
+	UTexture2D* Normal = nullptr;
+	UTexture2D* Hover = nullptr;
+	UTexture2D* Pressed = nullptr;
 	
 	if (MyPlayerState->bIsReady == false)
 	{
 		Text_ReadyButton->SetText(FText::FromString("Ready"));	
-		TargetTexture = Image_ReadyButton;
+		Normal = Image_Ready_Normal;
+		Hover = Image_Ready_Hover;
+		Pressed = Image_Ready_Pressed;
+		
+		// 캐릭터 변경 버튼 잠금해제
+		if (Button_Left) Button_Left->SetIsEnabled(true);
+		if (Button_Right) Button_Right->SetIsEnabled(true);
+		if (Button_ChangeUserName) Button_ChangeUserName->SetIsEnabled(true);
+		
 	}
 	else
 	{
 		Text_ReadyButton->SetText(FText::FromString("Cancel"));
-		TargetTexture = Image_CancleButton;
+		
+		Normal = Image_Cancel_Normal;
+		Hover = Image_Cancel_Hover;
+		Pressed = Image_Cancel_Pressed;
+		
+		// 캐릭터 변경 버튼 잠금
+		if (Button_Left) Button_Left->SetIsEnabled(false);
+		if (Button_Right) Button_Right->SetIsEnabled(false);
+		if (Button_ChangeUserName) Button_ChangeUserName->SetIsEnabled(false);
 	}
 	
-	if (TargetTexture)
-	{
-		NewStyle.Normal.SetResourceObject(TargetTexture);
-		NewStyle.Hovered.SetResourceObject(TargetTexture);
-		NewStyle.Pressed.SetResourceObject(TargetTexture);
-		
-		ReadyButton->SetStyle(NewStyle);
-	}
+	if (Normal) NewStyle.Normal.SetResourceObject(Normal);
+	if (Hover) NewStyle.Hovered.SetResourceObject(Hover);
+	if (Pressed) NewStyle.Pressed.SetResourceObject(Pressed);
+	
+	ReadyButton->SetStyle(NewStyle);
 }
 
 void USGLobbyWidget::UpdateCountdownText(int32 NewTime)
@@ -470,6 +497,15 @@ void USGLobbyWidget::RefreshCharacterSelection()
 	}
 	
 	
+}
+
+void USGLobbyWidget::OnClickedBackToMenuButton()
+{
+	ASGLobbyPlayerController* LobbyPC = GetOwningPlayer<ASGLobbyPlayerController>();
+	if (IsValid(LobbyPC))
+	{
+		// TOOD: SGLobbyPlayerController에서 방 나가는 함수 구현되면 호출
+	}
 }
 
 
