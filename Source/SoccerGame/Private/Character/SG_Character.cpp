@@ -382,9 +382,7 @@ void ASG_Character::EnableRagdoll(FVector HitImpulse, FVector HitLocation)
 	if (AbilitySystemComponent)
 	{
 		FGameplayTag ImmunityTag = FGameplayTag::RequestGameplayTag(FName("State.Immunity"));
-		
 		AbilitySystemComponent->AddLooseGameplayTag(ImmunityTag);
-		// UE_LOG(LogTemp, Warning, TEXT("[%s] EnableRagdoll: State.Immunity 태그 부여 완료"), *GetName());
 	}
 
 	// 캡슐 콜리전 비활성화
@@ -582,7 +580,6 @@ void ASG_Character::OnGetUpMontageEnded(UAnimMontage* Montage, bool bInterrupted
 	{
 		FGameplayTag ImmunityTag = FGameplayTag::RequestGameplayTag(FName("State.Immunity"));
 		AbilitySystemComponent->RemoveLooseGameplayTag(ImmunityTag);
-		// UE_LOG(LogTemp, Warning, TEXT("[%s] OnGetUpMontageEnded: State.Immunity 태그 제거 완료"), *GetName());
 		RecoveryHpRatio();
 	}
 }

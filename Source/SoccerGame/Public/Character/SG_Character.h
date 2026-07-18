@@ -15,6 +15,7 @@ class UCameraComponent;
 class UInputMappingContext;
 class UInputAction;
 struct FInputActionValue;
+class UNiagaraSystem;
 
 DECLARE_LOG_CATEGORY_EXTERN(Log_SG_Character, Log, All);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnStaminaChanged, float, CurrentStamina, float, MaxStamina, float, StaminaPercent);
@@ -223,6 +224,15 @@ private:
 	
 	void OnSpeedMultiplierChanged(const FOnAttributeChangeData& Data);
 	void ApplySpeedMultiplier(float NewMultiplier);
+	
+protected:
+	//-------------------------------- 나이아가라 --------------------------------//
+	// 나이아가라 에셋
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects")
+	TObjectPtr<UNiagaraSystem> DropKickEffect;
+
+public:
+	FORCEINLINE UNiagaraSystem* GetDropKickEffect() const { return DropKickEffect; }
 	
 	//-------------------------------- 스태미나 UI --------------------------------//
 public:

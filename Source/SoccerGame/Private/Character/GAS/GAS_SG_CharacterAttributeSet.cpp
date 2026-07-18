@@ -6,7 +6,8 @@
 #include "Net/UnrealNetwork.h"
 #include "NativeGameplayTags.h"
 #include "Character/SG_Character.h"
-#include "Kismet/GameplayStatics.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraComponent.h"
 
 // 공격 종류 및 피격 태그 정의
 UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Attack_DropKick, "Character.Skill.DropKick");
@@ -122,7 +123,44 @@ void UGAS_SG_CharacterAttributeSet::PostGameplayEffectExecute(const struct FGame
 			// GE의 TAG로 식별
 			const FGameplayTag DropKickTag = FGameplayTag::RequestGameplayTag(FName("Character.Skill.DropKick"));
 			const bool bIsDropKick = CombinedTags.HasTag(DropKickTag);
+			
+			if (bIsDropKick)
+			{
+				// Context에서 Hit Result 긁어오기
+				FGameplayEffectContextHandle Context = Data.EffectSpec.GetEffectContext();
+				const FHitResult* HitResult = Context.GetHitResult();
+        
+				FVector SpawnLocation;
+				FRotator SpawnRotation = FRotator::ZeroRotator;
 
+				if (HitResult && HitResult->bBlockingHit)
+				{
+					SpawnLocation = HitResult->ImpactPoint;
+					// 타격면의 법선 벡터를 기준으로 이펙트 방향 설정
+					SpawnRotation = HitResult->ImpactNormal.Rotation();
+				}
+				else
+				{
+					// HitResult가 없다면 타겟 캐릭터의 위치(골반쯤)로 대체
+					SpawnLocation = TargetActor ? TargetActor->GetActorLocation() : FVector::ZeroVector;
+				}
+				
+				if (ASG_Character* TargetCharacter = Cast<ASG_Character>(TargetActor))
+				{
+					UNiagaraSystem* DropKickEffect = TargetCharacter->GetDropKickEffect();
+            
+					if (DropKickEffect)
+					{
+						UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+							GetWorld(), 
+							DropKickEffect, 
+							SpawnLocation, 
+							SpawnRotation
+						);
+					}
+				}
+			}
+			
 			// HP가 0 이하(그로기)
 			if (GetHp() <= 0.f)
 			{
@@ -164,9 +202,6 @@ void UGAS_SG_CharacterAttributeSet::PostGameplayEffectExecute(const struct FGame
 				else
 				{
 					Data.Target.ExecuteGameplayCue(FGameplayTag::RequestGameplayTag(FName("GameplayCue.Character.Hit.Kick")), CueParams);
-					
-					UE_LOG(LogTemp, Warning, TEXT("일반 킥 사망 감지! HitReact 이벤트를 보냅니다. Target: %s"), *TargetActor->GetName());
-					// 일반 킥으로 HP가 0 -> 그로기 이벤트(GameplayEvent)
 					FGameplayEventData Payload;
 					Payload.Instigator = Data.EffectSpec.GetEffectContext().GetEffectCauser();
 					Payload.Target = TargetActor;
