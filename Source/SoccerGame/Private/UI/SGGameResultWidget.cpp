@@ -7,6 +7,7 @@
 #include "GameState/SGMainGameState.h"
 #include "Kismet/GameplayStatics.h"
 #include "PlayerController/SGMainPlayerController.h"
+#include "PlayerState/SGMainPlayerState.h"
 
 
 void USGGameResultWidget::NativeConstruct()
@@ -14,16 +15,12 @@ void USGGameResultWidget::NativeConstruct()
 	Super::NativeConstruct();
 	
 	// 버튼 클릭 이벤트 연결
-	if (IsValid(Button_ExitGame))
+	if (IsValid(Button_BackToMenu))
 	{
-		Button_ExitGame->OnClicked.RemoveDynamic(this,&USGGameResultWidget::OnExitGameClicked);
-		Button_ExitGame->OnClicked.AddDynamic(this, &USGGameResultWidget::OnExitGameClicked);
+		Button_BackToMenu->OnClicked.RemoveDynamic(this,&USGGameResultWidget::OnBackToMenuClicked);
+		Button_BackToMenu->OnClicked.AddDynamic(this, &USGGameResultWidget::OnBackToMenuClicked);
 	}
 	
-	if (Button_Rematch)
-	{
-		Button_Rematch->OnClicked.AddDynamic(this, &USGGameResultWidget::OnRematchClicked);
-	}
 	
 	// 최종 점수 및 승리 메세지 세팅
 	if (ASGMainGameState* GS = Cast<ASGMainGameState>(UGameplayStatics::GetGameState(this)))
@@ -41,17 +38,38 @@ void USGGameResultWidget::NativeConstruct()
 			Text_RedTeamScore->SetText(FText::AsNumber(FinalRedTeamScore));
 		}
 		
+		// 내 팀 태그 가져오기
+		FGameplayTag MyTeamTag;
+		if (APlayerController* PC = GetOwningPlayer())
+		{
+			if (ASGMainPlayerState* MainPS = Cast<ASGMainPlayerState>(PC->PlayerState))
+			{
+				MyTeamTag = MainPS->CurrentTeamTag;
+			}
+		}
+		
+		// 팀 태그
+		FGameplayTag BlueTag = FGameplayTag::RequestGameplayTag(FName("Team.Blue"));
+		FGameplayTag RedTag = FGameplayTag::RequestGameplayTag(FName("Team.Red"));
+		
+		// 재생할 사운드 포인터
+		USoundBase* SoundToPlay = nullptr;
+		
 		if (IsValid(Text_WinMessage))
 		{
 			if (FinalRedTeamScore > FinalBlueTeamScore)
 			{
 				Text_WinMessage->SetText(FText::FromString("RED TEAM WINS!"));
 				Text_WinMessage->SetColorAndOpacity(FSlateColor(FLinearColor::Red));
+				
+				SoundToPlay = (MyTeamTag == RedTag) ? Sound_Victory : Sound_Defeat;
 			}
 			else if (FinalBlueTeamScore > FinalRedTeamScore)
 			{
 				Text_WinMessage->SetText(FText::FromString("BLUE TEAM WINS!"));
 				Text_WinMessage->SetColorAndOpacity(FSlateColor(FLinearColor::Blue));
+				
+				SoundToPlay = (MyTeamTag == BlueTag) ? Sound_Victory : Sound_Defeat;
 			}
 			else
 			{
@@ -59,24 +77,30 @@ void USGGameResultWidget::NativeConstruct()
 					Text_WinMessage->SetText(FText::FromString("DRAW!"));
 					Text_WinMessage->SetColorAndOpacity(FSlateColor(FLinearColor::Gray));
 				}
+				
+				SoundToPlay = Sound_Draw;
 			}
+		}
+		if (SoundToPlay)
+		{
+			UGameplayStatics::PlaySound2D(this, SoundToPlay);
 		}
 	}
 }
 
 void USGGameResultWidget::NativeDestruct()
 {
-	if (IsValid(Button_ExitGame))
+	if (IsValid(Button_BackToMenu))
 	{
-		Button_ExitGame->OnClicked.RemoveDynamic(
+		Button_BackToMenu->OnClicked.RemoveDynamic(
 			this,
-			&USGGameResultWidget::OnExitGameClicked
+			&USGGameResultWidget::OnBackToMenuClicked
 		);
 	}
 	Super::NativeDestruct();
 }
 
-void USGGameResultWidget::OnExitGameClicked()
+void USGGameResultWidget::OnBackToMenuClicked()
 {
 	ASGMainPlayerController* MainPlayerController =Cast<ASGMainPlayerController>(GetOwningPlayer());
 	
@@ -84,14 +108,14 @@ void USGGameResultWidget::OnExitGameClicked()
 	{
 		return;
 	}
-	if (IsValid(Button_ExitGame))
+	if (IsValid(Button_BackToMenu))
 	{
-		Button_ExitGame->SetIsEnabled(false);
+		Button_BackToMenu->SetIsEnabled(false);
 	}
 	MainPlayerController->RequestReturnToMainMenu();
 }
 
-void USGGameResultWidget::OnRematchClicked()
+/*void USGGameResultWidget::OnRematchClicked()
 {
 	if (Button_Rematch)
 	{
@@ -99,6 +123,6 @@ void USGGameResultWidget::OnRematchClicked()
 	}
 	
 	// TODO: PlayerController쪽 리매치 request 로직 가져오기
-}
+}*/
 
 

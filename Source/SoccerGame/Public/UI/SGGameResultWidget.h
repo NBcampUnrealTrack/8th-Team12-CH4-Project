@@ -31,17 +31,24 @@ protected:
 	TObjectPtr<UTextBlock> Text_RedTeamScore;
 	
 	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<UButton> Button_ExitGame; 
-	
-	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<UButton> Button_Rematch; 
+	TObjectPtr<UButton> Button_BackToMenu; 
 
 #pragma endregion
 	
+#pragma region Sound
+	UPROPERTY(EditDefaultsOnly, Category = "UI|Sounds")
+	class USoundBase* Sound_Victory;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "UI|Sounds")
+	class USoundBase* Sound_Defeat;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "UI|Sounds")
+	class USoundBase* Sound_Draw;
+	
+#pragma endregion
 protected:
 	UFUNCTION()
-	void OnExitGameClicked();
+	void OnBackToMenuClicked();
 	
-	UFUNCTION()
-	void OnRematchClicked();
+
 };
