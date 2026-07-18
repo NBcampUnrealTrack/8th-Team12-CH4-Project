@@ -4,8 +4,17 @@
 #include "UI/SGMainMenuWidget.h"
 #include "Components/Button.h"
 #include "Multiplay/SGMultiplayGameInstance.h"
-#include "Kismet/GameplayStatics.h"
+#include "PlayerController/SGMainMenuPlayerController.h"
 
+
+void USGMainMenuWidget::CloseGameGuide()
+{
+	ASGMainMenuPlayerController* MainMenuPC =GetOwningPlayer<ASGMainMenuPlayerController>();
+	if (IsValid(MainMenuPC))
+	{
+		MainMenuPC->CloseGameGuide();
+	}
+}
 
 void USGMainMenuWidget::NativeConstruct()
 {
@@ -15,8 +24,27 @@ void USGMainMenuWidget::NativeConstruct()
 	if (GameStartButton)
 	{
 		// 델리게이트 바인딩
+		GameStartButton->OnClicked.RemoveDynamic(this,&USGMainMenuWidget::OnGameStartButtonClicked);
 		GameStartButton->OnClicked.AddDynamic(this, &USGMainMenuWidget::OnGameStartButtonClicked);
 	}
+	
+	if (GameGuideButton)
+	{
+		GameGuideButton->OnClicked.RemoveDynamic(this, &USGMainMenuWidget::OnGameGuidButtonClicked);
+		GameGuideButton->OnClicked.AddDynamic(this, &USGMainMenuWidget::OnGameGuidButtonClicked);
+	}
+}
+
+void USGMainMenuWidget::OnGameGuidButtonClicked()
+{
+	ASGMainMenuPlayerController* MainMenuPC =GetOwningPlayer<ASGMainMenuPlayerController>();
+
+	if (!IsValid(MainMenuPC))
+	{
+		return;
+	}
+
+	MainMenuPC->OpenGameGuide();
 }
 
 void USGMainMenuWidget::OnGameStartButtonClicked()

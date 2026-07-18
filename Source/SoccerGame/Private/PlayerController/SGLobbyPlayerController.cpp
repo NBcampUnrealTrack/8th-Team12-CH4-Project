@@ -8,23 +8,12 @@
 #include "SoccerGame/Public/UI/SGChangeUsernameWidget.h"
 #include "GameMode/SGLobbyGameMode.h"
 #include "PlayerState/SGLobbyPlayerState.h"
+#include "Multiplay/SGMultiplayGameInstance.h"
 #include "SoccerGame/Public/Instance/SGPlayerGameInstanceSubsystem.h"
 
 void ASGLobbyPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
-
-	UE_LOG(
-		LogTemp,
-		Error,
-		TEXT(
-			"[LobbyPC BeginPlay] PC=%s World=%s Map=%s NetMode=%d"
-		),
-		*GetNameSafe(this),
-		*GetNameSafe(GetWorld()),
-		*GetWorld()->GetMapName(),
-		static_cast<int32>(GetNetMode())
-	);
 
 	if (!IsLocalController())
 	{
@@ -32,26 +21,17 @@ void ASGLobbyPlayerController::BeginPlay()
 	}
 	if (!IsValid(LobbyWidgetClass))
 	{
-		UE_LOG(LogTemp, Error, TEXT("UIWidgetClass 없음."));
 		return;
 	}
 	LobbyWidgetInstance = CreateWidget<UUserWidget>(this, LobbyWidgetClass);
 	
 	if (!IsValid(LobbyWidgetInstance))
 	{
-		UE_LOG(
-			LogTemp,
-			Error,
-			TEXT("[LobbyPC] 로비 위젯 생성에 실패했습니다.")
-		);
-
 		return;
 	}
 
 	LobbyWidgetInstance->AddToViewport();
 	FInputModeUIOnly Mode;
-	
-	//Mode.SetWidgetToFocus(LobbyWidgetInstance->GetCachedWidget());
 	SetInputMode(Mode);
 	bShowMouseCursor = true;
 	
@@ -124,6 +104,10 @@ void ASGLobbyPlayerController::Client_UpdateLobbyUI_Implementation(const TArray<
 		return;
 	}
 	USGLobbyWidget* LobbyWidget = Cast<USGLobbyWidget>(LobbyWidgetInstance);
+	if (!IsValid(LobbyWidget))
+	{
+		return ;
+	}
 	LobbyWidget->SetPlayerInfos(InPlayerInfos);
 }
 
@@ -155,8 +139,12 @@ void ASGLobbyPlayerController::InitializeLocalPlayerLobbyUI()
 	{
 		return;
 	}
-	USGLobbyWidget* LobbyWidget = Cast<USGLobbyWidget>(LobbyWidgetInstance);
 	if (!IsValid(LobbyWidgetInstance))
+	{
+		return;
+	}
+	USGLobbyWidget* LobbyWidget = Cast<USGLobbyWidget>(LobbyWidgetInstance);
+	if (!IsValid(LobbyWidget))
 	{
 		return;
 	}
@@ -294,7 +282,6 @@ void ASGLobbyPlayerController::OpenChangeUsernameWidget()
 		return;
 	}
 
-	// 로비 메인 UI보다 앞에 표시합니다.
 	// 매직넙허 수정 확인
 	ChangeUsernameWidgetInstance->AddToViewport(10);
 	FInputModeUIOnly InputMode;
@@ -314,6 +301,20 @@ void ASGLobbyPlayerController::CloseChangeUsernameWidget()
 
 	bShowMouseCursor = true;
 
+}
+
+void ASGLobbyPlayerController::LeaveLobby()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+	USGMultiplayGameInstance* MultiplayerGameInstance =GetGameInstance<USGMultiplayGameInstance>();
+	if (!IsValid(MultiplayerGameInstance))
+	{
+		return;
+	}
+	MultiplayerGameInstance->LeaveSessionAndReturnToMainMenu();
 }
 
 void ASGLobbyPlayerController::Server_ChangeUsername_Implementation(const FString& NewUsername)
