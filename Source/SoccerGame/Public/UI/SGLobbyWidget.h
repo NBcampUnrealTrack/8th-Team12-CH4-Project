@@ -184,6 +184,13 @@ public:
 	
 #pragma endregion
 
+	
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UButton> Button_BackToMenu;
+	
+	UFUNCTION()
+	void OnClickedBackMainMenuButton();
+	
 	UFUNCTION()
 	void OnClickedChangeUsernameButton();
 	
