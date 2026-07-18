@@ -98,8 +98,9 @@ protected:
 	
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UButton> Button_ChangeUserName;
-
 	
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UButton> Button_BackToMenu;
 	
 #pragma endregion
 	
@@ -144,5 +145,8 @@ protected:
 	
 	UFUNCTION()
 	void OnClickedChangeUsernameButton();
+	
+	UFUNCTION()
+	void OnClickedBackToMenuButton();
 	
 };

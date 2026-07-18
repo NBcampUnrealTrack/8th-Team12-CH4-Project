@@ -77,7 +77,7 @@ protected:
 	int32 LoadingDuration = 3;
 	
 	UPROPERTY(EditDefaultsOnly, Category = "SG_Rules")
-	int32 TotalMatchTime = 4;
+	int32 TotalMatchTime = 50;
 	UPROPERTY(EditDefaultsOnly, Category = "SG_Rules")
 	int32 ScoreToWin = 5;
 	

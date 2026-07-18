@@ -7,7 +7,6 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "GameState/SGLobbyGameState.h"
-#include "Kismet/GameplayStatics.h"
 
 #include "SoccerGame/Public/PlayerController/SGLobbyPlayerController.h"
 
@@ -73,70 +72,36 @@ void USGLobbyWidget::NativeConstruct()
 	{
 		Text_StartTimer->SetVisibility(ESlateVisibility::Collapsed);
 	}
+	if (IsValid(Button_BackToMenu))
+	{
+		Button_BackToMenu->OnClicked.RemoveDynamic(this,&USGLobbyWidget::OnClickedBackToMenuButton);
+		Button_BackToMenu->OnClicked.AddDynamic(this,&USGLobbyWidget::OnClickedBackToMenuButton);
+	}
 	
 	if (IsValid(Button_ChangeUserName))
 	{
-		UE_LOG(
-			LogTemp,
-			Warning,
-			TEXT("[LobbyWidget] Button_ChangeUserName 바인딩 성공")
-		);
-
-		Button_ChangeUserName->OnClicked.RemoveDynamic(
-			this,
-			&USGLobbyWidget::OnClickedChangeUsernameButton
-		);
-
-		Button_ChangeUserName->OnClicked.AddDynamic(
-			this,
-			&USGLobbyWidget::OnClickedChangeUsernameButton
-		);
-	}
-	else
-	{
-		UE_LOG(
-			LogTemp,
-			Error,
-			TEXT("[LobbyWidget] Button_ChangeUserName 바인딩 실패")
-		);
+		Button_ChangeUserName->OnClicked.RemoveDynamic(this,&USGLobbyWidget::OnClickedChangeUsernameButton);
+		Button_ChangeUserName->OnClicked.AddDynamic(this,&USGLobbyWidget::OnClickedChangeUsernameButton);
 	}
 }
 
 void USGLobbyWidget::NativeDestruct()
 {
-
-	UE_LOG(
-		LogTemp,
-		Error,
-		TEXT(
-			"[LobbyWidget Construct] "
-			"Widget=%s, Class=%s, OwningPlayer=%s, Map=%s"
-		),
-		*GetNameSafe(this),
-		*GetNameSafe(GetClass()),
-		*GetNameSafe(GetOwningPlayer()),
-		GetWorld()
-			? *GetWorld()->GetMapName()
-			: TEXT("None")
-	);
+	if (Button_BackToMenu)
+	{
+		Button_BackToMenu->OnClicked.RemoveDynamic(this,&USGLobbyWidget::OnClickedBackToMenuButton);
+	}
 	if (IsValid(ReadyButton))
 	{
-		ReadyButton->OnClicked.RemoveDynamic(
-			this,
-			&USGLobbyWidget::OnReadyButtonClicked
-		);
+		ReadyButton->OnClicked.RemoveDynamic(this,&USGLobbyWidget::OnReadyButtonClicked);
 	}
 	if (IsValid(Button_ChangeUserName))
 	{
-		Button_ChangeUserName->OnClicked.RemoveDynamic(
-			this,
-			&USGLobbyWidget::OnClickedChangeUsernameButton
-		);
+		Button_ChangeUserName->OnClicked.RemoveDynamic(this,&USGLobbyWidget::OnClickedChangeUsernameButton);
 	}
 
 
-	for (USGPlayerSlotWidget* BlueSlot :
-		 BlueTeamSlots)
+	for (USGPlayerSlotWidget* BlueSlot :BlueTeamSlots)
 	{
 		if (IsValid(BlueSlot))
 		{
@@ -144,8 +109,7 @@ void USGLobbyWidget::NativeDestruct()
 		}
 	}
 
-	for (USGPlayerSlotWidget* RedSlot :
-		 RedTeamSlots)
+	for (USGPlayerSlotWidget* RedSlot :RedTeamSlots)
 	{
 		if (IsValid(RedSlot))
 		{
@@ -153,8 +117,7 @@ void USGLobbyWidget::NativeDestruct()
 		}
 	}
 
-	for (USGPlayerSlotWidget* WaitingSlot :
-		 WaitingSlots)
+	for (USGPlayerSlotWidget* WaitingSlot :WaitingSlots)
 	{
 		if (IsValid(WaitingSlot))
 		{
@@ -276,7 +239,7 @@ void USGLobbyWidget::UpdateCountdownText(int32 NewTime)
 	}
 
 	// 1. 카운트다운이 취소되었거나 끝난 경우 (-1 이하 혹은 0초 도달 시)
-	if (NewTime <= 0 || NewTime == -1)
+	if (NewTime <= 0 )
 	{
 		// UI 화면에서 완전히 숨김 처리합니다.
 		Text_StartTimer->SetVisibility(ESlateVisibility::Collapsed);
@@ -311,32 +274,28 @@ void USGLobbyWidget::HandleSlotClicked(FGameplayTag RequestedTeamTag)
 
 void USGLobbyWidget::OnClickedChangeUsernameButton()
 {
-	ASGLobbyPlayerController* LobbyPC =
-		Cast<ASGLobbyPlayerController>(GetOwningPlayer());
+	ASGLobbyPlayerController* LobbyPC =Cast<ASGLobbyPlayerController>(GetOwningPlayer());
 
 	if (!LobbyPC)
 	{
-		UE_LOG(
-			LogTemp,
-			Error,
-			TEXT(
-				"[LobbyWidget] LobbyPlayerController가 없습니다. "
-				"OwningPlayer=%s Class=%s"
-			),
-			*GetNameSafe(GetOwningPlayer()),
-			GetOwningPlayer()
-				? *GetOwningPlayer()->GetClass()->GetName()
-				: TEXT("None")
-		);
-
 		return;
 	}
 
-	UE_LOG(
-		LogTemp,
-		Log,
-		TEXT("[LobbyWidget] 이름 변경 버튼 클릭")
-	);
-
 	LobbyPC->OpenChangeUsernameWidget();
+}
+
+void USGLobbyWidget::OnClickedBackToMenuButton()
+{
+	ASGLobbyPlayerController* LobbyPC =GetOwningPlayer<ASGLobbyPlayerController>();
+
+	if (!IsValid(LobbyPC))
+	{
+		return;
+	}
+
+	if (IsValid(Button_BackToMenu))
+	{
+		Button_BackToMenu->SetIsEnabled(false);
+	}
+	LobbyPC->LeaveLobby();
 }

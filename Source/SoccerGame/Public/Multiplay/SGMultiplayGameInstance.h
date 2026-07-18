@@ -35,6 +35,9 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category = "Multiplayer")
 	void JoinServer(int32 SessionIndex);
+	
+	UFUNCTION(BlueprintCallable, Category = "Multiplayer|Session")
+	void LeaveSessionAndReturnToMainMenu();
 
 protected:
 	virtual void Init() override;
@@ -48,7 +51,12 @@ protected:
 	// 특정 방 접속 준비 완료시 콜백 함수
 	void OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result);
 	
+	void OpenMainMenu();
+	
 private:
+	
+	bool bReturnToMainMenuAfterDestroy = false;
+	
 	// 엔진의 세션 기능을 담당할 세션 매니저 포인터
 	IOnlineSessionPtr SessionInterface;
 	
