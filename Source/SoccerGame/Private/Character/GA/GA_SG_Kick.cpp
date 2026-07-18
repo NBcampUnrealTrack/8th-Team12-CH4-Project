@@ -32,6 +32,16 @@ bool UGA_SG_Kick::CanActivateAbility(
    {
       return false;
    }
+    
+    UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get();
+    FGameplayTag ImmunityTag = FGameplayTag::RequestGameplayTag(FName("State.Immunity"));
+    bool bHasImmunity = ASC->HasMatchingGameplayTag(ImmunityTag);
+
+    if (bHasImmunity)
+    {
+        // UE_LOG(LogTemp, Warning, TEXT("래그돌에 빠져서 Immunity Tag를 획득한 상태면 Kick 사용 X"));
+        return false;
+    }
 
    return Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags);
 }
