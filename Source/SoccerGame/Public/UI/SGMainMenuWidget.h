@@ -14,6 +14,9 @@ UCLASS()
 class SOCCERGAME_API USGMainMenuWidget : public UUserWidget
 {
 	GENERATED_BODY()
+public:
+	UFUNCTION(BlueprintCallable)
+	void CloseGameGuide();
 	
 protected:
 	virtual void NativeConstruct() override;
@@ -21,6 +24,12 @@ protected:
 private:
 	UPROPERTY(meta = (BindWidget))
 	UButton* GameStartButton;
+	
+	UPROPERTY(meta = (BindWidget))
+	UButton* GameGuidButton;
+	
+	UFUNCTION()
+	void OnGameGuidButtonClicked();
 	
 	UFUNCTION()
 	void OnGameStartButtonClicked();
