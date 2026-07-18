@@ -5,6 +5,7 @@
 #include "GameFramework/Actor.h"
 #include "SGGoalVolume.generated.h"
 
+class UNiagaraSystem;
 class UBoxComponent;
 
 UCLASS()
@@ -20,6 +21,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UBoxComponent> GoalTrigger;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Goal|VFX")
+	TObjectPtr<UNiagaraSystem> GoalVFX;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Goal", meta = (Categories = "Team"))
 	FGameplayTag DefendingTeamTag;
@@ -46,4 +50,7 @@ private:
 	FTimerHandle GoalCooldownTimerHandle;
 
 	void EnableGoal();
+	
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayGoalVFX();
 };
