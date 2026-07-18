@@ -316,7 +316,7 @@ void USGLobbyWidget::UpdateReadyButtonText()
 		if (Button_Left) Button_Left->SetIsEnabled(true);
 		if (Button_Right) Button_Right->SetIsEnabled(true);
 		if (Button_ChangeUserName) Button_ChangeUserName->SetIsEnabled(true);
-		
+		if (Button_BackToMenu) Button_BackToMenu->SetIsEnabled(true);
 	}
 	else
 	{
@@ -330,6 +330,7 @@ void USGLobbyWidget::UpdateReadyButtonText()
 		if (Button_Left) Button_Left->SetIsEnabled(false);
 		if (Button_Right) Button_Right->SetIsEnabled(false);
 		if (Button_ChangeUserName) Button_ChangeUserName->SetIsEnabled(false);
+		if (Button_BackToMenu) Button_BackToMenu->SetIsEnabled(false);
 	}
 	
 	if (Normal) NewStyle.Normal.SetResourceObject(Normal);
