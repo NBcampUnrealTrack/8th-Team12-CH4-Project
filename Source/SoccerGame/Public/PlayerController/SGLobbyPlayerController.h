@@ -31,6 +31,10 @@ public:
 	// 클라이언트가 UI 버튼 등을 눌렀을 때 호출하는 함수
 	UFUNCTION(Server, Reliable, WithValidation)
 	void RequestChangeTeam(FGameplayTag NewTeam);
+
+	// 캐릭터 선택 UI에서 호출하는 서버 변경 요청
+	UFUNCTION(Server, Reliable, WithValidation, BlueprintCallable, Category = "Lobby|Character")
+	void RequestChangeCharacter(FGameplayTag NewCharacterTag);
 	
 	UFUNCTION(Client, Reliable)
 	void Client_UpdateLobbyUI(const TArray<FSGPlayerLobbyInfo>& InPlayerInfos);

@@ -80,6 +80,19 @@ bool ASGLobbyPlayerController::RequestChangeTeam_Validate(FGameplayTag NewTeam)
 {
 	return NewTeam.IsValid();
 }
+
+void ASGLobbyPlayerController::RequestChangeCharacter_Implementation(FGameplayTag NewCharacterTag)
+{
+	if (ASGLobbyGameMode* LobbyGM = Cast<ASGLobbyGameMode>(GetWorld()->GetAuthGameMode()))
+	{
+		LobbyGM->ProcessChangeCharacterRequest(this, NewCharacterTag);
+	}
+}
+
+bool ASGLobbyPlayerController::RequestChangeCharacter_Validate(FGameplayTag NewCharacterTag)
+{
+	return NewCharacterTag.IsValid();
+}
 void ASGLobbyPlayerController::Client_UpdateLobbyUI_Implementation(const TArray<FSGPlayerLobbyInfo>& InPlayerInfos)
 {
 	if (!IsLocalController())
@@ -220,6 +233,7 @@ void ASGLobbyPlayerController::SaveDataToSubsystem()
 	DataToSave.PlayerName = LobbyPS->CustomPlayerName.IsEmpty() ? 
 		LobbyPS->GetPlayerName() : LobbyPS->CustomPlayerName;
 	DataToSave.PlayerTeam = LobbyPS->GetTeamTag();
+	DataToSave.SelectedCharacterTag = LobbyPS->GetSelectedCharacterTag();
 	DataToSave.Score = 0; 
 
 	DataSubsystem->SavePlayerData(UniqueId, DataToSave);

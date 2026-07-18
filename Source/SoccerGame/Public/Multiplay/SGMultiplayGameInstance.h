@@ -9,6 +9,7 @@
 #include "SGMultiplayGameInstance.generated.h"
 
 class FOnlineSessionSearch;
+class USGCharacterDataAsset;
 /**
  * 
  */
@@ -19,7 +20,7 @@ class SOCCERGAME_API USGMultiplayGameInstance : public UGameInstance
 	
 public:
 	
-	// 델리게이트 및 핸들 선언 추가
+	// 델리게이트 및 핸들 선언 추가 
 	FOnDestroySessionCompleteDelegate DestroySessionCompleteDelegate;
 	FDelegateHandle DestroySessionCompleteDelegateHandle;
 
@@ -71,4 +72,9 @@ private:
 	
 	FOnJoinSessionCompleteDelegate JoinSessionCompleteDelegate;
 	FDelegateHandle JoinSessionCompleteDelegateHandle;
+	
+public:
+	// 선택된 캐릭터 데이터를 저장할 변수
+	UPROPERTY(BlueprintReadWrite)
+	USGCharacterDataAsset* SelectedCharacterAsset;
 };
