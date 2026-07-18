@@ -32,15 +32,14 @@ bool UGA_SG_DropKick::CanActivateAbility(
 
     UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get();
     FGameplayTag ImmunityTag = FGameplayTag::RequestGameplayTag(FName("State.Immunity"));
-    
     bool bHasImmunity = ASC->HasMatchingGameplayTag(ImmunityTag);
-    // UE_LOG(LogTemp, Log, TEXT("피격자가 무적 : %s"), bHasImmunity ? TEXT("TRUE") : TEXT("FALSE"));
 
     if (bHasImmunity)
     {
-        // UE_LOG(LogTemp, Warning, TEXT("피격자가 무적이라서 드롭킥 발동x"));
+        // UE_LOG(LogTemp, Warning, TEXT("래그돌에 빠져서 Immunity Tag를 획득한 상태면 DropKick 사용 X"));
         return false;
     }
+    
     
     return Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags);
 }
@@ -73,8 +72,8 @@ void UGA_SG_DropKick::ActivateAbility(
     // 두 방향 사이의 최단 각도 차이 계산 (-180 ~ 180 도 범위로 반환)
     const float DeltaYaw = FRotator::NormalizeAxis(CameraYaw - CurrentActorYaw);
 
-    // 각도 차이를 최대 -30도 ~ +30도 사이로 제한 (Clamp)
-    const float ClampedDeltaYaw = FMath::Clamp(DeltaYaw, -60.0f, 60.0f);
+    // 각도 차이를 최대 -90도 ~ +90도 사이로 제한 (Clamp)
+    const float ClampedDeltaYaw = FMath::Clamp(DeltaYaw, -90.0f, 90.0f);
 
     // 캐릭터 정면 기준 제한된 각도만큼 회전된 최종 Yaw 적용
     const float FinalTargetYaw = FRotator::NormalizeAxis(CurrentActorYaw + ClampedDeltaYaw);
