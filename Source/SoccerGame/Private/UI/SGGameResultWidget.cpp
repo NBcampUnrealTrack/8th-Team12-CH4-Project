@@ -7,6 +7,7 @@
 #include "GameState/SGMainGameState.h"
 #include "Kismet/GameplayStatics.h"
 #include "PlayerController/SGMainPlayerController.h"
+#include "PlayerState/SGMainPlayerState.h"
 
 
 void USGGameResultWidget::NativeConstruct()
@@ -41,17 +42,38 @@ void USGGameResultWidget::NativeConstruct()
 			Text_RedTeamScore->SetText(FText::AsNumber(FinalRedTeamScore));
 		}
 		
+		// 내 팀 태그 가져오기
+		FGameplayTag MyTeamTag;
+		if (APlayerController* PC = GetOwningPlayer())
+		{
+			if (ASGMainPlayerState* MainPS = Cast<ASGMainPlayerState>(PC->PlayerState))
+			{
+				MyTeamTag = MainPS->CurrentTeamTag;
+			}
+		}
+		
+		// 팀 태그
+		FGameplayTag BlueTag = FGameplayTag::RequestGameplayTag(FName("Team.Blue"));
+		FGameplayTag RedTag = FGameplayTag::RequestGameplayTag(FName("Team.Red"));
+		
+		// 재생할 사운드 포인터
+		USoundBase* SoundToPlay = nullptr;
+		
 		if (IsValid(Text_WinMessage))
 		{
 			if (FinalRedTeamScore > FinalBlueTeamScore)
 			{
 				Text_WinMessage->SetText(FText::FromString("RED TEAM WINS!"));
 				Text_WinMessage->SetColorAndOpacity(FSlateColor(FLinearColor::Red));
+				
+				SoundToPlay = (MyTeamTag == RedTag) ? Sound_Victory : Sound_Defeat;
 			}
 			else if (FinalBlueTeamScore > FinalRedTeamScore)
 			{
 				Text_WinMessage->SetText(FText::FromString("BLUE TEAM WINS!"));
 				Text_WinMessage->SetColorAndOpacity(FSlateColor(FLinearColor::Blue));
+				
+				SoundToPlay = (MyTeamTag == BlueTag) ? Sound_Victory : Sound_Defeat;
 			}
 			else
 			{
@@ -59,7 +81,13 @@ void USGGameResultWidget::NativeConstruct()
 					Text_WinMessage->SetText(FText::FromString("DRAW!"));
 					Text_WinMessage->SetColorAndOpacity(FSlateColor(FLinearColor::Gray));
 				}
+				
+				SoundToPlay = Sound_Draw;
 			}
+		}
+		if (SoundToPlay)
+		{
+			UGameplayStatics::PlaySound2D(this, SoundToPlay);
 		}
 	}
 }

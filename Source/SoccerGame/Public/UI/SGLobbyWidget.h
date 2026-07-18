@@ -207,15 +207,20 @@ public:
 	
 #pragma endregion
 
-#pragma region BackToMainMenu Button
+#pragma region Sound
+public:
+	UPROPERTY(EditDefaultsOnly, Category = "UI|Sounds")
+	class USoundBase* Sound_TimerTick;
+#pragma endregion
+
 private:
 	UFUNCTION()
 	void OnClickedBackToMenuButton();
 	
-	
-#pragma endregion
 	UFUNCTION()
 	void OnClickedChangeUsernameButton();
+	
+
 	
 	
 };

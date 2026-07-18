@@ -363,6 +363,12 @@ void USGLobbyWidget::UpdateCountdownText(int32 NewTime)
         
 		// UI 텍스트 업데이트
 		Text_StartTimer->SetText(FText::FromString(CountdownString));
+		
+		// 카운트다운이 갱신될 때 사운드 재생
+		// if (Sound_TimerTick)
+		// {
+		// 	UGameplayStatics::PlaySound2D(GetWorld(), Sound_TimerTick);
+		// }
 	}
 }
 
@@ -477,6 +483,13 @@ void USGLobbyWidget::RefreshCharacterSelection()
 		Image_Character->SetVisibility(bIsWaiting ? ESlateVisibility::Hidden : ESlateVisibility::Visible);
 	}
 	
+	if (Button_Left && Button_Right)
+	{
+		// Waiting 상태가 아닐 때만 캐릭터 변경 버튼 보여주기.
+		Button_Left->SetVisibility(bIsWaiting ? ESlateVisibility::Hidden : ESlateVisibility::Visible);
+		Button_Right->SetVisibility(bIsWaiting ? ESlateVisibility::Hidden : ESlateVisibility::Visible);
+	}
+	
 	if (!bIsWaiting)
 	{
 		TArray<USGCharacterDataAsset*> FilteredList = GetFilteredCharacterList();
@@ -507,7 +520,6 @@ void USGLobbyWidget::OnClickedBackToMenuButton()
 		// TOOD: SGLobbyPlayerController에서 방 나가는 함수 구현되면 호출
 	}
 }
-
 
 void USGLobbyWidget::OnClickedChangeUsernameButton()
 {

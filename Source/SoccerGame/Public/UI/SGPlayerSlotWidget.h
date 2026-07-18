@@ -50,25 +50,51 @@ protected:
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UTextBlock> Text_Ready;
 	
-	// 슬롯 배경 Border 바인딩 변수
-	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<UBorder> Border_Background;
-	
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UButton> Button_SlotClick;
 
+	void UpdateButtonStyle(FGameplayTag InTeamTag, float InOpacity);
 	
 private:
-	// 팀 타입에 따른 배경색 반환 함수 시그니처
-	FLinearColor GetTeamColor(FGameplayTag InTeamTag) const;
 	
-	// 버튼 스타일
-	UPROPERTY(EditAnywhere, Category = "Style")
-	FButtonStyle BlueButtonStyle;
 	
-	UPROPERTY(EditAnywhere, Category = "Style")
-	FButtonStyle RedButtonStyle;
+	// // 버튼 스타일
+	// UPROPERTY(EditAnywhere, Category = "Style")
+	// FButtonStyle BlueButtonStyle;
+	//
+	// UPROPERTY(EditAnywhere, Category = "Style")
+	// FButtonStyle RedButtonStyle;
 	
 	UFUNCTION()
 	void OnButtonClicked();
+
+public:
+	UPROPERTY(EditDefaultsOnly, Category = "UI|SlotColors|BlueTeam")
+	FLinearColor BlueColor_Normal = FLinearColor(0.1f, 0.3f, 0.8f, 1.0f);
+    
+	UPROPERTY(EditDefaultsOnly, Category = "UI|SlotColors|BlueTeam")
+	FLinearColor BlueColor_Hovered = FLinearColor(0.3f, 0.5f, 1.0f, 1.0f);
+    
+	UPROPERTY(EditDefaultsOnly, Category = "UI|SlotColors|BlueTeam")
+	FLinearColor BlueColor_Pressed = FLinearColor(0.05f, 0.15f, 0.5f, 1.0f);
+
+	// --- 레드팀 색상 설정 ---
+	UPROPERTY(EditDefaultsOnly, Category = "UI|SlotColors|RedTeam")
+	FLinearColor RedColor_Normal = FLinearColor(0.8f, 0.2f, 0.2f, 1.0f);
+    
+	UPROPERTY(EditDefaultsOnly, Category = "UI|SlotColors|RedTeam")
+	FLinearColor RedColor_Hovered = FLinearColor(1.0f, 0.4f, 0.4f, 1.0f);
+    
+	UPROPERTY(EditDefaultsOnly, Category = "UI|SlotColors|RedTeam")
+	FLinearColor RedColor_Pressed = FLinearColor(0.5f, 0.1f, 0.1f, 1.0f);
+
+	// --- 대기열(Waiting) 색상 설정 ---
+	UPROPERTY(EditDefaultsOnly, Category = "UI|SlotColors|Waiting")
+	FLinearColor WaitingColor_Normal = FLinearColor(0.5f, 0.5f, 0.5f, 1.0f);
+    
+	UPROPERTY(EditDefaultsOnly, Category = "UI|SlotColors|Waiting")
+	FLinearColor WaitingColor_Hovered = FLinearColor(0.7f, 0.7f, 0.7f, 1.0f);
+    
+	UPROPERTY(EditDefaultsOnly, Category = "UI|SlotColors|Waiting")
+	FLinearColor WaitingColor_Pressed = FLinearColor(0.3f, 0.3f, 0.3f, 1.0f);
 };

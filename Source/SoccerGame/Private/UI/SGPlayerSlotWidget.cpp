@@ -2,7 +2,6 @@
 
 
 #include "UI/SGPlayerSlotWidget.h"
-#include "Components/Border.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
 
@@ -22,15 +21,16 @@ void USGPlayerSlotWidget::SetSlotTeamTag(FGameplayTag InTeamTag)
 {
 	MySlotTeamTag = InTeamTag;
 	
-	if (Border_Background)
-	{
-		Border_Background->SetBrushColor(GetTeamColor(MySlotTeamTag));
-	}
+	// if (Border_Background)
+	// {
+	// 	Border_Background->SetBrushColor(GetTeamColor(MySlotTeamTag));
+	// }
+	UpdateButtonStyle(MySlotTeamTag, 0.3f);
 }
 
 void USGPlayerSlotWidget::ResetSlot()
 {
-	if (!Text_UserName || !Border_Background)
+	if (!Text_UserName)
 	{
 		UE_LOG(LogTemp, Error, TEXT("치명적 에러: WBP_PlayerSlot 내부 부품이 연결 안 됨! 변수(Is Variable) 체크를 확인하세요!"));
 	}
@@ -44,14 +44,10 @@ void USGPlayerSlotWidget::ResetSlot()
 		Text_Ready->SetVisibility(ESlateVisibility::Collapsed);
 		Text_Ready->SetText(FText::GetEmpty());
 	}
-	if (Border_Background)
+	
+	if (MySlotTeamTag.IsValid())
 	{
-		Border_Background->SetRenderOpacity(0.3f);
-		
-		if (MySlotTeamTag.IsValid())
-		{
-			Border_Background->SetBrushColor(GetTeamColor(MySlotTeamTag));
-		}
+		UpdateButtonStyle(MySlotTeamTag,0.3f);
 	}
 }
 
@@ -95,33 +91,66 @@ void USGPlayerSlotWidget::SetPlayerSlotInfo(const FString& InUserName, bool bInR
 			}
 		}
 		
-		
 	}
 	
 	// InTeamTag에 따른 Border_Background 배경색 반영 및 투명도 원상 복구
-	if (Border_Background)
-	{
-		Border_Background->SetBrushColor(GetTeamColor(InTeamTag));
-		Border_Background->SetRenderOpacity(1.0f);
-	}
+	// if (Border_Background)
+	// {
+	// 	Border_Background->SetBrushColor(GetTeamColor(InTeamTag));
+	// 	Border_Background->SetRenderOpacity(1.0f);
+	// }
+	
+	UpdateButtonStyle(InTeamTag, 1.0f);
 }
 
-FLinearColor USGPlayerSlotWidget::GetTeamColor(FGameplayTag InTeamTag) const
+void USGPlayerSlotWidget::UpdateButtonStyle(FGameplayTag InTeamTag, float InOpacity)
 {
-	if (InTeamTag == FGameplayTag::RequestGameplayTag(FName("Team.Blue")))
+	if (!Button_SlotClick) return;
+    
+	FButtonStyle NewStyle = Button_SlotClick->GetStyle();
+    
+	FLinearColor NormalColor;
+	FLinearColor HoverColor;
+	FLinearColor PressedColor;
+    
+	FGameplayTag BlueTag = FGameplayTag::RequestGameplayTag(FName("Team.Blue"));
+	FGameplayTag RedTag = FGameplayTag::RequestGameplayTag(FName("Team.Red"));
+    
+	// 에디터에서 설정한 색상 가져오기
+	if (InTeamTag == BlueTag)
 	{
-		return FLinearColor::Blue;
+		NormalColor  = BlueColor_Normal;
+		HoverColor   = BlueColor_Hovered;
+		PressedColor = BlueColor_Pressed;
 	}
-	else if (InTeamTag == FGameplayTag::RequestGameplayTag(FName("Team.Red")))
+	else if (InTeamTag == RedTag)
 	{
-		return FLinearColor::Red;
+		NormalColor  = RedColor_Normal;
+		HoverColor   = RedColor_Hovered;
+		PressedColor = RedColor_Pressed;
 	}
-	
-	return FLinearColor::Gray;
+	else
+	{
+		NormalColor  = WaitingColor_Normal;
+		HoverColor   = WaitingColor_Hovered;
+		PressedColor = WaitingColor_Pressed;
+	}
+    
+	// 알파(투명도) 값에 InOpacity를 곱해서 빈 슬롯(0.3) / 찬 슬롯(1.0) 효과 적용
+	NormalColor.A *= InOpacity;
+	HoverColor.A *= InOpacity;
+	PressedColor.A *= InOpacity;
+    
+	// 스타일 적용
+	NewStyle.Normal.TintColor = FSlateColor(NormalColor);
+	NewStyle.Hovered.TintColor = FSlateColor(HoverColor);
+	NewStyle.Pressed.TintColor = FSlateColor(PressedColor);
+    
+	Button_SlotClick->SetStyle(NewStyle);
 }
 
 void USGPlayerSlotWidget::OnButtonClicked()
-{
+{	
 	OnSlotClicked.Broadcast(MySlotTeamTag);
 }
 

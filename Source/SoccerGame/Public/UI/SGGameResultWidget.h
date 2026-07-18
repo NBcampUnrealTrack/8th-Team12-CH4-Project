@@ -38,6 +38,17 @@ protected:
 
 #pragma endregion
 	
+#pragma region Sound
+	UPROPERTY(EditDefaultsOnly, Category = "UI|Sounds")
+	class USoundBase* Sound_Victory;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "UI|Sounds")
+	class USoundBase* Sound_Defeat;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "UI|Sounds")
+	class USoundBase* Sound_Draw;
+	
+#pragma endregion
 protected:
 	UFUNCTION()
 	void OnExitGameClicked();
