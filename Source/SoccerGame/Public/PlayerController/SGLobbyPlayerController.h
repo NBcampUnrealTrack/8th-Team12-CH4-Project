@@ -56,8 +56,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Lobby|Username")
 	void CloseChangeUsernameWidget();
 	
-	UFUNCTION(BlueprintCallable, Category = "Lobby")
-	void LeaveLobby();
+	UFUNCTION(Client, Reliable)
+	void ClientToMainMenu();
 
 protected:
 	// [Server RPC] 준비 상태 변경 요청
