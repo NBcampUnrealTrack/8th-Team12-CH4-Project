@@ -7,6 +7,7 @@
 #include "GameplayTagContainer.h"
 #include "SGLobbyPlayerState.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnTeamChangedDelegate);
 /**
  * 
  */
@@ -44,6 +45,10 @@ public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Lobby Settings|Character")
 	FGameplayTag SelectedCharacterTag;
 	
+	// 팀 변경 델리게이트
+	UPROPERTY(BlueprintAssignable, Category = "Events")
+	FOnTeamChangedDelegate OnTeamChanged;
+	
 	// Getter 함수들
 	FGameplayTag GetTeamTag() const { return CurrentTeamTag; }
 	bool IsReady() const { return bIsReady; }
@@ -57,7 +62,7 @@ public:
 	void SetCustomPlayerName(const FString& NewPlayerName);
 
 protected:
-
+	
 	// 이름이 서버로부터 동기화되었을 때 클라이언트에서 실행될 함수
 	UFUNCTION()
 	void OnRep_CustomPlayerName();
@@ -68,6 +73,7 @@ protected:
 	
 	UFUNCTION()
 	void OnRep_ChangeTeam();
+	
 	
 	
 };
