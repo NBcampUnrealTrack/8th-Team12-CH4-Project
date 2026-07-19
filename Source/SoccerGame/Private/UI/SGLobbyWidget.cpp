@@ -93,6 +93,8 @@ void USGLobbyWidget::NativeConstruct()
 		Button_BackToMenu->OnClicked.RemoveDynamic(this, &USGLobbyWidget::USGLobbyWidget::OnClickedBackToMenuButton);
 		Button_BackToMenu->OnClicked.AddDynamic(this, &USGLobbyWidget::USGLobbyWidget::OnClickedBackToMenuButton);
 	}
+	
+	UpdateReadyButtonText();
 }
 
 void USGLobbyWidget::NativeDestruct()
@@ -352,6 +354,8 @@ void USGLobbyWidget::HandleSlotClicked(FGameplayTag RequestedTeamTag)
 	}
 	LobbyPlayerController->RequestChangeTeam(RequestedTeamTag);
 	
+	PredictedTeamTag = RequestedTeamTag;
+	LobbyPlayerController->RequestChangeTeam(RequestedTeamTag);
 	RefreshCharacterSelection();
 }
 
@@ -363,7 +367,17 @@ TArray<USGCharacterDataAsset*> USGLobbyWidget::GetFilteredCharacterList()
 	ASGLobbyPlayerState* LobbyPS = LobbyPC ? Cast<ASGLobbyPlayerState>(LobbyPC->PlayerState) : nullptr;
 	if (!LobbyPS) return FilteredList;
 	
-	FString MyTeamTagString = LobbyPS->GetTeamTag().GetTagName().ToString();
+	// 예측 태그 우선 사용
+	FString MyTeamTagString;
+	if (PredictedTeamTag.IsValid() && LobbyPS->GetTeamTag() != PredictedTeamTag)
+	{
+		MyTeamTagString = PredictedTeamTag.ToString();
+	}
+	else
+	{
+		MyTeamTagString = LobbyPS->GetTeamTag().GetTagName().ToString();
+	}
+	
 	
 	// 필터링
 	for (auto* Character : CharacterList)
@@ -371,7 +385,7 @@ TArray<USGCharacterDataAsset*> USGLobbyWidget::GetFilteredCharacterList()
 		if (Character)
 		{
 			FString CharTagString = Character->CharacterTag.ToString();
-			// FString TeamPart = CharTagString.Replace(TEXT("Character."), TEXT(""));
+			
 			
 			if (CharTagString.Contains(MyTeamTagString))
 			{
@@ -440,6 +454,19 @@ void USGLobbyWidget::RefreshCharacterSelection()
 	APlayerController* LobbyPC = GetOwningPlayer();
 	ASGLobbyPlayerState* LobbyPS = LobbyPC ? Cast<ASGLobbyPlayerState>(LobbyPC->PlayerState) : nullptr;
 	if (!LobbyPS) return;
+	
+	FString MyTeamTagString;
+	if (PredictedTeamTag.IsValid() && LobbyPS->GetTeamTag() != PredictedTeamTag)
+	{
+		// 아직 서버로부터 최신화가 되지 않았다면, 방금 내가 누른 태그를 우선 사용
+		MyTeamTagString = PredictedTeamTag.ToString();
+	}
+	else
+	{
+		// 서버 동기화 완료 혹은 누른 적 없음 -> PlayerState 값 사용 후 캐시 초기화
+		MyTeamTagString = LobbyPS->GetTeamTag().GetTagName().ToString();
+		PredictedTeamTag = FGameplayTag::EmptyTag;
+	}
 	
 	bool bIsWaiting = LobbyPS->GetTeamTag().GetTagName().ToString().Contains(TEXT("Waiting"));
 	if (Image_Character)

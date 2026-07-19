@@ -78,7 +78,7 @@ public:
 	class USGPlayerSlotWidget* WaitingSlot_5;
 	UPROPERTY(meta = (BindWidget))
 	class USGPlayerSlotWidget* WaitingSlot_6;
-	
+	  
 protected:
 	UPROPERTY()
 	TArray<USGPlayerSlotWidget*> BlueTeamSlots;
@@ -139,6 +139,10 @@ public:
 
 	
 protected:
+	
+	// 서버 응답 느릴 때 UI 꼬입 방지를 위한 로컬 예측 태그
+	FGameplayTag PredictedTeamTag;
+	
 	// 슬롯 클릭되었을 때 실행될 함수
 	UFUNCTION()
 	void HandleSlotClicked(FGameplayTag RequestedTeamTag);
