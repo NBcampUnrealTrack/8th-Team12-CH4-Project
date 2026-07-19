@@ -166,7 +166,7 @@ void UGA_SG_DropKick::PushBall(AActor* BallActor)
     ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
     if (!Character || !BallActor)
     {
-        UE_LOG(LogTemp, Warning, TEXT("1"));
+        // UE_LOG(LogTemp, Warning, TEXT("1"));
         return;
     }
 

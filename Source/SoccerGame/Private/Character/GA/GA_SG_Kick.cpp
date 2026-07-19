@@ -127,7 +127,7 @@ void UGA_SG_Kick::FindAndPushBall()
     ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
     if (!Character)
     {
-        UE_LOG(LogTemp, Error, TEXT("Character is nullptr"));
+        // UE_LOG(LogTemp, Error, TEXT("Character is nullptr"));
         return;
     }
 

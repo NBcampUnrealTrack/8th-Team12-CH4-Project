@@ -168,7 +168,7 @@ void ASG_Character::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 	}
 	else
 	{
-		UE_LOG(Log_SG_Character, Error, TEXT("'%s' Failed to find an Enhanced Input component! This template is built to use the Enhanced Input system. If you intend to use the legacy system, then you will need to update this C++ file."), *GetNameSafe(this));
+		// UE_LOG(Log_SG_Character, Error, TEXT("'%s' Failed to find an Enhanced Input component! This template is built to use the Enhanced Input system. If you intend to use the legacy system, then you will need to update this C++ file."), *GetNameSafe(this));
 	}
 }
 
@@ -568,7 +568,7 @@ void ASG_Character::DisableRagdollInternal(FVector TargetLocation, FRotator Targ
 		else
 		{
 			// 몽타주 재생 실패시 예외 처리 (캐릭터 굳음 방지)
-			UE_LOG(Log_SG_Character, Warning, TEXT("[%s] DisableRagdollInternal: Montage_Play Failed (Duration is 0.0)"), *GetName());
+			// UE_LOG(Log_SG_Character, Warning, TEXT("[%s] DisableRagdollInternal: Montage_Play Failed (Duration is 0.0)"), *GetName());
 			bIsRecoveringFromRagdoll = false;
 			MovementComp->SetMovementMode(EMovementMode::MOVE_Walking);
 			
