@@ -263,29 +263,80 @@ void ASGLobbyGameMode::TickCountdown()
 
 void ASGLobbyGameMode::TransitionToGameLevel()
 {
-	NotifyAllPlayers(TEXT("Launching match"));
+	ASGLobbyPlayerController* HostPlayerController = nullptr;
+	for (FConstPlayerControllerIterator It =GetWorld()->GetPlayerControllerIterator();It;++It)
+	{
+		ASGLobbyPlayerController* LobbyPC =Cast<ASGLobbyPlayerController>(It->Get());
 
-	UE_LOG(LogTemp, Warning, TEXT("================ [LobbyGameMode - Travel Sequence Start] ================"));
+		if (!IsValid(LobbyPC))
+		{
+			continue;
+		}
 
-	int32 CommandedControllersCount = 0;
+		// 리슨 서버의 로컬 컨트롤러가 Host
+		if (LobbyPC->IsLocalController())
+		{
+			HostPlayerController = LobbyPC;
+			break;
+		}
+	}
+	
+	if (IsValid(HostPlayerController))
+	{
+		ASGLobbyPlayerState* HostPS =HostPlayerController->GetPlayerState<ASGLobbyPlayerState>();
+
+		if (IsValid(HostPS) &&HostPS->GetTeamTag() == FGameplayTag::RequestGameplayTag(FName("Team.Waiting")))
+		{
+			// Host가 wating이면 ReadyCancel
+			CancelCountdown();
+			return;
+		}
+	}
+	
+	for (FConstPlayerControllerIterator It =GetWorld()->GetPlayerControllerIterator();It;++It)
+	{
+		ASGLobbyPlayerController* LobbyPC =Cast<ASGLobbyPlayerController>(It->Get());
+		if (!IsValid(LobbyPC) || LobbyPC->IsLocalController())
+		{
+			continue;
+		}
+		ASGLobbyPlayerState* LobbyPS =LobbyPC->GetPlayerState<ASGLobbyPlayerState>();
+		if (!IsValid(LobbyPS))
+		{
+			continue;
+		}
+		if (LobbyPS->GetTeamTag() != FGameplayTag::RequestGameplayTag(FName("Team.Waiting")))
+		{
+			continue;
+		}
+		LobbyPC->ClientToMainMenu();
+	}
 
 	// 서버에 접속해 있는 모든 '플레이어 컨트롤러'를 순회하며 각자 저장하라고 지시
 	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
 	{
-		if (ASGLobbyPlayerController* LobbyPC = Cast<ASGLobbyPlayerController>(It->Get()))
+		ASGLobbyPlayerController* LobbyPC =Cast<ASGLobbyPlayerController>(It->Get());
+		if (!IsValid(LobbyPC))
 		{
-			CommandedControllersCount++;
-			// 각 컨트롤러에게 데이터 세이브 위임 명령
-			LobbyPC->SaveDataToSubsystem(); 
+			continue;
 		}
-	}
+		
+		ASGLobbyPlayerState* LobbyPS =LobbyPC->GetPlayerState<ASGLobbyPlayerState>();
+		if (!IsValid(LobbyPS))
+		{
+			continue;
+		}
+		
+		if (LobbyPS->GetTeamTag() == FGameplayTag::RequestGameplayTag(FName("Team.Waiting")))
+		{
+			continue;
+		}
 
-	UE_LOG(LogTemp, Warning, TEXT("[LobbyGameMode - SaveComplete] 총 %d 명의 컨트롤러에게 데이터 백업 명령을 완료했습니다."), CommandedControllersCount);
-	UE_LOG(LogTemp, Warning, TEXT("[LobbyGameMode - Travel] 다음 레벨로 이동을 시작합니다. Path: %s"), *GameplayLevelPath);
-	UE_LOG(LogTemp, Warning, TEXT("========================================================================="));
+		LobbyPC->SaveDataToSubsystem();
+	}
+	
 	
 	GetWorld()->ServerTravel(GameplayLevelPath);
-	
 }
 
 void ASGLobbyGameMode::NotifyAllPlayers(const FString& Message)
