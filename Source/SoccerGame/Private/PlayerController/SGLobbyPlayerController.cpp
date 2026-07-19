@@ -303,7 +303,7 @@ void ASGLobbyPlayerController::CloseChangeUsernameWidget()
 
 }
 
-void ASGLobbyPlayerController::LeaveLobby()
+void ASGLobbyPlayerController::ClientToMainMenu_Implementation()
 {
 	if (!IsLocalController())
 	{
@@ -316,7 +316,6 @@ void ASGLobbyPlayerController::LeaveLobby()
 	}
 	MultiplayerGameInstance->LeaveSessionAndReturnToMainMenu();
 }
-
 void ASGLobbyPlayerController::Server_ChangeUsername_Implementation(const FString& NewUsername)
 {
 	const FString TrimmedUsername =NewUsername.TrimStartAndEnd();
