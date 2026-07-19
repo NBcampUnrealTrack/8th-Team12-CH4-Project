@@ -412,8 +412,48 @@ void ASG_Character::EnableRagdoll(FVector HitImpulse, FVector HitLocation)
 	
 	if (HasAuthority())
 	{
-		FTimerHandle GetUpTimerHandle;
-		GetWorldTimerManager().SetTimer(GetUpTimerHandle, this, &ASG_Character::ServerDisableRagdoll, 5.0f, false);
+		ElapsedRagdollTime = 0.0f; // 시간 초기화
+		// 0.2초마다 CheckRagdollLanding 함수를 반복 실행
+		GetWorldTimerManager().SetTimer(RagdollCheckTimerHandle, this, &ASG_Character::CheckRagdollLanding, 0.2f, true);
+	}
+}
+
+void ASG_Character::CheckRagdollLanding()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	USkeletalMeshComponent* MeshComp = GetMesh();
+	if (!MeshComp)
+	{
+		GetWorldTimerManager().ClearTimer(RagdollCheckTimerHandle);
+		return;
+	}
+
+	ElapsedRagdollTime += 0.2f;
+
+	// 최소 3초 동안은 무조건 날아가거나 누워있도록 보장
+	if (ElapsedRagdollTime < 3.0f)
+	{
+		return;
+	}
+
+	// 골반(Hips)의 현재 물리 속도(Velocity)를 확인
+	FVector HipsVelocity = MeshComp->GetPhysicsLinearVelocity(TEXT("Hips"));
+    
+	// Z축 낙하 속도와 수평 이동 속도가 거의 멈췄는지 체크
+	bool bIsSettled = HipsVelocity.Size() < 20.0f;
+
+	// 너무 오랫동안 공중에 떠서 안 멈춘다면 예외 처리로 10초 뒤에는 강제 기상
+	bool bTimeout = ElapsedRagdollTime >= 10.0f;
+
+	if (bIsSettled || bTimeout)
+	{
+		// 조건을 만족하면 타이머를 끄고 기상 프로세스 시작
+		GetWorldTimerManager().ClearTimer(RagdollCheckTimerHandle);
+		ServerDisableRagdoll();
 	}
 }
 
@@ -531,6 +571,13 @@ void ASG_Character::DisableRagdollInternal(FVector TargetLocation, FRotator Targ
 			UE_LOG(Log_SG_Character, Warning, TEXT("[%s] DisableRagdollInternal: Montage_Play Failed (Duration is 0.0)"), *GetName());
 			bIsRecoveringFromRagdoll = false;
 			MovementComp->SetMovementMode(EMovementMode::MOVE_Walking);
+			
+			if (AbilitySystemComponent)
+			{
+				FGameplayTag ImmunityTag = FGameplayTag::RequestGameplayTag(FName("State.Immunity"));
+				AbilitySystemComponent->RemoveLooseGameplayTag(ImmunityTag);
+				RecoveryHpRatio();
+			}
 		}
 	}
 	else

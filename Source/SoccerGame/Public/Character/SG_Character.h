@@ -162,6 +162,15 @@ public:
 	void MulticastDisableRagdoll(FVector TargetLocation, FRotator TargetRotation, bool bIsFaceDown);
 
 protected:
+	// 래그돌 해제 체크를 위한 타이머 핸들
+	FTimerHandle RagdollCheckTimerHandle;
+
+	// 누적된 래그돌 시간 체크용 변수
+	float ElapsedRagdollTime = 0.0f;
+
+	// 주기적으로 안착 여부를 확인할 함수
+	void CheckRagdollLanding();
+	
 	// 실제 래그돌 해제 및 복구 로직
 	void DisableRagdollInternal(FVector TargetLocation, FRotator TargetRotation, bool bIsFaceDown);
 
