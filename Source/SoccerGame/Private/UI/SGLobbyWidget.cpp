@@ -32,19 +32,6 @@ void USGLobbyWidget::NativeConstruct()
 	
 	// 슬롯에게 태그 부여, 클릭 알림 구독
 	
-	APlayerController* LobbyPC = GetOwningPlayer();
-	if (IsValid(LobbyPC))
-	{
-		ASGLobbyPlayerState* LobbyPS = Cast<ASGLobbyPlayerState>(LobbyPC->PlayerState);
-		if (IsValid(LobbyPS))
-		{
-			LobbyPS->OnTeamChanged.RemoveDynamic(this,&USGLobbyWidget::RefreshCharacterSelection);
-			LobbyPS->OnTeamChanged.AddDynamic(this,&USGLobbyWidget::RefreshCharacterSelection);
-			
-			
-		}
-	}
-	
 	for (auto* BlueSlot : BlueTeamSlots)
 	{
 		if (BlueSlot)
@@ -95,21 +82,16 @@ void USGLobbyWidget::NativeConstruct()
 		Button_BackToMenu->OnClicked.AddDynamic(this,&USGLobbyWidget::OnClickedBackMainMenuButton);
 	}
 	
-	if (IsValid(Button_ChangeUserName))
-	{
-		Button_ChangeUserName->OnClicked.RemoveDynamic(this,&USGLobbyWidget::OnClickedChangeUsernameButton);
-		Button_ChangeUserName->OnClicked.AddDynamic(this,&USGLobbyWidget::OnClickedChangeUsernameButton);
-	}
-	
-	if (IsValid(Button_BackToMenu))
-	{
-		Button_BackToMenu->OnClicked.RemoveDynamic(this, &USGLobbyWidget::USGLobbyWidget::OnClickedBackToMenuButton);
-		Button_BackToMenu->OnClicked.AddDynamic(this, &USGLobbyWidget::USGLobbyWidget::OnClickedBackToMenuButton);
-	}
-	
 	
 	UpdateReadyButtonText();
-	RefreshCharacterSelection();
+	
+	GetWorld()->GetTimerManager().SetTimer(
+		InitTimerHandle,
+		this,
+		&USGLobbyWidget::TryInitPlayerState,
+		0.1f,
+		true
+	);
 }
 
 void USGLobbyWidget::NativeDestruct()
@@ -362,6 +344,31 @@ void USGLobbyWidget::UpdateCountdownText(int32 NewTime)
 		// 	UGameplayStatics::PlaySound2D(GetWorld(), Sound_TimerTick);
 		// }
 	}
+}
+
+void USGLobbyWidget::TryInitPlayerState()
+{
+	APlayerController* LobbyPC = GetOwningPlayer();
+	
+	// 아직 PlayerState가 없으면 0.1초 뒤 다시 시도
+	if (!IsValid(LobbyPC) || !IsValid(LobbyPC->PlayerState))
+	{
+		return;
+	}
+	
+	
+	ASGLobbyPlayerState* LobbyPS = Cast<ASGLobbyPlayerState>(LobbyPC->PlayerState);
+	if (IsValid(LobbyPS))
+	{
+		LobbyPS->OnTeamChanged.RemoveDynamic(this,&USGLobbyWidget::RefreshCharacterSelection);
+		LobbyPS->OnTeamChanged.AddDynamic(this,&USGLobbyWidget::RefreshCharacterSelection);
+		
+		RefreshCharacterSelection();
+		
+		GetWorld()->GetTimerManager().ClearTimer(InitTimerHandle);
+	}
+	
+	
 }
 
 void USGLobbyWidget::HandleSlotClicked(FGameplayTag RequestedTeamTag)
