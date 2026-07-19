@@ -147,34 +147,14 @@ void UGAS_SG_CharacterAttributeSet::PostGameplayEffectExecute(const struct FGame
 				FGameplayEffectContextHandle Context = Data.EffectSpec.GetEffectContext();
 				const FHitResult* HitResult = Context.GetHitResult();
         
-				FVector SpawnLocation;
-				FRotator SpawnRotation = FRotator::ZeroRotator;
-
-				if (HitResult && HitResult->bBlockingHit)
+				if (HitResult)
 				{
-					SpawnLocation = HitResult->ImpactPoint;
-					// 타격면의 법선 벡터를 기준으로 이펙트 방향 설정
-					SpawnRotation = HitResult->ImpactNormal.Rotation();
+					CueParams.Location = HitResult->ImpactPoint;
+					CueParams.Normal = HitResult->ImpactNormal;
 				}
 				else
 				{
-					// HitResult가 없다면 타겟 캐릭터의 위치(골반쯤)로 대체
-					SpawnLocation = TargetActor ? TargetActor->GetActorLocation() : FVector::ZeroVector;
-				}
-				
-				if (ASG_Character* TargetCharacter = Cast<ASG_Character>(TargetActor))
-				{
-					UNiagaraSystem* DropKickEffect = TargetCharacter->GetDropKickEffect();
-            
-					if (DropKickEffect)
-					{
-						UNiagaraFunctionLibrary::SpawnSystemAtLocation(
-							GetWorld(), 
-							DropKickEffect, 
-							SpawnLocation, 
-							SpawnRotation
-						);
-					}
+					CueParams.Location = TargetActor ? TargetActor->GetActorLocation() : FVector::ZeroVector;
 				}
 			}
 			
