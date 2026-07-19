@@ -2,7 +2,6 @@
 
 #include "Character/GA/GA_SG_DropKick.h"
 #include "GameFramework/Character.h"
-#include "Kismet/KismetSystemLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "Character/GAS/GAS_SG_CharacterAttributeSet.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
@@ -11,6 +10,7 @@
 #include "AbilitySystemInterface.h"
 #include "Kismet/GameplayStatics.h"
 #include "Character/SG_Character.h"
+#include "PlayerState/SGMainPlayerState.h"
 
 UGA_SG_DropKick::UGA_SG_DropKick()
 {
@@ -36,10 +36,8 @@ bool UGA_SG_DropKick::CanActivateAbility(
 
     if (bHasImmunity)
     {
-        // UE_LOG(LogTemp, Warning, TEXT("래그돌에 빠져서 Immunity Tag를 획득한 상태면 DropKick 사용 X"));
         return false;
     }
-    
     
     return Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags);
 }
@@ -168,7 +166,7 @@ void UGA_SG_DropKick::PushBall(AActor* BallActor)
     ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
     if (!Character || !BallActor)
     {
-        UE_LOG(LogTemp, Warning, TEXT("1"));
+        // UE_LOG(LogTemp, Warning, TEXT("1"));
         return;
     }
 
@@ -204,6 +202,11 @@ void UGA_SG_DropKick::PushBall(AActor* BallActor)
 void UGA_SG_DropKick::ApplyDamageToTarget(AActor* HitEnemy, const FGameplayEventData& Payload)
 {
     if (!HitEnemy || !DamageEffectClass)
+    {
+        return;
+    }
+    
+    if (!IsOtherTeam(HitEnemy))
     {
         return;
     }
@@ -253,4 +256,35 @@ void UGA_SG_DropKick::ApplyDamageToTarget(AActor* HitEnemy, const FGameplayEvent
         
         MyASC->ApplyGameplayEffectSpecToTarget(*NewHandle.Data.Get(), TargetASC);
     }
+}
+
+bool UGA_SG_DropKick::IsOtherTeam(AActor* TargetActor) const
+{
+    if (CurrentActorInfo == nullptr || !CurrentActorInfo->AvatarActor.IsValid() || !IsValid(TargetActor))
+    {
+        return false;
+    }
+    
+    APawn* OwnerPawn = Cast<APawn>(CurrentActorInfo->AvatarActor.Get());
+    APawn* TargetPawn = Cast<APawn>(TargetActor);
+    if (OwnerPawn == nullptr || TargetPawn == nullptr)
+    {
+        return false;
+    }
+    
+    AController* OwnerController = OwnerPawn->GetController();
+    AController* TargetController = TargetPawn->GetController();
+    if (OwnerController == nullptr || TargetController == nullptr)
+    {
+        return false;
+    }
+    
+    ASGMainPlayerState* OwnerPlayerState = OwnerController->GetPlayerState<ASGMainPlayerState>();
+    ASGMainPlayerState* TargetPlayerState = TargetController->GetPlayerState<ASGMainPlayerState>();
+    if (OwnerPlayerState == nullptr || TargetPlayerState == nullptr)
+    {
+        return false;
+    }
+    
+    return OwnerPlayerState->CurrentTeamTag != TargetPlayerState->CurrentTeamTag;
 }

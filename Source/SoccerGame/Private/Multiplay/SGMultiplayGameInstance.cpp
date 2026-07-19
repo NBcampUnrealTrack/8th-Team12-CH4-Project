@@ -400,42 +400,17 @@ void USGMultiplayGameInstance::LeaveSessionAndReturnToMainMenu()
 	
 	bReturnToMainMenuAfterDestroy = true;
 
-	// ============================================================
-	// [추가 권장]
-	// 기존에 등록된 DestroySession 델리게이트가 남아 있다면
-	// 제거한 뒤 다시 등록합니다.
-	// ============================================================
 	if (DestroySessionCompleteDelegateHandle.IsValid())
 	{
-		SessionInterface
-			->ClearOnDestroySessionCompleteDelegate_Handle(
-				DestroySessionCompleteDelegateHandle);
+		SessionInterface->ClearOnDestroySessionCompleteDelegate_Handle(DestroySessionCompleteDelegateHandle);
 
 		DestroySessionCompleteDelegateHandle.Reset();
 	}
 
-	DestroySessionCompleteDelegateHandle =
-		SessionInterface->AddOnDestroySessionCompleteDelegate_Handle(
-			DestroySessionCompleteDelegate);
+	DestroySessionCompleteDelegateHandle =SessionInterface->AddOnDestroySessionCompleteDelegate_Handle(DestroySessionCompleteDelegate);
 
-	const bool bDestroyStarted =
-		SessionInterface->DestroySession(NAME_GameSession);
+	const bool bDestroyStarted =SessionInterface->DestroySession(NAME_GameSession);
 
-	UE_LOG(
-		LogTemp,
-		Warning,
-		TEXT("[Multiplay] Leave DestroySession Return: %s"),
-		bDestroyStarted ? TEXT("TRUE") : TEXT("FALSE")
-	);
-
-	// ============================================================
-	// [추가]
-	// DestroySession 요청 자체가 시작되지 않으면
-	// 완료 콜백이 호출되지 않을 수 있습니다.
-	//
-	// 따라서 직접 델리게이트를 정리하고
-	// 메인 메뉴로 이동합니다.
-	// ============================================================
 	if (!bDestroyStarted)
 	{
 		SessionInterface->ClearOnDestroySessionCompleteDelegate_Handle(DestroySessionCompleteDelegateHandle);
@@ -455,65 +430,16 @@ void USGMultiplayGameInstance::OnCreateSessionComplete(FName Sessionname, bool b
 
 	if (!bWasSuccessful)
 	{
-		UE_LOG(
-			LogTemp,
-			Error,
-			TEXT("[Multiplay] CreateSession 실패: %s"),
-			*Sessionname.ToString());
-
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(
-				-1,
-				10.0f,
-				FColor::Red,
-				TEXT("[Multiplay] 세션 생성 실패"));
-		}
-
 		return;
-	}
-
-	UE_LOG(
-		LogTemp,
-		Warning,
-		TEXT("[Multiplay] 세션 생성 성공"));
-
-	if (SessionInterface.IsValid())
-	{
-		if (FNamedOnlineSession* NamedSession =
-			SessionInterface->GetNamedSession(NAME_GameSession))
-		{
-			UE_LOG(
-				LogTemp,
-				Warning,
-				TEXT("[Multiplay] Host Presence=%s / Lobby=%s"),
-				NamedSession->SessionSettings.bUsesPresence
-					? TEXT("TRUE")
-					: TEXT("FALSE"),
-				NamedSession->SessionSettings.bUseLobbiesIfAvailable
-					? TEXT("TRUE")
-					: TEXT("FALSE"));
-		}
 	}
 
 	UWorld* World = GetWorld();
 
 	if (!World)
 	{
-		UE_LOG(
-			LogTemp,
-			Error,
-			TEXT("[Multiplay] GetWorld() == nullptr"));
-
 		return;
 	}
-	
-
-	//const FName LobbyMapName =TEXT("Game/SoccerGame/Maps/System/SG_LobbyLevel");
-	UE_LOG(LogTemp, Warning,
-	TEXT("[Multiplay] OpenLevel Start"));
 	World->ServerTravel(TEXT("/Game/SoccerGame/Maps/System/SG_LobbyLevel?listen"));
-
 }
 
 void USGMultiplayGameInstance::OnFindSessionsComplete(bool bWasSuccessful)

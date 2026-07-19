@@ -11,7 +11,7 @@
 #include "AbilitySystemInterface.h"
 #include "Character/SG_SoccerBall.h"
 #include "Kismet/GameplayStatics.h"
-#include "Character/SG_Character.h"
+#include "PlayerState/SGMainPlayerState.h"
 
 UGA_SG_Kick::UGA_SG_Kick()
 {
@@ -127,7 +127,7 @@ void UGA_SG_Kick::FindAndPushBall()
     ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
     if (!Character)
     {
-        UE_LOG(LogTemp, Error, TEXT("Character is nullptr"));
+        // UE_LOG(LogTemp, Error, TEXT("Character is nullptr"));
         return;
     }
 
@@ -259,6 +259,11 @@ void UGA_SG_Kick::OnEnemyHitReceived(FGameplayEventData Payload)
     {
         return;
     }
+    
+    if (!IsOtherTeam(HitEnemy))
+    {
+        return;
+    }
 
     UAbilitySystemComponent* MyASC = GetAbilitySystemComponentFromActorInfo();
     UAbilitySystemComponent* TargetASC = nullptr;
@@ -297,4 +302,33 @@ void UGA_SG_Kick::OnEnemyHitReceived(FGameplayEventData Payload)
     }
 }
 
-
+bool UGA_SG_Kick::IsOtherTeam(AActor* TargetActor) const
+{
+    if (CurrentActorInfo == nullptr || !CurrentActorInfo->AvatarActor.IsValid() || !IsValid(TargetActor))
+    {
+        return false;
+    }
+    
+    APawn* OwnerPawn = Cast<APawn>(CurrentActorInfo->AvatarActor.Get());
+    APawn* TargetPawn = Cast<APawn>(TargetActor);
+    if (OwnerPawn == nullptr || TargetPawn == nullptr)
+    {
+        return false;
+    }
+    
+    AController* OwnerController = OwnerPawn->GetController();
+    AController* TargetController = TargetPawn->GetController();
+    if (OwnerController == nullptr || TargetController == nullptr)
+    {
+        return false;
+    }
+    
+    ASGMainPlayerState* OwnerPlayerState = OwnerController->GetPlayerState<ASGMainPlayerState>();
+    ASGMainPlayerState* TargetPlayerState = TargetController->GetPlayerState<ASGMainPlayerState>();
+    if (OwnerPlayerState == nullptr || TargetPlayerState == nullptr)
+    {
+        return false;
+    }
+    
+    return OwnerPlayerState->CurrentTeamTag != TargetPlayerState->CurrentTeamTag;
+}

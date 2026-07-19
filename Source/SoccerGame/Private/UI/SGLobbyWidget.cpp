@@ -526,7 +526,7 @@ void USGLobbyWidget::OnClickedBackMainMenuButton()
 	{
 		return;
 	}
-	LobbyPC->LeaveLobby();
+	LobbyPC->ClientToMainMenu();
 }
 
 void USGLobbyWidget::OnClickedChangeUsernameButton()

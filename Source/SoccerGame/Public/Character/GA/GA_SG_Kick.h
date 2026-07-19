@@ -55,6 +55,8 @@ protected:
 	UFUNCTION()
 	void OnEnemyHitReceived(FGameplayEventData Payload);
 	
+	bool IsOtherTeam(AActor* TargetActor) const;
+	
 	// WaitGameplayEvent 콜백 함수
 	UFUNCTION()
 	void OnGameplayEventReceived(FGameplayEventData Payload);

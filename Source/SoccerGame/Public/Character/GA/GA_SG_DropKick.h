@@ -51,6 +51,8 @@ protected:
 	// 타겟 하나를 지정해서 데미지를 주는 방식
 	UFUNCTION()
 	void ApplyDamageToTarget(AActor* HitEnemy, const FGameplayEventData& Payload);
+	
+	bool IsOtherTeam(AActor* TargetActor) const;
 
 	// 날아가는 동안(드롭킥) 매 프레임 호출될 콜백 함수
 	UFUNCTION()

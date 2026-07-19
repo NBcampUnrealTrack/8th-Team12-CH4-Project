@@ -7,6 +7,7 @@
 #include "NativeGameplayTags.h"
 #include "Character/SG_Character.h"
 #include "NiagaraFunctionLibrary.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "NiagaraComponent.h"
 
 // 공격 종류 및 피격 태그 정의
@@ -21,7 +22,7 @@ UGAS_SG_CharacterAttributeSet::UGAS_SG_CharacterAttributeSet()
 	InitStamina(0.f);
 	InitMaxStamina(100.f);
 	InitKickPower(600.f);
-	InitSpeedMultiplier(1.f);
+	InitSpeed(500.f);
 }
 
 void UGAS_SG_CharacterAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -34,7 +35,7 @@ void UGAS_SG_CharacterAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeP
 	DOREPLIFETIME_CONDITION_NOTIFY(UGAS_SG_CharacterAttributeSet, MaxHp, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UGAS_SG_CharacterAttributeSet, Stamina, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UGAS_SG_CharacterAttributeSet, MaxStamina, COND_None, REPNOTIFY_Always);
-	DOREPLIFETIME_CONDITION_NOTIFY(UGAS_SG_CharacterAttributeSet, SpeedMultiplier, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UGAS_SG_CharacterAttributeSet, Speed, COND_None, REPNOTIFY_Always);
 }
 
 // 변수 값을 바꿀때 사용할 함수들 (추후에 구체화 예정!)
@@ -67,6 +68,22 @@ void UGAS_SG_CharacterAttributeSet::PostAttributeChange(const FGameplayAttribute
 	float NewValue)
 {
 	Super::PostAttributeChange(Attribute, OldValue, NewValue);
+	
+	// 변경된 어트리뷰트가 Speed
+	if (Attribute == GetSpeedAttribute())
+	{
+		// 소유하고 있는 캐릭터를 가져옴
+		ACharacter* OwningCharacter = Cast<ACharacter>(GetOwningActor());
+		if (OwningCharacter)
+		{
+			// 캐릭터 무브먼트 컴포넌트의 MaxWalkSpeed를 직접 750(NewValue)으로 변경
+			UCharacterMovementComponent* MoveComp = OwningCharacter->GetCharacterMovement();
+			if (MoveComp)
+			{
+				MoveComp->MaxWalkSpeed = NewValue;
+			}
+		}
+	}
 	
 	// GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("PostAttributeChange"));
 }
@@ -240,9 +257,9 @@ void UGAS_SG_CharacterAttributeSet::OnRep_KickPower(const FGameplayAttributeData
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UGAS_SG_CharacterAttributeSet, KickPower, OldKickPower);
 }
 
-void UGAS_SG_CharacterAttributeSet::OnRep_SpeedMultiplier(const FGameplayAttributeData& OldSpeedMultiplier)
+void UGAS_SG_CharacterAttributeSet::OnRep_Speed(const FGameplayAttributeData& OldSpeed)
 {
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UGAS_SG_CharacterAttributeSet, SpeedMultiplier, OldSpeedMultiplier);
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UGAS_SG_CharacterAttributeSet, Speed, OldSpeed);
 }
 
 void UGAS_SG_CharacterAttributeSet::OnRep_Hp(const FGameplayAttributeData& OldHp)
