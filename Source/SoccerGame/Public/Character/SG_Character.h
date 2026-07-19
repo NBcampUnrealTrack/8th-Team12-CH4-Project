@@ -89,6 +89,9 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GAS|Stats")
 	float CharacterKickPower = 600.0f;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GAS|Stats")
+	float CharacterSpeed = 500.0f;
 
 	// 스탯 초기화 함수
 	void InitializeDefaultAttributes();
@@ -222,8 +225,8 @@ private:
 	UPROPERTY()
 	float BaseWalkSpeed;
 	
-	void OnSpeedMultiplierChanged(const FOnAttributeChangeData& Data);
-	void ApplySpeedMultiplier(float NewMultiplier);
+	void OnSpeedChanged(const FOnAttributeChangeData& Data);
+	void ApplySpeedChange(float NewSpeed);
 	
 protected:
 	//-------------------------------- 나이아가라 --------------------------------//

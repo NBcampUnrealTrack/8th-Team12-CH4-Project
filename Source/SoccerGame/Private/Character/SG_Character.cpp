@@ -100,8 +100,8 @@ void ASG_Character::BeginPlay()
         		).AddUObject(this, &ASG_Character::OnStaminaAttributeChanged);
 		
 		AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(
-			AttributeSet->GetSpeedMultiplierAttribute()).AddUObject(this, &ASG_Character::OnSpeedMultiplierChanged);
-		ApplySpeedMultiplier(AttributeSet->GetSpeedMultiplier());
+			AttributeSet->GetSpeedAttribute()).AddUObject(this, &ASG_Character::OnSpeedChanged);
+		ApplySpeedChange(AttributeSet->GetSpeed());
 	}
 }
 
@@ -178,11 +178,10 @@ void ASG_Character::InitializeDefaultAttributes()
 	{
 		AttributeSet->InitMaxHp(CharacterMaxHp);
 		AttributeSet->InitHp(CharacterMaxHp);
-        
 		AttributeSet->InitMaxStamina(CharacterMaxStamina);
 		AttributeSet->InitStamina(CharacterMaxStamina);
-        
 		AttributeSet->InitKickPower(CharacterKickPower);
+		AttributeSet->InitSpeed(CharacterSpeed);
 	}
 }
 
@@ -336,14 +335,14 @@ void ASG_Character::OnRep_PlayerState()
 	}
 }
 
-void ASG_Character::OnSpeedMultiplierChanged(const FOnAttributeChangeData& Data)
+void ASG_Character::OnSpeedChanged(const FOnAttributeChangeData& Data)
 {
-	ApplySpeedMultiplier(Data.NewValue);
+	ApplySpeedChange(Data.NewValue);
 }
 
-void ASG_Character::ApplySpeedMultiplier(float NewMultiplier)
+void ASG_Character::ApplySpeedChange(float NewSpeed)
 {
-	GetCharacterMovement()->MaxWalkSpeed = BaseWalkSpeed * NewMultiplier;
+	GetCharacterMovement()->MaxWalkSpeed = NewSpeed;
 }
 
 void ASG_Character::OnStaminaAttributeChanged(const FOnAttributeChangeData& Data)
