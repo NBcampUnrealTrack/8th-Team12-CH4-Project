@@ -26,10 +26,10 @@ public:
 	FGameplayAttributeData KickPower;
 	ATTRIBUTE_ACCESSORS(UGAS_SG_CharacterAttributeSet, KickPower);
 	
-	// 스피드 증가 배율 속성
-	UPROPERTY(BlueprintReadOnly, Category = "Attributes", ReplicatedUsing = OnRep_SpeedMultiplier)
-	FGameplayAttributeData SpeedMultiplier;
-	ATTRIBUTE_ACCESSORS(UGAS_SG_CharacterAttributeSet, SpeedMultiplier);
+	// 스피드 속성
+	UPROPERTY(BlueprintReadOnly, Category = "Attributes", ReplicatedUsing = OnRep_Speed)
+	FGameplayAttributeData Speed;
+	ATTRIBUTE_ACCESSORS(UGAS_SG_CharacterAttributeSet, Speed);
 	
 	// 캐릭터 기본 속성
 	UPROPERTY(BlueprintReadOnly, Category = "Attributes", ReplicatedUsing = OnRep_Hp)
@@ -64,7 +64,7 @@ protected:
 	UFUNCTION()
 	virtual void OnRep_KickPower(const FGameplayAttributeData& OldKickPower);
 	UFUNCTION()
-	virtual void OnRep_SpeedMultiplier(const FGameplayAttributeData& OldSpeedMultiplier);
+	virtual void OnRep_Speed(const FGameplayAttributeData& OldSpeedMultiplier);
 	UFUNCTION() 
 	virtual void OnRep_Hp(const FGameplayAttributeData& OldHp);
 	UFUNCTION() 
