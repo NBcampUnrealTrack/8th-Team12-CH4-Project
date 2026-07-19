@@ -78,7 +78,7 @@ public:
 	class USGPlayerSlotWidget* WaitingSlot_5;
 	UPROPERTY(meta = (BindWidget))
 	class USGPlayerSlotWidget* WaitingSlot_6;
-	
+	  
 protected:
 	UPROPERTY()
 	TArray<USGPlayerSlotWidget*> BlueTeamSlots;
@@ -121,28 +121,6 @@ protected:
 	
 #pragma endregion
 	
-public:
-	
-	void AddPlayerInfos(const FSGPlayerLobbyInfo& InPlayerInfos)
-	{ PlayerInfos.Add(InPlayerInfos); }
-	
-	// 로비 UI 갱신 함수 시그니처
-	UFUNCTION(BlueprintCallable)
-	void RefreshLobby();
-
-	// 플레이어 목록 세팅 함수 시그니처
-	UFUNCTION(BlueprintCallable)
-	void SetPlayerInfos(const TArray<FSGPlayerLobbyInfo>& InPlayerInfos);
-	
-	void UpdateCountdownText(int32 NewTime);
-	
-
-	
-protected:
-	// 슬롯 클릭되었을 때 실행될 함수
-	UFUNCTION()
-	void HandleSlotClicked(FGameplayTag RequestedTeamTag);
-
 #pragma region ReadyButton
 	
 protected:
@@ -212,6 +190,37 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "UI|Sounds")
 	class USoundBase* Sound_TimerTick;
 #pragma endregion
+	
+public:
+	
+	void AddPlayerInfos(const FSGPlayerLobbyInfo& InPlayerInfos)
+	{ PlayerInfos.Add(InPlayerInfos); }
+	
+	// 로비 UI 갱신 함수 시그니처
+	UFUNCTION(BlueprintCallable)
+	void RefreshLobby();
+
+	// 플레이어 목록 세팅 함수 시그니처
+	UFUNCTION(BlueprintCallable)
+	void SetPlayerInfos(const TArray<FSGPlayerLobbyInfo>& InPlayerInfos);
+	
+	void UpdateCountdownText(int32 NewTime);
+
+	
+protected:
+	// 서버 통신 대기용 타이머 핸들
+	FTimerHandle InitTimerHandle;
+	
+	// PlayerState 연결 재시도 함수
+	UFUNCTION()
+	void TryInitPlayerState();
+	
+	// 슬롯 클릭되었을 때 실행될 함수
+	UFUNCTION()
+	void HandleSlotClicked(FGameplayTag RequestedTeamTag);
+
+	
+
 
 private:
 	

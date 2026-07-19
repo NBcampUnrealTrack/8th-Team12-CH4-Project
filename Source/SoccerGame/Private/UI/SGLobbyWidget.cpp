@@ -31,12 +31,12 @@ void USGLobbyWidget::NativeConstruct()
 	FGameplayTag WaitingTag = FGameplayTag::RequestGameplayTag(FName("Team.Waiting"));
 	
 	// 슬롯에게 태그 부여, 클릭 알림 구독
+	
 	for (auto* BlueSlot : BlueTeamSlots)
 	{
 		if (BlueSlot)
 		{
 			BlueSlot->SetSlotTeamTag(BlueTag);
-			// [안전장치] 중복 바인딩을 막기 위해 기존에 연결되어 있던 것을 먼저 제거 후 다시 연결합니다.
 			BlueSlot->OnSlotClicked.RemoveDynamic(this, &USGLobbyWidget::HandleSlotClicked);
 			BlueSlot->OnSlotClicked.AddDynamic(this, &USGLobbyWidget::HandleSlotClicked);
 		}
@@ -82,21 +82,30 @@ void USGLobbyWidget::NativeConstruct()
 		Button_BackToMenu->OnClicked.AddDynamic(this,&USGLobbyWidget::OnClickedBackMainMenuButton);
 	}
 	
-	if (IsValid(Button_ChangeUserName))
-	{
-		Button_ChangeUserName->OnClicked.RemoveDynamic(this,&USGLobbyWidget::OnClickedChangeUsernameButton);
-		Button_ChangeUserName->OnClicked.AddDynamic(this,&USGLobbyWidget::OnClickedChangeUsernameButton);
-	}
 	
-	if (IsValid(Button_BackToMenu))
-	{
-		Button_BackToMenu->OnClicked.RemoveDynamic(this, &USGLobbyWidget::USGLobbyWidget::OnClickedBackToMenuButton);
-		Button_BackToMenu->OnClicked.AddDynamic(this, &USGLobbyWidget::USGLobbyWidget::OnClickedBackToMenuButton);
-	}
+	UpdateReadyButtonText();
+	
+	GetWorld()->GetTimerManager().SetTimer(
+		InitTimerHandle,
+		this,
+		&USGLobbyWidget::TryInitPlayerState,
+		0.1f,
+		true
+	);
 }
 
 void USGLobbyWidget::NativeDestruct()
 {
+	APlayerController* LobbyPC = GetOwningPlayer();
+	if (IsValid(LobbyPC))
+	{
+		ASGLobbyPlayerState* LobbyPS = Cast<ASGLobbyPlayerState>(LobbyPC->PlayerState);
+		if (IsValid(LobbyPS))
+		{
+			LobbyPS->OnTeamChanged.RemoveDynamic(this, &USGLobbyWidget::RefreshCharacterSelection);
+		}
+	}
+	
 	if (IsValid(Button_BackToMenu))
 	{
 		Button_BackToMenu->OnClicked.RemoveDynamic(this,&USGLobbyWidget::OnClickedBackMainMenuButton);
@@ -109,6 +118,7 @@ void USGLobbyWidget::NativeDestruct()
 	{
 		Button_ChangeUserName->OnClicked.RemoveDynamic(this,&USGLobbyWidget::OnClickedChangeUsernameButton);
 	}
+	
 
 
 	for (USGPlayerSlotWidget* BlueSlot :BlueTeamSlots)
@@ -149,8 +159,7 @@ void USGLobbyWidget::SetPlayerInfos(const TArray<FSGPlayerLobbyInfo>& InPlayerIn
 	
 	RefreshLobby();
 	UpdateReadyButtonText();
-	
-	RefreshCharacterSelection();
+
 }
 
 void USGLobbyWidget::RefreshLobby()
@@ -337,6 +346,31 @@ void USGLobbyWidget::UpdateCountdownText(int32 NewTime)
 	}
 }
 
+void USGLobbyWidget::TryInitPlayerState()
+{
+	APlayerController* LobbyPC = GetOwningPlayer();
+	
+	// 아직 PlayerState가 없으면 0.1초 뒤 다시 시도
+	if (!IsValid(LobbyPC) || !IsValid(LobbyPC->PlayerState))
+	{
+		return;
+	}
+	
+	
+	ASGLobbyPlayerState* LobbyPS = Cast<ASGLobbyPlayerState>(LobbyPC->PlayerState);
+	if (IsValid(LobbyPS))
+	{
+		LobbyPS->OnTeamChanged.RemoveDynamic(this,&USGLobbyWidget::RefreshCharacterSelection);
+		LobbyPS->OnTeamChanged.AddDynamic(this,&USGLobbyWidget::RefreshCharacterSelection);
+		
+		RefreshCharacterSelection();
+		
+		GetWorld()->GetTimerManager().ClearTimer(InitTimerHandle);
+	}
+	
+	
+}
+
 void USGLobbyWidget::HandleSlotClicked(FGameplayTag RequestedTeamTag)
 {
 	if (!RequestedTeamTag.IsValid())
@@ -351,8 +385,7 @@ void USGLobbyWidget::HandleSlotClicked(FGameplayTag RequestedTeamTag)
 		return;
 	}
 	LobbyPlayerController->RequestChangeTeam(RequestedTeamTag);
-	
-	RefreshCharacterSelection();
+
 }
 
 TArray<USGCharacterDataAsset*> USGLobbyWidget::GetFilteredCharacterList()
@@ -371,7 +404,7 @@ TArray<USGCharacterDataAsset*> USGLobbyWidget::GetFilteredCharacterList()
 		if (Character)
 		{
 			FString CharTagString = Character->CharacterTag.ToString();
-			// FString TeamPart = CharTagString.Replace(TEXT("Character."), TEXT(""));
+			
 			
 			if (CharTagString.Contains(MyTeamTagString))
 			{

@@ -112,6 +112,11 @@ void ASGLobbyPlayerState::OnRep_ChangeTeam()
 {
 	UE_LOG(LogTemp, Log, TEXT("%s 플레이어의 팀 태그 변경 완료: %s"), *GetPlayerName(), *CurrentTeamTag.ToString());
 
+	if (OnTeamChanged.IsBound())
+	{
+		OnTeamChanged.Broadcast();
+	}
+	
 	if (!HasAuthority())
 	{
 		return;
