@@ -109,6 +109,7 @@ void USGLobbyWidget::NativeConstruct()
 	
 	
 	UpdateReadyButtonText();
+	RefreshCharacterSelection();
 }
 
 void USGLobbyWidget::NativeDestruct()
