@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Audio/SGInGameAudioTypes.h"
 #include "CoreMinimal.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameplayTagContainer.h"
@@ -26,6 +27,10 @@ public:
 	ASGMainGameState();
 	// 네트워크 복제를 위한 변수 등록 함수
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+	/** 서버가 호출한 인게임 오디오 이벤트를 리슨 서버 호스트와 모든 클라이언트에 전달합니다. */
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayInGameAudioEvent(ESGInGameAudioEvent AudioEvent);
 public:
     
 	// 현재 경기 상태 (값이 바뀌면 OnRep_MatchState 호출)

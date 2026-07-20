@@ -30,7 +30,7 @@ public:
 	
 	// 세레머니 타임 
 	UPROPERTY(EditDefaultsOnly, Category = "SG_Rules")
-	float TransitionToResultDelay = 5.0f;
+	float TransitionToResultDelay = 3.0f;
 	FTimerHandle ResultTransitionTimerHandle;
 	
 	void ReturnToMainMenu();
@@ -50,11 +50,13 @@ protected:
 	
 	void SpawnNewBall();
 	
+	void ScheduleEndMatch();
 	void EndMatch();
 	bool EndScoreMatch();
 	void WinTeamCheck();
 	// 잠시 보류  게임 종료해서 결과 Level 로 넘어가는 걸로 수정 
 	void RestartRound();
+	void UpdateRoundRestartCountdown();
 	
 	
 	void RespawnAllPlayers();
@@ -102,12 +104,14 @@ protected:
 	FTimerHandle LoadingCheckTimerHandle;
 	// 게임 재시작 Timer
 	FTimerHandle RoundRestartTimerHandle;
+	FTimerHandle RoundCountdownTimerHandle;
+	int32 RoundCountdownValue = 2;
 	
 	TMap<AController*, ASGPlayerStart*> AssignedInitialPlayerStarts;
 	
 	// 골 이후, 연출 등을 위해 재시작 이전 딜레이
 	UPROPERTY(EditDefaultsOnly, Category = "SG_Rules")
-	float GoalRestartDelay = 3.0f;
+	float GoalRestartDelay = 5.0f;
 
 	// 공 스폰 위치를 찾기 위한 Tag
 	UPROPERTY(EditDefaultsOnly, Category = "SG_Spawning")

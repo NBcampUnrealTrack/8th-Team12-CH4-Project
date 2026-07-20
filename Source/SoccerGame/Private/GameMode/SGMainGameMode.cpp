@@ -9,6 +9,8 @@
 #include "SoccerGame/Public/PlayerState/SGMainPlayerState.h"
 #include "GameFramework/PlayerController.h"
 #include "PlayerController/SGMainPlayerController.h"
+#include "Character/SG_Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
 
 ASGMainGameMode::ASGMainGameMode()
 {
@@ -140,18 +142,19 @@ void ASGMainGameMode::StartGame()
 {
    UE_LOG(LogTemp, Warning, TEXT("[GameMode] === 5초 대기 종료! 경기 시작! 입력을 활성화합니다. ==="));
 
-   SetAllPlayersGameInputEnabled(true);
-
    if (ASGMainGameState* SG_GameState = GetGameState<ASGMainGameState>())
    {
       SG_GameState->CurrentGameTime = TotalMatchTime;
       SG_GameState->RedTeamScore = 0;
       SG_GameState->BlueTeamScore = 0;
       UpdateAllPlayerScoreWidget();
+      SG_GameState->MulticastPlayInGameAudioEvent(ESGInGameAudioEvent::MatchStartWhistle);
       //SG_GameState->CurrentMatchStateTag = FGameplayTag::RequestGameplayTag(FName("Match.State.WaitingToStart"));
        
       UE_LOG(LogTemp, Log, TEXT("[Debug_State] GameState 초기화 및 대기 상태 태그 설정 완료"));
    }
+
+   SetAllPlayersGameInputEnabled(true);
    SpawnNewBall();
    GetWorldTimerManager().SetTimer(
        MatchTimerHandle,
@@ -177,12 +180,16 @@ void ASGMainGameMode::UpdateMatchTime()
              PC->UpdateTimerWidget(SG_GameState->CurrentGameTime);
           }
        }
+
+       if (FMath::IsNearlyEqual(SG_GameState->CurrentGameTime, 60.0f))
+       {
+          SG_GameState->MulticastPlayInGameAudioEvent(ESGInGameAudioEvent::MatchEndWarning);
+       }
        
        if (SG_GameState->CurrentGameTime <= 0.0f)
        {
           SG_GameState->CurrentGameTime = 0.0f;
-          GetWorldTimerManager().ClearTimer(MatchTimerHandle);
-          EndMatch();
+          ScheduleEndMatch();
        }
     }
 }
@@ -216,25 +223,28 @@ void ASGMainGameMode::OnGoalScored(FGameplayTag GoalTeamTag)
    {
       SG_GameState->RedTeamScore++;
    }
-   
+
+   SG_GameState->MulticastPlayInGameAudioEvent(ESGInGameAudioEvent::GoalCelebration);
+
    UpdateAllPlayerScoreWidget();
+
+   // 골 연출 및 라운드 재시작 동안 경기 시간과 플레이어 입력을 멈춥니다.
+   GetWorldTimerManager().ClearTimer(MatchTimerHandle);
+   SetAllPlayersGameInputEnabled(false);
 	
    if (IsValid(SpawnedBall))
    {
       SpawnedBall->Destroy();
       SpawnedBall = nullptr;
    }
-   SpawnNewBall();
-   //Player리스폰 추가 
+
    // 승리 조건 체크
-   
-   if (!EndScoreMatch())
+   if (EndScoreMatch())
    {
-      return ;
+      ScheduleEndMatch();
+      return;
    }
-   EndMatch();
-   
-   /*
+
    // RestartRound 이전 시간 딜레이
    GetWorldTimerManager().SetTimer(
       RoundRestartTimerHandle,
@@ -243,7 +253,6 @@ void ASGMainGameMode::OnGoalScored(FGameplayTag GoalTeamTag)
       GoalRestartDelay,
       false
    );
-    */
 }
 
 void ASGMainGameMode::SpawnNewBall()
@@ -384,6 +393,53 @@ void ASGMainGameMode::HandleSeamlessTravelPlayer(AController*& Controller)
     }
 }
 
+void ASGMainGameMode::ScheduleEndMatch()
+{
+   if (!HasAuthority())
+   {
+      return;
+   }
+
+   FTimerManager& TimerManager = GetWorldTimerManager();
+   if (TimerManager.IsTimerActive(ResultTransitionTimerHandle))
+   {
+      return;
+   }
+
+   if (ASGMainGameState* SG_GameState = GetGameState<ASGMainGameState>())
+   {
+      SG_GameState->MulticastPlayInGameAudioEvent(ESGInGameAudioEvent::MatchEndWhistle);
+   }
+
+   // 경기 종료 조건이 성립한 순간부터 추가 진행을 막고 결과 화면만 지연합니다.
+   TimerManager.ClearTimer(MatchTimerHandle);
+   TimerManager.ClearTimer(LoadingCheckTimerHandle);
+   TimerManager.ClearTimer(RoundRestartTimerHandle);
+   TimerManager.ClearTimer(RoundCountdownTimerHandle);
+
+   SetAllPlayersGameInputEnabled(false);
+
+   if (IsValid(SpawnedBall))
+   {
+      SpawnedBall->Destroy();
+      SpawnedBall = nullptr;
+   }
+
+   if (TransitionToResultDelay <= 0.0f)
+   {
+      EndMatch();
+      return;
+   }
+
+   TimerManager.SetTimer(
+      ResultTransitionTimerHandle,
+      this,
+      &ASGMainGameMode::EndMatch,
+      TransitionToResultDelay,
+      false
+   );
+}
+
 void ASGMainGameMode::EndMatch()
 {
    if (!HasAuthority())
@@ -395,6 +451,8 @@ void ASGMainGameMode::EndMatch()
    GetWorldTimerManager().ClearTimer(MatchTimerHandle);
    GetWorldTimerManager().ClearTimer(LoadingCheckTimerHandle);
    GetWorldTimerManager().ClearTimer(RoundRestartTimerHandle);
+   GetWorldTimerManager().ClearTimer(RoundCountdownTimerHandle);
+   GetWorldTimerManager().ClearTimer(ResultTransitionTimerHandle);
    
    // 모든 플레이어 조작 차단
    SetAllPlayersGameInputEnabled(false);
@@ -458,6 +516,91 @@ void ASGMainGameMode::WinTeamCheck()
 }
 void ASGMainGameMode::RestartRound()
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	RespawnAllPlayers();
+	RoundCountdownValue = 2;
+
+	// 리스폰 1초 뒤부터 두 번의 비프음을 재생하고 세 번째 박자에 휘슬과 함께 경기를 재개합니다.
+	GetWorldTimerManager().SetTimer(
+		RoundCountdownTimerHandle,
+		this,
+		&ASGMainGameMode::UpdateRoundRestartCountdown,
+		1.0f,
+		true
+	);
+}
+
+void ASGMainGameMode::UpdateRoundRestartCountdown()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	ASGMainGameState* SG_GameState = GetGameState<ASGMainGameState>();
+
+	if (RoundCountdownValue > 0)
+	{
+		if (SG_GameState)
+		{
+			switch (RoundCountdownValue)
+			{
+			case 2:
+				SG_GameState->MulticastPlayInGameAudioEvent(ESGInGameAudioEvent::CountdownTwo);
+				break;
+			case 1:
+				SG_GameState->MulticastPlayInGameAudioEvent(ESGInGameAudioEvent::CountdownOne);
+				break;
+			default:
+				break;
+			}
+		}
+
+		--RoundCountdownValue;
+		return;
+	}
+
+	// 래그돌 복구가 끝나기 전에 입력을 돌려주면 입력은 켜졌지만 이동할 수 없는 상태가 됩니다.
+	// 모든 캐릭터의 물리 및 이동 복구가 완료될 때까지 마지막 박자를 유지합니다.
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		const ASG_Character* Character = Cast<ASG_Character>(It->Get()->GetPawn());
+		if (!IsValid(Character))
+		{
+			continue;
+		}
+
+		const USkeletalMeshComponent* MeshComp = Character->GetMesh();
+		const UCharacterMovementComponent* MovementComp = Character->GetCharacterMovement();
+		if ((IsValid(MeshComp) && MeshComp->IsSimulatingPhysics()) ||
+			(IsValid(MovementComp) && MovementComp->MovementMode == EMovementMode::MOVE_None))
+		{
+			return;
+		}
+	}
+
+	GetWorldTimerManager().ClearTimer(RoundCountdownTimerHandle);
+
+	if (SG_GameState)
+	{
+		// 기존 CountdownFinal의 마지막 띵 대신 경기 재개 휘슬을 사용합니다.
+		SG_GameState->MulticastPlayInGameAudioEvent(ESGInGameAudioEvent::MatchResumeWhistle);
+	}
+
+	SpawnNewBall();
+	SetAllPlayersGameInputEnabled(true);
+
+	GetWorldTimerManager().SetTimer(
+		MatchTimerHandle,
+		this,
+		&ASGMainGameMode::UpdateMatchTime,
+		1.0f,
+		true
+	);
 }
 
 void ASGMainGameMode::RespawnAllPlayers()
@@ -504,9 +647,26 @@ void ASGMainGameMode::RespawnAllPlayers()
       }
 
       ASGPlayerStart* PlayerStart = *FoundStart;
+      FRotator RespawnRotation = PlayerStart->GetActorRotation();
+      RespawnRotation.Roll = 0.0f;
 
-      Pawn->SetActorLocationAndRotation(PlayerStart->GetActorLocation(),PlayerStart->GetActorRotation(),
-          false,nullptr,ETeleportType::TeleportPhysics);
+      // 골 직전 래그돌 상태였다면 기존 복구 경로를 먼저 실행합니다.
+      // 이후 스폰 위치로 텔레포트하므로 래그돌의 Hips 위치가 리스폰 위치를 덮어쓰지 않습니다.
+      if (ASG_Character* Character = Cast<ASG_Character>(Pawn))
+      {
+         if (USkeletalMeshComponent* MeshComp = Character->GetMesh();
+             IsValid(MeshComp) && MeshComp->IsSimulatingPhysics())
+         {
+            Character->ServerDisableRagdoll();
+         }
+      }
+
+      Pawn->SetActorLocationAndRotation(PlayerStart->GetActorLocation(), RespawnRotation,
+          false, nullptr, ETeleportType::TeleportPhysics);
+
+      // 수동 텔레포트는 카메라의 ControlRotation을 갱신하지 않으므로 초기 스폰과 같은 방향으로 맞춥니다.
+      Controller->SetControlRotation(RespawnRotation);
+      Controller->ClientSetRotation(RespawnRotation, true);
    }
 }
 
