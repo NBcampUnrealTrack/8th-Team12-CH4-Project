@@ -47,7 +47,7 @@ protected:
 	virtual void NativeDestruct() override;
 
 	
-#pragma region Binding
+#pragma region UMG Binding
 public:
 	// 블루 팀 슬롯 3개 바인딩
 	UPROPERTY(meta =(BindWidget))
@@ -80,13 +80,6 @@ public:
 	class USGPlayerSlotWidget* WaitingSlot_6;
 	  
 protected:
-	UPROPERTY()
-	TArray<USGPlayerSlotWidget*> BlueTeamSlots;
-	UPROPERTY()
-	TArray<USGPlayerSlotWidget*> RedTeamSlots;
-	UPROPERTY()
-	TArray<USGPlayerSlotWidget*> WaitingSlots;
-	
 	// Ready 버튼 바인딩 변수
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UButton> ReadyButton;
@@ -98,26 +91,69 @@ protected:
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UButton> Button_BackToMenu;
 	
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UButton> Button_ChangeUserName;
+	
+	UPROPERTY(meta = (BindWidget))
+	UButton* Button_Left;
+	
+	UPROPERTY(meta = (BindWidget))
+	UButton* Button_Right;
+	
 	// Ready 후 Start Timer
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UTextBlock> Text_StartTimer;
 	
+	// 캐릭터 썸네일
 	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<UButton> Button_ChangeUserName;
+	UImage* Image_Character;
+	
+#pragma endregion
+	
+#pragma region Button OnClicked functions
+	
+protected:
 
+	// 플레이어 슬롯 클릭되었을 때 실행될 함수
+	UFUNCTION()
+	void HandleSlotClicked(FGameplayTag RequestedTeamTag);
+
+private:
 	
+	UFUNCTION()
+	void OnReadyButtonClicked();
 	
+	UFUNCTION()
+	void OnClickedBackMainMenuButton();
+	
+	UFUNCTION()
+	void OnClickedChangeUsernameButton();
+	
+	UFUNCTION(BlueprintCallable, Category = "Character")
+	void OnNextButtonClicked();
+
+	UFUNCTION(BlueprintCallable, Category = "Character")
+	void OnPrevButtonClicked();
+
 #pragma endregion
 	
 #pragma region Player
 protected:
+	// Player 정보 목록 배열
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lobby")
+	TArray<FSGPlayerLobbyInfo> PlayerInfos;
+	
 	// PlayerSlot 위젯 클래스 변수
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lobby")
 	TSubclassOf<USGPlayerSlotWidget> PlayerSlotWidgetClass;
 	
-	// Player 정보 목록 배열
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lobby")
-	TArray<FSGPlayerLobbyInfo> PlayerInfos;
+	// 팀별 PlayerSlot
+	UPROPERTY()
+	TArray<USGPlayerSlotWidget*> BlueTeamSlots;
+	UPROPERTY()
+	TArray<USGPlayerSlotWidget*> RedTeamSlots;
+	UPROPERTY()
+	TArray<USGPlayerSlotWidget*> WaitingSlots;
 	
 #pragma endregion
 	
@@ -143,26 +179,14 @@ protected:
 	UTexture2D* Image_Cancel_Pressed;
 	
 public:
-	// Ready 버튼 클릭 콜백 함수 시그니처
-	UFUNCTION()
-	void OnReadyButtonClicked();
-	
 	// Ready 버튼 텍스트 갱신 함수 시그니처
 	void UpdateReadyButtonText();
 	
 #pragma endregion
 	
-#pragma region Select Character
+#pragma region Character Selection
 	
 protected:
-	UPROPERTY(meta = (BindWidget))
-	UImage* Image_Character;
-	
-	UPROPERTY(meta = (BindWidget))
-	UButton* Button_Left;
-	
-	UPROPERTY(meta = (BindWidget))
-	UButton* Button_Right;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character")
 	TArray<USGCharacterDataAsset*> CharacterList;
@@ -173,55 +197,29 @@ protected:
 	TArray<USGCharacterDataAsset*> GetFilteredCharacterList();
 	
 public:
-	// 캐릭터 변경 버튼 클릭 함수
-	UFUNCTION(BlueprintCallable, Category = "Character")
-	void OnNextButtonClicked();
-
-	UFUNCTION(BlueprintCallable, Category = "Character")
-	void OnPrevButtonClicked();
-	
 	UFUNCTION(BlueprintCallable)
 	void RefreshCharacterSelection();
 	
 #pragma endregion
 
-
+#pragma region UI Info Setting
 public:
+	
+	void BindLobbyPlayerState();
 	
 	void AddPlayerInfos(const FSGPlayerLobbyInfo& InPlayerInfos)
 	{ PlayerInfos.Add(InPlayerInfos); }
 	
-	// 로비 UI 갱신 함수 시그니처
+	// 로비 UI 갱신
 	UFUNCTION(BlueprintCallable)
 	void RefreshLobby();
-
-	void BindLobbyPlayerState();
 	
-	// 플레이어 목록 세팅 함수 시그니처
+	// 플레이어 목록 세팅
 	UFUNCTION(BlueprintCallable)
 	void SetPlayerInfos(const TArray<FSGPlayerLobbyInfo>& InPlayerInfos);
 	
 	void UpdateCountdownText(int32 NewTime);
-
 	
-protected:
-
-	// 슬롯 클릭되었을 때 실행될 함수
-	UFUNCTION()
-	void HandleSlotClicked(FGameplayTag RequestedTeamTag);
-
-private:
-	
-	UFUNCTION()
-	void OnClickedBackToMenuButton();
-	
-	UFUNCTION()
-	void OnClickedBackMainMenuButton();
-	
-	UFUNCTION()
-	void OnClickedChangeUsernameButton();
-	
-
-	
+#pragma endregion
 	
 };

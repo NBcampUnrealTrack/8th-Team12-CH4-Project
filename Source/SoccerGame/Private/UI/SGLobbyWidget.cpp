@@ -17,6 +17,7 @@ constexpr int32 MaxRedTeam = 3;
 
 void USGLobbyWidget::NativeConstruct()
 {
+	
 	Super::NativeConstruct();
 	
 	BlueTeamSlots = {BlueSlot_1, BlueSlot_2, BlueSlot_3};
@@ -28,16 +29,15 @@ void USGLobbyWidget::NativeConstruct()
 	FGameplayTag WaitingTag = FGameplayTag::RequestGameplayTag(FName("Team.Waiting"));
 	
 	// 슬롯에게 태그 부여, 클릭 알림 구독
-	
 	for (auto* BlueSlot : BlueTeamSlots)
 	{
 		if (BlueSlot)
 		{
 			BlueSlot->SetSlotTeamTag(BlueTag);
 			BlueSlot->OnSlotClicked.AddUniqueDynamic(this, &USGLobbyWidget::HandleSlotClicked);
-			
 		}
 	}
+	
 	for (auto* RedSlot : RedTeamSlots)
 	{
 		if (RedSlot)
@@ -46,6 +46,7 @@ void USGLobbyWidget::NativeConstruct()
 			RedSlot->OnSlotClicked.AddUniqueDynamic(this, &USGLobbyWidget::HandleSlotClicked);
 		}
 	}
+	
 	for (auto* WaitingSlot : WaitingSlots)
 	{
 		if (WaitingSlot)
@@ -59,6 +60,7 @@ void USGLobbyWidget::NativeConstruct()
 	{
 		ReadyButton->OnClicked.AddUniqueDynamic(this, &USGLobbyWidget::OnReadyButtonClicked);
 	}
+	
 	if (IsValid(Button_ChangeUserName))
 	{
 		Button_ChangeUserName->OnClicked.AddUniqueDynamic(this,&USGLobbyWidget::OnClickedChangeUsernameButton);
@@ -68,6 +70,7 @@ void USGLobbyWidget::NativeConstruct()
 	{
 		Text_StartTimer->SetVisibility(ESlateVisibility::Collapsed);
 	}
+	
 	if (IsValid(Button_BackToMenu))
 	{
 		Button_BackToMenu->OnClicked.AddUniqueDynamic(this,&USGLobbyWidget::OnClickedBackMainMenuButton);
@@ -83,13 +86,15 @@ void USGLobbyWidget::NativeConstruct()
 		Button_Right->OnClicked.AddUniqueDynamic(this, &USGLobbyWidget::OnNextButtonClicked);
 	}
 	
-	
 	UpdateReadyButtonText();
 	BindLobbyPlayerState();
+	
 }
 
 void USGLobbyWidget::NativeDestruct()
 {
+	
+	// 델리게이트 바인딩 해제
 	APlayerController* LobbyPC = GetOwningPlayer();
 	if (IsValid(LobbyPC))
 	{
@@ -100,6 +105,7 @@ void USGLobbyWidget::NativeDestruct()
 		}
 	}
 	
+	// 버튼 바인딩 해제
 	if (IsValid(Button_BackToMenu))
 	{
 		Button_BackToMenu->OnClicked.RemoveDynamic(this,&USGLobbyWidget::OnClickedBackMainMenuButton);
@@ -139,52 +145,61 @@ void USGLobbyWidget::NativeDestruct()
 	
 	if (IsValid(Button_BackToMenu))
 	{
-		Button_BackToMenu->OnClicked.RemoveDynamic(this, &USGLobbyWidget::USGLobbyWidget::OnClickedBackToMenuButton);	
+		Button_BackToMenu->OnClicked.RemoveDynamic(this, &USGLobbyWidget::USGLobbyWidget::OnClickedBackMainMenuButton);	
 	}
 	
 	Super::NativeDestruct();
+	
 }
 
 void USGLobbyWidget::SetPlayerInfos(const TArray<FSGPlayerLobbyInfo>& InPlayerInfos)
 {
+	
 	PlayerInfos = InPlayerInfos;
 	
 	RefreshLobby();
 	UpdateReadyButtonText();
-
+	
 }
 
 void USGLobbyWidget::RefreshLobby()
 {
 	
+	// 플레이어 슬롯 리셋
 	for (auto* BlueSlot : BlueTeamSlots)
 	{
 		if (BlueSlot) BlueSlot->ResetSlot();
 	}
+	
 	for (auto* RedSlot : RedTeamSlots)
 	{
 		if (RedSlot) RedSlot->ResetSlot();
 	}
+	
 	for (auto* WaitingSlot : WaitingSlots)
 	{
 		if (WaitingSlot) WaitingSlot->ResetSlot();
 	}
 		
+	// 현재 비어있는 첫 슬롯 인덱스
 	int CurrentBlueIndex = 0;
 	int CurrentRedIndex = 0;
 	int CurrentWaitingIndex = 0;
 	
+	// 게임 플레이 태그 가져오기
 	FGameplayTag BlueTag = FGameplayTag::RequestGameplayTag(FName("Team.Blue"));
 	FGameplayTag RedTag = FGameplayTag::RequestGameplayTag(FName("Team.Red"));
 	FGameplayTag WaitingTag = FGameplayTag::RequestGameplayTag(FName("Team.Waiting"));
 	
+	// 플레이어 슬롯에 플레이어 정보 등록
 	for (const FSGPlayerLobbyInfo& PlayerInfo : PlayerInfos)
 	{
 		if (PlayerInfo.TeamTag == BlueTag)
-		{
-			// 블루팀 자리 3개 이하일 때만 데이터 세팅
+		{	
+			// 현재 인덱스 < 팀 최대 인원수이고 해당 인덱스의 슬롯이 유효할 때
 			if (CurrentBlueIndex < MaxBLueTeam && BlueTeamSlots[CurrentBlueIndex])
 			{
+				// 플레이어 슬롯에 로컬 플레이어 정보 등록
 				BlueTeamSlots[CurrentBlueIndex]->SetPlayerSlotInfo(PlayerInfo.UserName, PlayerInfo.bIsReady, PlayerInfo.TeamTag);
 				CurrentBlueIndex++;
 			}
@@ -212,86 +227,60 @@ void USGLobbyWidget::BindLobbyPlayerState()
 {
 	
 	APlayerController* LobbyPC = GetOwningPlayer();
-	if (!IsValid(LobbyPC))
-	{
-		
-		return;
-	}
-
+	if (!IsValid(LobbyPC)) return;
 	
 	ASGLobbyPlayerState* LobbyPS = Cast<ASGLobbyPlayerState>(LobbyPC->PlayerState);
-	if (!IsValid(LobbyPS))
-	{
-		return;
-	}
-	
+	if (!IsValid(LobbyPS)) return;
 	
 	LobbyPS->OnTeamChanged.AddUniqueDynamic(this, &USGLobbyWidget::RefreshCharacterSelection);
 	
 	RefreshCharacterSelection();
+	
 }
-
 
 void USGLobbyWidget::OnReadyButtonClicked()
 {
+	
 	ASGLobbyPlayerController* LobbyPC = GetOwningPlayer<ASGLobbyPlayerController>();
-	if (!IsValid(LobbyPC))
-	{
-		return;
-	}
+	if (!IsValid(LobbyPC)) return;
 
 	ASGLobbyPlayerState* LobbyPS = LobbyPC->GetPlayerState<ASGLobbyPlayerState>();
-	if (!IsValid(LobbyPS))
-	{
-		return;
-	}
+	if (!IsValid(LobbyPS)) return;
 
-	// Cancel이 아니라 Ready 상태로 전환할 때만 선택한 캐릭터를 서버에 전달합니다.
+	// Ready 상태로 전환할 때만 선택한 캐릭터를 서버에 전달합니다.
 	const bool bWillBecomeReady = !LobbyPS->IsReady();
+	
 	if (bWillBecomeReady)
 	{
 		const TArray<USGCharacterDataAsset*> FilteredList = GetFilteredCharacterList();
-		if (!FilteredList.IsValidIndex(CurrentIndex) || !IsValid(FilteredList[CurrentIndex]))
-		{
-			return;
-		}
+		if (!FilteredList.IsValidIndex(CurrentIndex) || !IsValid(FilteredList[CurrentIndex])) return;
 
 		const FGameplayTag SelectedCharacterTag = FilteredList[CurrentIndex]->CharacterTag;
-		if (!SelectedCharacterTag.IsValid())
-		{
-			return;
-		}
-
+		if (!SelectedCharacterTag.IsValid()) return;
+		
 		LobbyPC->RequestChangeCharacter(SelectedCharacterTag);
 	}
-
+	
 	LobbyPC->SellectReady();
+	
 }
 
 void USGLobbyWidget::UpdateReadyButtonText()
 {
-	if (!Text_ReadyButton)
-	{
-		return;
-	}
+	
+	if (!Text_ReadyButton) return;
 	
 	APlayerController* LocalPC = GetOwningPlayer();
-	if (!LocalPC)
-	{
-		return;
-	}
+	if (!LocalPC) return;
 	
 	ASGLobbyPlayerState* MyPlayerState = Cast<ASGLobbyPlayerState>(LocalPC->PlayerState);
-	if (!MyPlayerState)
-	{
-		return;
-	}
+	if (!MyPlayerState) return;
 	
 	// 버튼 기존 스타일 껍데기 가져오기
 	FButtonStyle NewStyle = ReadyButton->GetStyle();
-	UTexture2D* Normal = nullptr;
-	UTexture2D* Hover = nullptr;
-	UTexture2D* Pressed = nullptr;
+	UTexture2D* Normal;
+	UTexture2D* Hover;
+	UTexture2D* Pressed;
 	
 	if (MyPlayerState->bIsReady == false)
 	{
@@ -326,16 +315,12 @@ void USGLobbyWidget::UpdateReadyButtonText()
 	if (Pressed) NewStyle.Pressed.SetResourceObject(Pressed);
 	
 	ReadyButton->SetStyle(NewStyle);
+	
 }
 
 void USGLobbyWidget::UpdateCountdownText(int32 NewTime)
 {
-	// [확인] meta = (BindWidget) 덕분에 에디터의 Text_StartTimer 가 이 포인터에 자동 연동되어 있습니다.
-	if (!IsValid(Text_StartTimer))
-	{
-		return;
-	}
-
+	
 	// 1. 카운트다운이 취소되었거나 끝난 경우 (-1 이하 혹은 0초 도달 시)
 	if (NewTime <= 0 || NewTime == -1)
 	{
@@ -352,37 +337,24 @@ void USGLobbyWidget::UpdateCountdownText(int32 NewTime)
         
 		// UI 텍스트 업데이트
 		Text_StartTimer->SetText(FText::FromString(CountdownString));
-		
-		// 카운트다운이 갱신될 때 사운드 재생
-		// if (Sound_TimerTick)
-		// {
-		// 	UGameplayStatics::PlaySound2D(GetWorld(), Sound_TimerTick);
-		// }
 	}
 }
-
 
 void USGLobbyWidget::HandleSlotClicked(FGameplayTag RequestedTeamTag)
 {
 	
-	if (!RequestedTeamTag.IsValid())
-	{
-		return;
-	}
-	ASGLobbyPlayerController* LobbyPlayerController =
-		GetOwningPlayer<ASGLobbyPlayerController>();
-
-	if (!IsValid(LobbyPlayerController))
-	{
-		return;
-	}
+	if (!RequestedTeamTag.IsValid()) return;
+	ASGLobbyPlayerController* LobbyPlayerController = GetOwningPlayer<ASGLobbyPlayerController>();
+	if (!IsValid(LobbyPlayerController)) return;
 	
+	// 플레이어 컨트롤러에게 팀 변경 요청
 	LobbyPlayerController->RequestChangeTeam(RequestedTeamTag);
 	
 }
 
 TArray<USGCharacterDataAsset*> USGLobbyWidget::GetFilteredCharacterList()
 {
+	
 	TArray<USGCharacterDataAsset*> FilteredList;
 	
 	APlayerController* LobbyPC = GetOwningPlayer();
@@ -391,13 +363,12 @@ TArray<USGCharacterDataAsset*> USGLobbyWidget::GetFilteredCharacterList()
 	
 	FString MyTeamTagString = LobbyPS->GetTeamTag().GetTagName().ToString();
 	
-	// 필터링
+	// 팀 태그에 따라 캐릭터 필터링
 	for (auto* Character : CharacterList)
 	{
 		if (Character)
 		{
 			FString CharTagString = Character->CharacterTag.ToString();
-			
 			
 			if (CharTagString.Contains(MyTeamTagString))
 			{
@@ -412,17 +383,7 @@ TArray<USGCharacterDataAsset*> USGLobbyWidget::GetFilteredCharacterList()
 void USGLobbyWidget::OnNextButtonClicked()
 {
 	TArray<USGCharacterDataAsset*> FilteredList = GetFilteredCharacterList();
-	
-	
-	if (FilteredList.Num() == 0)
-	{
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Red, TEXT("[SGLobbyWidget] FilteredList가 비어있습니다!"));
-		}
-		return;
-	}
-	
+	if (FilteredList.Num() == 0) return;
 	
 	// 인덱스 증가 및 순환
 	CurrentIndex = (CurrentIndex + 1) % FilteredList.Num();
@@ -432,35 +393,21 @@ void USGLobbyWidget::OnNextButtonClicked()
 	{
 		Image_Character->SetBrushFromTexture(FilteredList[CurrentIndex]->Thumbnail);
 	}
-	
-	// UE_LOG(LogTemp, Warning, TEXT("[SGLobbyWidget] Thumbnail Updated!"));
-	// GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Green, TEXT("[SGLobbyWidget] Thumbnail Updated!"));
-	
 }
 
 void USGLobbyWidget::OnPrevButtonClicked()
 {
 	TArray<USGCharacterDataAsset*> FilteredList = GetFilteredCharacterList();
-	if (FilteredList.Num() == 0)
-	{
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Red, TEXT("[SGLobbyWidget] FilteredList가 비어있습니다!"));
-		}
-		return;
-	}
+	if (FilteredList.Num() == 0) return;
 	
+	// 플레이어 팀 태그에 따라 필터링된 캐릭터 리스트 인덱스 -1 (0 이하가 되면 순환)
 	CurrentIndex = (CurrentIndex - 1 + FilteredList.Num()) % FilteredList.Num();
+	
+	// 해당 인덱스의 캐릭터 이미지 썸네일로 설정
 	if (Image_Character && FilteredList.IsValidIndex(CurrentIndex))
 	{
 		Image_Character->SetBrushFromTexture(FilteredList[CurrentIndex]->Thumbnail);
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Green, TEXT("[SGLobbyWidget] Thumbnail Updated!"));
-		}
 	}	
-	
-	
 }
 
 void USGLobbyWidget::RefreshCharacterSelection()
@@ -483,44 +430,34 @@ void USGLobbyWidget::RefreshCharacterSelection()
 		Button_Right->SetVisibility(bIsWaiting ? ESlateVisibility::Hidden : ESlateVisibility::Visible);
 	}
 	
+	// [방어코드] CurrentIndex가 FilteredList.Num()을 넘어설 경우 인덱스 0으로 설정해서 캐릭터 이미지 변경
 	if (!bIsWaiting)
 	{
 		TArray<USGCharacterDataAsset*> FilteredList = GetFilteredCharacterList();
 	
 		if (FilteredList.Num() > 0)
 		{
+			// 현재 인덱스가 필터링된 리스트 요소 개수를 넘어서면 0으로 설정
 			if (CurrentIndex >= FilteredList.Num())
 			{
 				CurrentIndex = 0;
 			}
 			
+			// 캐릭터 이미지 썸네일로 설정
 			if (Image_Character && FilteredList.IsValidIndex(CurrentIndex))
 			{
 				Image_Character->SetBrushFromTexture(FilteredList[CurrentIndex]->Thumbnail);
 			}
 		}
-		
 	}
 	
-	
-}
-
-void USGLobbyWidget::OnClickedBackToMenuButton()
-{
-	ASGLobbyPlayerController* LobbyPC = GetOwningPlayer<ASGLobbyPlayerController>();
-	if (IsValid(LobbyPC))
-	{
-		// TOOD: SGLobbyPlayerController에서 방 나가는 함수 구현되면 호출
-	}
 }
 
 void USGLobbyWidget::OnClickedBackMainMenuButton()
 {
 	ASGLobbyPlayerController* LobbyPC =GetOwningPlayer<ASGLobbyPlayerController>();
-	if (!IsValid(LobbyPC))
-	{
-		return;
-	}
+	if (!IsValid(LobbyPC)) return;
+	
 	LobbyPC->ClientToMainMenu();
 }
 
@@ -529,29 +466,7 @@ void USGLobbyWidget::OnClickedChangeUsernameButton()
 	ASGLobbyPlayerController* LobbyPC =
 		Cast<ASGLobbyPlayerController>(GetOwningPlayer());
 
-	if (!LobbyPC)
-	{
-		UE_LOG(
-			LogTemp,
-			Error,
-			TEXT(
-				"[LobbyWidget] LobbyPlayerController가 없습니다. "
-				"OwningPlayer=%s Class=%s"
-			),
-			*GetNameSafe(GetOwningPlayer()),
-			GetOwningPlayer()
-				? *GetOwningPlayer()->GetClass()->GetName()
-				: TEXT("None")
-		);
-
-		return;
-	}
-
-	UE_LOG(
-		LogTemp,
-		Log,
-		TEXT("[LobbyWidget] 이름 변경 버튼 클릭")
-	);
+	if (!LobbyPC) return;
 
 	LobbyPC->OpenChangeUsernameWidget();
 }
