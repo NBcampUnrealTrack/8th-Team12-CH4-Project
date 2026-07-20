@@ -56,6 +56,35 @@ void ASGLobbyPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
+void ASGLobbyPlayerController::OnRep_PlayerState()
+{
+	Super::OnRep_PlayerState();
+	
+	ASGLobbyPlayerState* LobbyPS = GetPlayerState<ASGLobbyPlayerState>();
+	const FString Message = FString::Printf(
+		TEXT("[LobbyPC] OnRep_PlayerState Local=%d PlayerState=%s Class=%s CastLobbyPS=%d"),
+		IsLocalController(),
+		*GetNameSafe(PlayerState),
+		PlayerState ? *PlayerState->GetClass()->GetName() : TEXT("None"),
+		IsValid(LobbyPS)
+	);
+	
+	UE_LOG(LogTemp, Warning, TEXT("%s"), *Message);
+	
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 10.f, IsValid(LobbyPS) ? FColor::Green : FColor::Red, Message);
+	}
+	
+	if (IsLocalController() && IsValid(LobbyPS))
+	{
+		if (USGLobbyWidget* LobbyWidget = Cast<USGLobbyWidget>(LobbyWidgetInstance))
+		{
+			LobbyWidget->BindLobbyPlayerState();
+		}
+	}
+}
+
 void ASGLobbyPlayerController::SellectReady()
 {
 	ASGLobbyPlayerState* LobbyPlayerState  = GetPlayerState<ASGLobbyPlayerState>();

@@ -5,11 +5,8 @@
 #include "UI/SGPlayerSlotWidget.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
-#include "Components/VerticalBox.h"
 #include "Components/Image.h"
 #include "Engine/Texture2D.h"
-#include "GameState/SGLobbyGameState.h"
-#include "Kismet/GameplayStatics.h"
 #include "SoccerGame/Public/PlayerController/SGLobbyPlayerController.h"
 #include "Character/SGCharacterDataAsset.h"
 
@@ -37,8 +34,8 @@ void USGLobbyWidget::NativeConstruct()
 		if (BlueSlot)
 		{
 			BlueSlot->SetSlotTeamTag(BlueTag);
-			BlueSlot->OnSlotClicked.RemoveDynamic(this, &USGLobbyWidget::HandleSlotClicked);
-			BlueSlot->OnSlotClicked.AddDynamic(this, &USGLobbyWidget::HandleSlotClicked);
+			BlueSlot->OnSlotClicked.AddUniqueDynamic(this, &USGLobbyWidget::HandleSlotClicked);
+			
 		}
 	}
 	for (auto* RedSlot : RedTeamSlots)
@@ -46,8 +43,7 @@ void USGLobbyWidget::NativeConstruct()
 		if (RedSlot)
 		{
 			RedSlot->SetSlotTeamTag(RedTag);
-			RedSlot->OnSlotClicked.RemoveDynamic(this, &USGLobbyWidget::HandleSlotClicked);
-			RedSlot->OnSlotClicked.AddDynamic(this, &USGLobbyWidget::HandleSlotClicked);
+			RedSlot->OnSlotClicked.AddUniqueDynamic(this, &USGLobbyWidget::HandleSlotClicked);
 		}
 	}
 	for (auto* WaitingSlot : WaitingSlots)
@@ -55,21 +51,17 @@ void USGLobbyWidget::NativeConstruct()
 		if (WaitingSlot)
 		{
 			WaitingSlot->SetSlotTeamTag(WaitingTag);
-			WaitingSlot->OnSlotClicked.RemoveDynamic(this, &USGLobbyWidget::HandleSlotClicked);
-			WaitingSlot->OnSlotClicked.AddDynamic(this, &USGLobbyWidget::HandleSlotClicked);
+			WaitingSlot->OnSlotClicked.AddUniqueDynamic(this, &USGLobbyWidget::HandleSlotClicked);
 		}
 	}
 	
 	if (ReadyButton)
 	{
-		ReadyButton->OnClicked.RemoveDynamic(this,&USGLobbyWidget::OnReadyButtonClicked);
-		ReadyButton->OnClicked.AddDynamic(this, &USGLobbyWidget::OnReadyButtonClicked);
+		ReadyButton->OnClicked.AddUniqueDynamic(this, &USGLobbyWidget::OnReadyButtonClicked);
 	}
 	if (IsValid(Button_ChangeUserName))
 	{
-		Button_ChangeUserName->OnClicked.RemoveDynamic(this,&USGLobbyWidget::OnClickedChangeUsernameButton);
-
-		Button_ChangeUserName->OnClicked.AddDynamic(this,&USGLobbyWidget::OnClickedChangeUsernameButton);
+		Button_ChangeUserName->OnClicked.AddUniqueDynamic(this,&USGLobbyWidget::OnClickedChangeUsernameButton);
 	}
 	
 	if (IsValid(Text_StartTimer))
@@ -78,20 +70,22 @@ void USGLobbyWidget::NativeConstruct()
 	}
 	if (IsValid(Button_BackToMenu))
 	{
-		Button_BackToMenu->OnClicked.RemoveDynamic(this,&USGLobbyWidget::OnClickedBackMainMenuButton);
-		Button_BackToMenu->OnClicked.AddDynamic(this,&USGLobbyWidget::OnClickedBackMainMenuButton);
+		Button_BackToMenu->OnClicked.AddUniqueDynamic(this,&USGLobbyWidget::OnClickedBackMainMenuButton);
+	}
+	
+	if (IsValid(Button_Left))
+	{
+		Button_Left->OnClicked.AddUniqueDynamic(this, &USGLobbyWidget::OnPrevButtonClicked);
+	}
+	
+	if (IsValid(Button_Right))
+	{
+		Button_Right->OnClicked.AddUniqueDynamic(this, &USGLobbyWidget::OnNextButtonClicked);
 	}
 	
 	
 	UpdateReadyButtonText();
-	
-	GetWorld()->GetTimerManager().SetTimer(
-		InitTimerHandle,
-		this,
-		&USGLobbyWidget::TryInitPlayerState,
-		0.1f,
-		true
-	);
+	BindLobbyPlayerState();
 }
 
 void USGLobbyWidget::NativeDestruct()
@@ -119,8 +113,6 @@ void USGLobbyWidget::NativeDestruct()
 		Button_ChangeUserName->OnClicked.RemoveDynamic(this,&USGLobbyWidget::OnClickedChangeUsernameButton);
 	}
 	
-
-
 	for (USGPlayerSlotWidget* BlueSlot :BlueTeamSlots)
 	{
 		if (IsValid(BlueSlot))
@@ -214,6 +206,29 @@ void USGLobbyWidget::RefreshLobby()
 			}
 		}
 	}
+}
+
+void USGLobbyWidget::BindLobbyPlayerState()
+{
+	
+	APlayerController* LobbyPC = GetOwningPlayer();
+	if (!IsValid(LobbyPC))
+	{
+		
+		return;
+	}
+
+	
+	ASGLobbyPlayerState* LobbyPS = Cast<ASGLobbyPlayerState>(LobbyPC->PlayerState);
+	if (!IsValid(LobbyPS))
+	{
+		return;
+	}
+	
+	
+	LobbyPS->OnTeamChanged.AddUniqueDynamic(this, &USGLobbyWidget::RefreshCharacterSelection);
+	
+	RefreshCharacterSelection();
 }
 
 
@@ -346,33 +361,10 @@ void USGLobbyWidget::UpdateCountdownText(int32 NewTime)
 	}
 }
 
-void USGLobbyWidget::TryInitPlayerState()
-{
-	APlayerController* LobbyPC = GetOwningPlayer();
-	
-	// 아직 PlayerState가 없으면 0.1초 뒤 다시 시도
-	if (!IsValid(LobbyPC) || !IsValid(LobbyPC->PlayerState))
-	{
-		return;
-	}
-	
-	
-	ASGLobbyPlayerState* LobbyPS = Cast<ASGLobbyPlayerState>(LobbyPC->PlayerState);
-	if (IsValid(LobbyPS))
-	{
-		LobbyPS->OnTeamChanged.RemoveDynamic(this,&USGLobbyWidget::RefreshCharacterSelection);
-		LobbyPS->OnTeamChanged.AddDynamic(this,&USGLobbyWidget::RefreshCharacterSelection);
-		
-		RefreshCharacterSelection();
-		
-		GetWorld()->GetTimerManager().ClearTimer(InitTimerHandle);
-	}
-	
-	
-}
 
 void USGLobbyWidget::HandleSlotClicked(FGameplayTag RequestedTeamTag)
 {
+	
 	if (!RequestedTeamTag.IsValid())
 	{
 		return;
@@ -384,8 +376,9 @@ void USGLobbyWidget::HandleSlotClicked(FGameplayTag RequestedTeamTag)
 	{
 		return;
 	}
+	
 	LobbyPlayerController->RequestChangeTeam(RequestedTeamTag);
-
+	
 }
 
 TArray<USGCharacterDataAsset*> USGLobbyWidget::GetFilteredCharacterList()
@@ -420,6 +413,7 @@ void USGLobbyWidget::OnNextButtonClicked()
 {
 	TArray<USGCharacterDataAsset*> FilteredList = GetFilteredCharacterList();
 	
+	
 	if (FilteredList.Num() == 0)
 	{
 		if (GEngine)
@@ -439,6 +433,7 @@ void USGLobbyWidget::OnNextButtonClicked()
 		Image_Character->SetBrushFromTexture(FilteredList[CurrentIndex]->Thumbnail);
 	}
 	
+	// UE_LOG(LogTemp, Warning, TEXT("[SGLobbyWidget] Thumbnail Updated!"));
 	// GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Green, TEXT("[SGLobbyWidget] Thumbnail Updated!"));
 	
 }
