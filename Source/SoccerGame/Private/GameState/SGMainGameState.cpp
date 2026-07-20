@@ -2,12 +2,28 @@
 
 
 #include "GameState/SGMainGameState.h"
+#include "Audio/SGInGameAudioSubsystem.h"
+#include "Engine/World.h"
 #include "Net/UnrealNetwork.h"
 #include "Kismet/GameplayStatics.h"
 #include "PlayerController/SGMainPlayerController.h"
 
 ASGMainGameState::ASGMainGameState()
 {
+}
+
+void ASGMainGameState::MulticastPlayInGameAudioEvent_Implementation(ESGInGameAudioEvent AudioEvent)
+{
+	UWorld* World = GetWorld();
+	if (!IsValid(World) || World->GetNetMode() == NM_DedicatedServer)
+	{
+		return;
+	}
+
+	if (USGInGameAudioSubsystem* AudioSubsystem = World->GetSubsystem<USGInGameAudioSubsystem>())
+	{
+		AudioSubsystem->HandleAudioEvent(AudioEvent);
+	}
 }
 
 void ASGMainGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
