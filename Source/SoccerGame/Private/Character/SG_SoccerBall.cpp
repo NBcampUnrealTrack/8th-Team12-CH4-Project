@@ -350,7 +350,10 @@ void ASG_SoccerBall::OnBallHit(
 
 bool ASG_SoccerBall::CanChangeOwner() const
 {
-    if (!GetWorld()) return false;
+    if (!GetWorld())
+    {
+        return false;
+    }
 
     // Onwer가 바뀔 수 있는 상태인지 체크
     return (GetWorld()->GetTimeSeconds() - LastOwnerChangeTime) >= OwnershipDuration;
