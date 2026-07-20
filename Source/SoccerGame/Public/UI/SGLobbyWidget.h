@@ -47,7 +47,7 @@ protected:
 	virtual void NativeDestruct() override;
 
 	
-#pragma region Binding
+#pragma region UMG Binding
 public:
 	// 블루 팀 슬롯 3개 바인딩
 	UPROPERTY(meta =(BindWidget))
@@ -80,13 +80,6 @@ public:
 	class USGPlayerSlotWidget* WaitingSlot_6;
 	  
 protected:
-	UPROPERTY()
-	TArray<USGPlayerSlotWidget*> BlueTeamSlots;
-	UPROPERTY()
-	TArray<USGPlayerSlotWidget*> RedTeamSlots;
-	UPROPERTY()
-	TArray<USGPlayerSlotWidget*> WaitingSlots;
-	
 	// Ready 버튼 바인딩 변수
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UButton> ReadyButton;
@@ -111,13 +104,21 @@ protected:
 	
 #pragma region Player
 protected:
+	// Player 정보 목록 배열
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lobby")
+	TArray<FSGPlayerLobbyInfo> PlayerInfos;
+	
 	// PlayerSlot 위젯 클래스 변수
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lobby")
 	TSubclassOf<USGPlayerSlotWidget> PlayerSlotWidgetClass;
 	
-	// Player 정보 목록 배열
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lobby")
-	TArray<FSGPlayerLobbyInfo> PlayerInfos;
+	// 팀별 PlayerSlot
+	UPROPERTY()
+	TArray<USGPlayerSlotWidget*> BlueTeamSlots;
+	UPROPERTY()
+	TArray<USGPlayerSlotWidget*> RedTeamSlots;
+	UPROPERTY()
+	TArray<USGPlayerSlotWidget*> WaitingSlots;
 	
 #pragma endregion
 	
@@ -143,10 +144,6 @@ protected:
 	UTexture2D* Image_Cancel_Pressed;
 	
 public:
-	// Ready 버튼 클릭 콜백 함수 시그니처
-	UFUNCTION()
-	void OnReadyButtonClicked();
-	
 	// Ready 버튼 텍스트 갱신 함수 시그니처
 	void UpdateReadyButtonText();
 	
@@ -212,8 +209,9 @@ protected:
 
 private:
 	
+	// Ready 버튼 클릭 콜백 함수 시그니처
 	UFUNCTION()
-	void OnClickedBackToMenuButton();
+	void OnReadyButtonClicked();
 	
 	UFUNCTION()
 	void OnClickedBackMainMenuButton();
