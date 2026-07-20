@@ -24,6 +24,7 @@ public:
 	
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	virtual void OnRep_PlayerState() override;
 	
 	UFUNCTION(BlueprintCallable, Category = "Lobby")
 	void SellectReady();

@@ -82,6 +82,7 @@ void ASGLobbyPlayerState::SetTeamInternal(const FGameplayTag& SelectTeamTag)
 	{
 		CurrentTeamTag = SelectTeamTag;
 		OnRep_ChangeTeam();
+		ForceNetUpdate();
 	}
 }
 

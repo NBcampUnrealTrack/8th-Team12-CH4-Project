@@ -185,12 +185,7 @@ public:
 	
 #pragma endregion
 
-#pragma region Sound
-public:
-	UPROPERTY(EditDefaultsOnly, Category = "UI|Sounds")
-	class USoundBase* Sound_TimerTick;
-#pragma endregion
-	
+
 public:
 	
 	void AddPlayerInfos(const FSGPlayerLobbyInfo& InPlayerInfos)
@@ -200,6 +195,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void RefreshLobby();
 
+	void BindLobbyPlayerState();
+	
 	// 플레이어 목록 세팅 함수 시그니처
 	UFUNCTION(BlueprintCallable)
 	void SetPlayerInfos(const TArray<FSGPlayerLobbyInfo>& InPlayerInfos);
@@ -208,19 +205,10 @@ public:
 
 	
 protected:
-	// 서버 통신 대기용 타이머 핸들
-	FTimerHandle InitTimerHandle;
-	
-	// PlayerState 연결 재시도 함수
-	UFUNCTION()
-	void TryInitPlayerState();
-	
+
 	// 슬롯 클릭되었을 때 실행될 함수
 	UFUNCTION()
 	void HandleSlotClicked(FGameplayTag RequestedTeamTag);
-
-	
-
 
 private:
 	

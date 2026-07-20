@@ -56,6 +56,21 @@ void ASGLobbyPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
+void ASGLobbyPlayerController::OnRep_PlayerState()
+{
+	Super::OnRep_PlayerState();
+	
+	ASGLobbyPlayerState* LobbyPS = GetPlayerState<ASGLobbyPlayerState>();
+	
+	if (IsLocalController() && IsValid(LobbyPS))
+	{
+		if (USGLobbyWidget* LobbyWidget = Cast<USGLobbyWidget>(LobbyWidgetInstance))
+		{
+			LobbyWidget->BindLobbyPlayerState();
+		}
+	}
+}
+
 void ASGLobbyPlayerController::SellectReady()
 {
 	ASGLobbyPlayerState* LobbyPlayerState  = GetPlayerState<ASGLobbyPlayerState>();
