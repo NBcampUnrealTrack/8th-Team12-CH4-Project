@@ -91,15 +91,50 @@ protected:
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UButton> Button_BackToMenu;
 	
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UButton> Button_ChangeUserName;
+	
+	UPROPERTY(meta = (BindWidget))
+	UButton* Button_Left;
+	
+	UPROPERTY(meta = (BindWidget))
+	UButton* Button_Right;
+	
 	// Ready 후 Start Timer
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UTextBlock> Text_StartTimer;
 	
+	// 캐릭터 썸네일
 	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<UButton> Button_ChangeUserName;
+	UImage* Image_Character;
+	
+#pragma endregion
+	
+#pragma region Button OnClicked functions
+	
+protected:
 
+	// 플레이어 슬롯 클릭되었을 때 실행될 함수
+	UFUNCTION()
+	void HandleSlotClicked(FGameplayTag RequestedTeamTag);
+
+private:
 	
+	UFUNCTION()
+	void OnReadyButtonClicked();
 	
+	UFUNCTION()
+	void OnClickedBackMainMenuButton();
+	
+	UFUNCTION()
+	void OnClickedChangeUsernameButton();
+	
+	UFUNCTION(BlueprintCallable, Category = "Character")
+	void OnNextButtonClicked();
+
+	UFUNCTION(BlueprintCallable, Category = "Character")
+	void OnPrevButtonClicked();
+
 #pragma endregion
 	
 #pragma region Player
@@ -149,17 +184,9 @@ public:
 	
 #pragma endregion
 	
-#pragma region Select Character
+#pragma region Character Selection
 	
 protected:
-	UPROPERTY(meta = (BindWidget))
-	UImage* Image_Character;
-	
-	UPROPERTY(meta = (BindWidget))
-	UButton* Button_Left;
-	
-	UPROPERTY(meta = (BindWidget))
-	UButton* Button_Right;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character")
 	TArray<USGCharacterDataAsset*> CharacterList;
@@ -170,56 +197,29 @@ protected:
 	TArray<USGCharacterDataAsset*> GetFilteredCharacterList();
 	
 public:
-	// 캐릭터 변경 버튼 클릭 함수
-	UFUNCTION(BlueprintCallable, Category = "Character")
-	void OnNextButtonClicked();
-
-	UFUNCTION(BlueprintCallable, Category = "Character")
-	void OnPrevButtonClicked();
-	
 	UFUNCTION(BlueprintCallable)
 	void RefreshCharacterSelection();
 	
 #pragma endregion
 
-
+#pragma region UI Info Setting
 public:
+	
+	void BindLobbyPlayerState();
 	
 	void AddPlayerInfos(const FSGPlayerLobbyInfo& InPlayerInfos)
 	{ PlayerInfos.Add(InPlayerInfos); }
 	
-	// 로비 UI 갱신 함수 시그니처
+	// 로비 UI 갱신
 	UFUNCTION(BlueprintCallable)
 	void RefreshLobby();
-
-	void BindLobbyPlayerState();
 	
-	// 플레이어 목록 세팅 함수 시그니처
+	// 플레이어 목록 세팅
 	UFUNCTION(BlueprintCallable)
 	void SetPlayerInfos(const TArray<FSGPlayerLobbyInfo>& InPlayerInfos);
 	
 	void UpdateCountdownText(int32 NewTime);
-
 	
-protected:
-
-	// 슬롯 클릭되었을 때 실행될 함수
-	UFUNCTION()
-	void HandleSlotClicked(FGameplayTag RequestedTeamTag);
-
-private:
-	
-	// Ready 버튼 클릭 콜백 함수 시그니처
-	UFUNCTION()
-	void OnReadyButtonClicked();
-	
-	UFUNCTION()
-	void OnClickedBackMainMenuButton();
-	
-	UFUNCTION()
-	void OnClickedChangeUsernameButton();
-	
-
-	
+#pragma endregion
 	
 };
