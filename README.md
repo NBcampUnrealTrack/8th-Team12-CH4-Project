@@ -49,7 +49,7 @@ https://youtu.be/bDR28NwmFdo
 | **안나영** | 팀장 / 클라이언트 | UI, 세션/캐릭터 선택 | [GitHub](https://github.com/any0509/) |
 | **엄정훈** | 기획 / 클라이언트 | 오디오 시스템/에셋, 팀 머티리얼/스폰 통합 | [GitHub](https://github.com/opalian872) |
 | **남상욱** | 클라이언트 | 레벨 디자인, 라이팅, 골 충돌, VFX | [Portfolio](https://github.com/0307nsu) |
-| **신보원** | 클라이언트 | 오디오 시스템/에셋, 팀 머티리얼/스폰 통합 | [GitHub](https://github.com/bowonsin) |
+| **신보원** | 클라이언트 | Steam 멀티플레이 , 로비, 게임플레임 워크 , 경기 진행 | [GitHub](https://github.com/bowonsin) |
 | **이건이** | 클라이언트 | 랜덤 아이템, 투사체, GameplayEffect| [GitHub](https://github.com/geoniLee) |
 | **장재봉** | 클라이언트 | 캐릭터, GAS, 공 네트워크, 애니메이션 | [GitHub](https://github.com/uju031104) |
 
